@@ -1,69 +1,167 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Fingerprint, GlobeSimple, ShieldCheck } from "@phosphor-icons/react";
+import { motion } from "motion/react";
+import { currentUser, useHris } from "@/lib/store";
+
+const DEMO_ACCOUNTS = [
+  { email: "samuel.hartono@hrissmart.id", name: "Samuel Hartono", role: "HR Manager", desc: "Dashboard HR penuh, review absensi & risiko fraud, kelola karyawan, approval cuti/lembur." },
+  { email: "ratna.wijaya@hrissmart.id", name: "Ratna Wijaya", role: "Supervisor Cabang", desc: "Pantau kehadiran tim Bandung dan setujui pengajuan subordinate." },
+  { email: "budi.santoso@hrissmart.id", name: "Budi Santoso", role: "Karyawan", desc: "Check-in GPS + face + liveness, lihat shift, saldo cuti, dan riwayat." },
+];
+
+const DEMO_PASSWORD = "demo1234";
+
+export default function LoginPage() {
+  const { state, login } = useHris();
+  const router = useRouter();
+  const me = currentUser(state);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (me && state.session) {
+      router.replace(me.user.role === "employee" ? "/app" : "/admin");
+    }
+  }, [me, state.session, router]);
+
+  async function doLogin(em: string, pw: string) {
+    setBusy(true);
+    setError(null);
+    const err = await login(em, pw);
+    setBusy(false);
+    if (err) setError(err);
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <main className="grid min-h-[100dvh] lg:grid-cols-[1.15fr_0.85fr]">
+      {/* Panel identitas — asymmetric bento with liquid glass */}
+      <section className="relative hidden flex-col justify-between overflow-hidden border-r border-rule bg-card px-12 py-12 lg:flex">
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_20%_80%,rgba(220,38,38,0.06),transparent_50%),radial-gradient(ellipse_at_80%_20%,rgba(14,165,233,0.06),transparent_50%)]" />
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.16,1,0.3,1] }} className="flex items-center gap-2 font-mono text-xs tracking-widest text-ink-soft uppercase">
+          <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-stamp opacity-30" /><span className="relative inline-flex h-2 w-2 rounded-full bg-stamp" /></span>
+          HRIS — Buku Induk
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.6, ease: [0.16,1,0.3,1] }} className="max-w-[30ch]">
+          <p className="text-5xl leading-[0.95] font-extrabold tracking-tighter text-balance">
+            Satu rekaman kehadiran yang <em className="text-stamp not-italic underline decoration-stamp/40 decoration-4 underline-offset-8">terverifikasi</em>.
+          </p>
+          <p className="mt-6 max-w-[52ch] text-sm leading-relaxed text-ink-soft">
+            GPS geofencing, face verification 1:1, liveness detection, device binding,
+            dan risk engine — dicap dalam satu alur detik.
+          </p>
+        </motion.div>
+        <motion.ul initial="hidden" animate="visible" variants={{ hidden:{}, visible:{ transition:{ staggerChildren:0.08, delayChildren:0.3 }}}} className="grid max-w-md grid-cols-3 gap-4 font-mono text-[11px] tracking-wide text-ink-faint uppercase">
+          {["Geofence", "Face 1:1", "Liveness", "Device Bind", "Risk Engine", "Audit Trail"].map((f) => (
+            <motion.li key={f} variants={{ hidden:{ opacity:0, y:6 }, visible:{ opacity:1, y:0 }}} className="border-t border-ledger pt-2">
+              {f}
+            </motion.li>
+          ))}
+        </motion.ul>
+      </section>
+
+      {/* Panel masuk */}
+      <section className="flex flex-col justify-center px-6 py-12 sm:px-14">
+        <div className="mx-auto w-full max-w-md">
+          <div className="mb-8 flex items-center gap-2 lg:hidden">
+            <ShieldCheck size={20} weight="duotone" className="text-stamp" />
+            <span className="font-mono text-xs tracking-widest uppercase">HRIS</span>
+          </div>
+          <h1 className="text-xl font-bold tracking-tight">Masuk</h1>
+          <p className="mt-1 mb-6 text-sm text-ink-soft">
+            Gunakan akun perusahaan Anda. Demo memakai kredensial sintetis.
+          </p>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void doLogin(email, password);
+            }}
+            className="space-y-3"
+          >
+            <div>
+              <label htmlFor="email" className="mb-1 block font-mono text-[11px] tracking-widest text-ink-faint uppercase">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="username"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="nama@hrissmart.id"
+                className="w-full border border-rule bg-card px-3 py-2.5 text-sm outline-none focus:border-official"
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="mb-1 block font-mono text-[11px] tracking-widest text-ink-faint uppercase">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full border border-rule bg-card px-3 py-2.5 text-sm outline-none focus:border-official"
+              />
+            </div>
+            {error && (
+              <p role="alert" className="border border-stamp/40 bg-stamp/5 px-3 py-2 text-sm text-stamp-deep">
+                {error}
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={busy}
+              className="btn-press w-full cursor-pointer bg-ink px-4 py-2.5 text-sm font-semibold text-paper disabled:opacity-60"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+              {busy ? "Memeriksa…" : "Masuk"}
+            </button>
+          </form>
+
+          <motion.div initial="hidden" animate="visible" variants={{ hidden:{}, visible:{ transition:{ staggerChildren:0.07, delayChildren:0.2 }}}} className="mt-8">
+            <p className="mb-2 font-mono text-[11px] tracking-widest text-ink-faint uppercase">Akun demo · password {DEMO_PASSWORD}</p>
+            <div className="space-y-2">
+              {DEMO_ACCOUNTS.map((r) => (
+                <motion.button
+                  key={r.email}
+                  variants={{ hidden:{ opacity:0, y:8 }, visible:{ opacity:1, y:0, transition:{ type:"spring", stiffness:100, damping:20 }}}}
+                  whileHover={{ y:-1 }} whileTap={{ scale:0.98 }}
+                  disabled={busy}
+                  onClick={() => {
+                    setEmail(r.email);
+                    setPassword(DEMO_PASSWORD);
+                    void doLogin(r.email, DEMO_PASSWORD);
+                  }}
+                  className="group w-full cursor-pointer border border-rule bg-card p-3.5 text-left shadow-[0_8px_24px_-16px_rgba(0,0,0,0.12)] hover:border-official focus-visible:border-official disabled:opacity-60"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-semibold tracking-tight">{r.name}</span>
+                    <span className="font-mono text-[11px] tracking-widest text-stamp uppercase group-hover:text-official">
+                      {r.role} →
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs leading-snug text-ink-soft">{r.desc}</p>
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
+
+          <p className="mt-8 flex items-start gap-2 text-xs leading-relaxed text-ink-faint">
+            <GlobeSimple size={14} weight="light" className="mt-0.5 shrink-0" />
+            Lokasi &amp; kamera hanya diakses saat Anda melakukan absensi — tidak ada
+            pelacakan di luar itu.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </section>
+    </main>
   );
 }

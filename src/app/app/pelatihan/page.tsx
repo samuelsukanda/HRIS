@@ -1,0 +1,103 @@
+"use client";
+
+import { useMemo } from "react";
+import { GraduationCap } from "@phosphor-icons/react";
+import { EmptyState, PageHead, Stamp } from "@/components/ui";
+import { currentUser, useHris } from "@/lib/store";
+
+export default function MyPelatihan() {
+  const { state, dispatch } = useHris();
+  const { data } = state;
+  const me = currentUser(state);
+
+  const trainings = useMemo(() =>
+    data.trainings.map((t) => {
+      const myEnroll = data.trainingEnrollments.find((e) => e.trainingId === t.id && e.employeeId === me?.employee.id && e.status !== "cancelled");
+      return { ...t, enrolled: !!myEnroll, myEnrollment: myEnroll };
+    }),
+    [data.trainings, data.trainingEnrollments, me],
+  );
+
+  const myEnrolled = useMemo(() =>
+    data.trainingEnrollments.filter((e) => e.employeeId === me?.employee.id && e.status !== "cancelled"),
+    [data.trainingEnrollments, me],
+  );
+
+  function enroll(trainingId: string) {
+    if (!me) return;
+    dispatch({
+      type: "ENROLL_TRAINING",
+      enrollment: {
+        id: `TRE-${String(data.trainingEnrollments.length + 1).padStart(3, "0")}`,
+        trainingId,
+        employeeId: me.employee.id,
+        status: "enrolled",
+        enrolledAt: new Date().toISOString(),
+      },
+    });
+  }
+
+  function cancel(enrollmentId: string) {
+    dispatch({ type: "CANCEL_ENROLLMENT", id: enrollmentId });
+  }
+
+  return (
+    <>
+      <PageHead title="Pelatihan" sub="Jadwal pelatihan yang tersedia dan yang sudah Anda ikuti." />
+
+      {myEnrolled.length > 0 && (
+        <section className="mb-6">
+          <h2 className="mb-2 font-mono text-[11px] tracking-widest text-ink-faint uppercase">Pelatihan Saya</h2>
+          <div className="space-y-2">
+            {myEnrolled.map((e) => {
+              const t = data.trainings.find((tr) => tr.id === e.trainingId);
+              return (
+                <div key={e.id} className="flex items-center justify-between border border-rule bg-card p-3">
+                  <div>
+                    <p className="text-sm font-semibold">{t?.title}</p>
+                    <p className="text-xs text-ink-soft">{t?.startDate} — {t?.endDate}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Stamp kind={e.status === "completed" ? "approved" : "pending"}>{e.status}</Stamp>
+                    {e.status === "enrolled" && (
+                      <button onClick={() => cancel(e.id)} className="btn-press rounded border border-stamp px-2 py-1 text-[10px] font-semibold text-stamp hover:bg-stamp/10">Cancel</button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      <section>
+        <h2 className="mb-2 font-mono text-[11px] tracking-widest text-ink-faint uppercase">Pelatihan Tersedia</h2>
+        {trainings.length === 0 ? (
+          <EmptyState icon={GraduationCap} title="Belum ada pelatihan" body="Cek kembali nanti untuk jadwal pelatihan baru." />
+        ) : (
+          <div className="space-y-3">
+            {trainings.map((t) => (
+              <section key={t.id} className="border border-rule bg-card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-semibold">{t.title}</h3>
+                    <p className="text-xs text-ink-soft">{t.provider} · {t.startDate} — {t.endDate}</p>
+                  </div>
+                  <Stamp kind={t.status === "completed" ? "approved" : t.enrolled ? "pending" : "neutral"}>
+                    {t.enrolled ? "Enrolled" : t.status}
+                  </Stamp>
+                </div>
+                <p className="mt-2 text-sm text-ink-soft">{t.description}</p>
+                {!t.enrolled && t.status === "upcoming" && (
+                  <button onClick={() => enroll(t.id)} className="btn-press mt-3 border border-official px-3 py-1.5 text-xs font-semibold text-official hover:bg-official/10">
+                    Daftar
+                  </button>
+                )}
+              </section>
+            ))}
+          </div>
+        )}
+      </section>
+    </>
+  );
+}
