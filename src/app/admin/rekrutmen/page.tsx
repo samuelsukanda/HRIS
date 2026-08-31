@@ -236,9 +236,9 @@ export default function AdminRekrutmen() {
           <Field label="Deskripsi Pekerjaan">
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
           </Field>
-          <button onClick={handleSave} className="btn-press w-full bg-official py-2.5 text-sm font-semibold text-white" disabled={!title || !salaryRange}>
+          <Btn variant="official" onClick={handleSave} disabled={!title || !salaryRange} className="w-full">
             {editId ? "Simpan Perubahan" : "Publikasikan Lowongan"}
-          </button>
+          </Btn>
         </div>
       </Modal>
     </>
