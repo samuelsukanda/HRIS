@@ -164,6 +164,31 @@ textarea {
   animation: stamp-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+.leaflet-container {
+  z-index: 0;
+  font-family: var(--font-sans);
+  background: var(--color-paper);
+}
+.leaflet-control-attribution {
+  font-size: 9px;
+}
+.hris-map-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--color-stamp);
+  box-shadow: 0 1px 4px rgb(32 36 42 / 35%);
+}
+.hris-map-marker span {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

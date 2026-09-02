@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(npx tsc --noEmit)",
+      "Shell(npm:*)",
+      "Shell(npx eslint src/proxy.ts src/app/app/page.tsx src/lib/store.tsx)",
+      "Shell(npx eslint src/components/location-map-picker.tsx src/components/location-map-picker-dynamic.tsx src/app/admin/lokasi/page.tsx)",
+      "Shell(if:*)",
+      "Shell(Test-Path:*)",
+      "Shell({:*)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
+}

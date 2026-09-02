@@ -37,7 +37,8 @@ HRIS menggantikan proses HR manual (Excel, absensi fisik, approval WhatsApp) dal
 
 - **MVP (tahap ini):** Auth & RBAC demo, Dashboard (HR/Manager/Employee), Organization & Work Location (radius editor), Employee management, Attendance Engine (GPS→Geofence→Face sim→Liveness sim→Schedule→Risk score), Shift & Roster, Leave (saldo/pengajuan/approval), Overtime, Reports+CSV export, Audit Log, Attendance Review admin.
 - **Biometrik disimulasikan realistis:** kamera asli via getUserMedia; skor face/liveness dihasilkan pipeline simulasi deterministik; arsitektur siap diganti vendor SDK (on-device atau server-side).
-- **Ditunda (menu disabled di navigasi):** Payroll, Recruitment, Performance, Training, Assets, Reimbursement (Phase 3–4); offline mode; Flutter native.
+- **Tersedia penuh (sebelumnya ditunda, kini terhubung di navigasi):** Payroll, Rekrutmen, Performa, Pelatihan, Aset, Reimbursement.
+- **Ditunda:** offline mode; aplikasi native (Flutter).
 - Pesan error absensi harus spesifik dan edukatif (jarak aktual vs radius, checklist wajah), bukan "attendance failed".
 - Mock data layer TypeScript bertipe sesuai entitas PRD §61; API route tipis sebagai seam pengganti backend.
 

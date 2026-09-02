@@ -3,7 +3,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type {
   ApprovalEntry,
-  Announcement,
   Asset,
   AssetAssignment,
   AttendanceRecord,
@@ -13,7 +12,6 @@ import type {
   HrisData,
   JobPosting,
   LeaveRequest,
-  Notification,
   OvertimeRequest,
   Reimbursement,
   RosterEntry,
@@ -514,8 +512,6 @@ function reducer(state: State, action: Action): State {
       return { ...state, data: { ...state.data, leaveRequests: state.data.leaveRequests.map((l) => (l.id === action.id ? { ...l, status: "cancelled" as const } : l)) } };
     case "CREATE_LOCATION":
       return { ...state, data: { ...state.data, workLocations: [...state.data.workLocations, action.location] } };
-    case "UPDATE_LOCATION":
-      return { ...state, data: { ...state.data, workLocations: state.data.workLocations.map((l) => (l.id === action.id ? { ...l, ...action.data } : l)) } };
     case "DELETE_LOCATION":
       return { ...state, data: { ...state.data, workLocations: state.data.workLocations.filter((l) => l.id !== action.id) } };
   }
@@ -627,7 +623,7 @@ async function syncAction(a: Action): Promise<boolean> {
     case "CREATE_EMPLOYEE":
       return (await postJSON("/api/employees", { name: a.employee.name, email: a.employee.email, phone: a.employee.phone, role: a.employee.positionId, position: a.employee.positionId, division: a.employee.departmentId, base_salary: a.employee.baseSalary, allowance: a.employee.allowance, location_id: a.employee.workLocationId, join_date: a.employee.joinDate })).r.ok;
     case "UPDATE_EMPLOYEE":
-      return (await postJSON(`/api/employees/${a.id}`, { ...a.data, base_salary: (a.data as any).baseSalary, location_id: (a.data as any).locationId }, "PATCH")).r.ok;
+      return (await postJSON(`/api/employees/${a.id}`, a.data, "PATCH")).r.ok;
     case "DELETE_EMPLOYEE":
       return (await postJSON(`/api/employees/${a.id}`, {}, "DELETE")).r.ok;
     case "UPDATE_PROFILE":
@@ -672,8 +668,6 @@ async function syncAction(a: Action): Promise<boolean> {
       return (await postJSON(`/api/leave/${a.id}`, { cancel: true }, "PATCH")).r.ok;
     case "CREATE_LOCATION":
       return (await postJSON("/api/locations", a.location)).r.ok;
-    case "UPDATE_LOCATION":
-      return (await postJSON(`/api/locations/${a.id}`, a.data, "PATCH")).r.ok;
     case "DELETE_LOCATION":
       return (await postJSON(`/api/locations/${a.id}`, {}, "DELETE")).r.ok;
     case "MARK_NOTIFICATION_READ":

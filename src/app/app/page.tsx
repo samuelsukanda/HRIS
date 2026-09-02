@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowRight, CalendarBlank, Fingerprint, HandHeart, Megaphone, Wallet } from "@phosphor-icons/react";
+import { ArrowRight, Briefcase, Fingerprint, GraduationCap, HandHeart, Megaphone, NotePencil, Package, Wallet } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { Stamp } from "@/components/ui";
 import { leaveBalance } from "@/lib/engine";
@@ -115,26 +115,47 @@ export default function EmployeeHome() {
         <div className="grid gap-4">
           <motion.div variants={{ hidden:{ opacity:0, y:8 }, visible:{ opacity:1, y:0 }}}><QuickCard
             href="/app/pelatihan"
-            icon={Megaphone}
+            icon={GraduationCap}
             title="Pelatihan"
             value="Kelas"
             sub="jadwal →"
           /></motion.div>
           <motion.div variants={{ hidden:{ opacity:0, y:8 }, visible:{ opacity:1, y:0 }}}><QuickCard
             href="/app/aset"
-            icon={Megaphone}
+            icon={Package}
             title="Aset"
             value="Inventaris"
             sub="saya →"
           /></motion.div>
         </div>
       </div>
+      <div className="grid grid-cols-2 gap-4">
+        <motion.div variants={{ hidden:{ opacity:0, y:8 }, visible:{ opacity:1, y:0 }}}><QuickCard
+          href="/app/lembur"
+          icon={Briefcase}
+          title="Lembur"
+          value="Overtime"
+          sub="ajukan lembur →"
+        /></motion.div>
+        <motion.div variants={{ hidden:{ opacity:0, y:8 }, visible:{ opacity:1, y:0 }}}><QuickCard
+          href="/app/performa"
+          icon={NotePencil}
+          title="Performa"
+          value="Review"
+          sub="penilaian saya →"
+        /></motion.div>
+      </div>
 
       {/* Pengumuman */}
       <section className="mt-6">
-        <h2 className="mb-2 flex items-center gap-2 font-semibold">
-          <Megaphone size={16} weight="duotone" className="text-stamp" /> Pengumuman
-        </h2>
+        <div className="mb-2 flex items-baseline justify-between">
+          <h2 className="flex items-center gap-2 font-semibold">
+            <Megaphone size={16} weight="duotone" className="text-stamp" /> Pengumuman
+          </h2>
+          <Link href="/app/pengumuman" className="text-xs font-medium text-official underline underline-offset-2 hover:text-official-deep">
+            lihat semua →
+          </Link>
+        </div>
         <ul className="divide-y divide-ledger/60 border border-rule bg-card">
           {data.announcements.map((a) => (
             <li key={a.id} className="px-4 py-3">
