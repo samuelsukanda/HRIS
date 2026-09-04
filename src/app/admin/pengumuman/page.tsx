@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Megaphone, Pencil, Trash } from "@phosphor-icons/react";
 import { Btn, EmptyState, Field, IconBtn, Input, Modal, PageHead, Select, Textarea } from "@/components/ui";
 import { useHris } from "@/lib/store";
+import { confirmDelete, toastOk } from "@/lib/swal";
 
 type Cat = "pengumuman" | "kebijakan" | "libur" | "acara";
 
@@ -30,15 +31,21 @@ export default function AdminPengumumanPage() {
     if (!title.trim() || !body.trim()) return;
     if (editId) {
       dispatch({ type: "UPDATE_ANNOUNCEMENT", id: editId, title: title.trim(), body: body.trim(), category, date });
+      toastOk("Pengumuman disimpan");
     } else {
       const id = `ANN-${String(data.announcements.length + 1).padStart(3, "0")}`;
       dispatch({ type: "CREATE_ANNOUNCEMENT", announcement: { id, title: title.trim(), body: body.trim(), category, date } });
+      toastOk("Pengumuman diterbitkan");
     }
     reset();
   }
 
-  function del(id: string) {
-    dispatch({ type: "DELETE_ANNOUNCEMENT", id });
+  async function del(id: string) {
+    const a = data.announcements.find((x) => x.id === id);
+    if (await confirmDelete(a?.title ?? "pengumuman ini")) {
+      dispatch({ type: "DELETE_ANNOUNCEMENT", id });
+      toastOk("Pengumuman dihapus");
+    }
   }
 
   return (

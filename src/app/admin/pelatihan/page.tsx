@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { GraduationCap, Pencil, Trash } from "@phosphor-icons/react";
-import { Btn, EmptyState, Field, Input, Modal, PageHead, Pager, Select, Stamp, Textarea } from "@/components/ui";
+import { Btn, EmptyState, Field, IconBtn, Input, Modal, PageHead, Pager, Select, Stamp, Textarea } from "@/components/ui";
 import { useHris } from "@/lib/store";
+import { confirmDelete, toastOk } from "@/lib/swal";
 import type { Training } from "@/lib/types";
 
 type TrainingStatus = "upcoming" | "ongoing" | "completed";
@@ -73,19 +74,23 @@ export default function AdminPelatihan() {
         id: editId,
         data: { title, provider, startDate, endDate, description, maxParticipants, status },
       });
+      toastOk("Pelatihan disimpan");
     } else {
       const newTraining: Training = {
         id: `TRN-${String(data.trainings.length + 100).padStart(3, "0")}`,
         title, provider, startDate, endDate, description, maxParticipants, status,
       };
       dispatch({ type: "CREATE_TRAINING", training: newTraining });
+      toastOk("Pelatihan ditambahkan");
     }
     resetForm();
   }
 
-  function handleDelete(id: string) {
-    if (confirm("Hapus pelatihan ini dari sistem?")) {
+  async function handleDelete(id: string) {
+    const t = data.trainings.find((x) => x.id === id);
+    if (await confirmDelete(t?.title ?? "pelatihan ini")) {
       dispatch({ type: "DELETE_TRAINING", id });
+      toastOk("Pelatihan dihapus");
     }
   }
 
@@ -112,8 +117,8 @@ export default function AdminPelatihan() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Stamp kind={STATUS_KIND[t.status as TrainingStatus] ?? "neutral"}>{t.status}</Stamp>
-                  <button onClick={() => startEdit(t as any)} className="btn-press p-1 text-ink-faint hover:text-official"><Pencil size={14} /></button>
-                  <button onClick={() => handleDelete(t.id)} className="btn-press p-1 text-ink-faint hover:text-stamp"><Trash size={14} /></button>
+                  <IconBtn label={`Edit ${t.title}`} icon={Pencil} onClick={() => startEdit(t as any)} />
+                  <IconBtn label={`Hapus ${t.title}`} icon={Trash} onClick={() => handleDelete(t.id)} />
                 </div>
               </div>
               <p className="mt-2 text-sm text-ink-soft">{t.description}</p>

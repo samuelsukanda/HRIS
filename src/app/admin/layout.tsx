@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Archive,
   Briefcase,
@@ -16,6 +16,7 @@ import {
   Megaphone,
   NotePencil,
   Package,
+  MagnifyingGlass,
   SignOut,
   SquaresFour,
   Ticket,
@@ -91,16 +92,40 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const me = currentUser(state);
   const router = useRouter();
   const { dispatch, logout } = useHris();
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const [cmdQ, setCmdQ] = useState("");
+  // ponytail: Cmd+K global search — filter karyawan/cuti/lembur in-memory
+  useEffect(()=> { const h=(e:KeyboardEvent)=>{ if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="k"){ e.preventDefault(); setCmdOpen(v=>!v); }}; window.addEventListener("keydown",h); return ()=> window.removeEventListener("keydown",h); },[]);
 
   return (
     <div className="flex h-full flex-col bg-card">
       <div className="flex items-center gap-2 border-b border-rule px-5 py-5">
         <Fingerprint size={22} weight="duotone" className="text-stamp" />
-        <div>
+        <div className="flex-1">
           <p className="text-sm leading-tight font-bold tracking-tight">HRIS</p>
           <p className="font-mono text-[10px] tracking-widest text-ink-faint uppercase">Human Resource</p>
         </div>
+        <button onClick={()=> setCmdOpen(true)} aria-label="Cari (Ctrl+K)" title="Cari (Ctrl+K)" className="btn-press inline-flex min-h-9 min-w-9 items-center justify-center rounded border border-rule bg-paper p-2 text-ink-soft hover:text-ink"><MagnifyingGlass size={16} weight="bold" /></button>
       </div>
+      {cmdOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-ink/30 p-4" onClick={()=> setCmdOpen(false)}>
+          <div className="w-full max-w-lg rounded-[12px] border border-rule bg-card shadow-xl" onClick={e=> e.stopPropagation()}>
+            <input autoFocus value={cmdQ} onChange={e=> setCmdQ(e.target.value)} placeholder="Cari karyawan, cuti, lembur..." className="w-full border-b border-rule bg-transparent px-4 py-3 text-sm outline-none" />
+            <div className="max-h-72 overflow-auto p-2">
+              {(() => {
+                const q=cmdQ.toLowerCase().trim();
+                if(!q) return <p className="px-3 py-6 text-center text-xs text-ink-faint">Ketik untuk mencari…</p>;
+                const emps=state.data.employees.filter(e=> `${e.name} ${e.id}`.toLowerCase().includes(q)).slice(0,5);
+                const leaves=state.data.leaveRequests.filter(r=> r.reason.toLowerCase().includes(q)).slice(0,3);
+                const ots=state.data.overtimeRequests.filter(r=> r.reason.toLowerCase().includes(q)).slice(0,3);
+                const all=[...emps.map(e=> ({label:e.name, sub:e.id, href:"/admin/karyawan"})), ...leaves.map(l=> ({label:`Cuti ${l.id}`, sub:l.reason.slice(0,30), href:"/admin/cuti"})), ...ots.map(o=> ({label:`Lembur ${o.id}`, sub:o.reason.slice(0,30), href:"/admin/lembur"}))];
+                if(all.length===0) return <p className="px-3 py-4 text-xs text-ink-faint">Tidak ada hasil</p>;
+                return <ul className="space-y-1">{all.map(a=> <li key={a.label}><Link href={a.href} onClick={()=> setCmdOpen(false)} className="flex justify-between rounded px-3 py-2 text-sm hover:bg-black/[0.04]"><span className="font-medium">{a.label}</span><span className="text-xs text-ink-faint">{a.sub}</span></Link></li>)}</ul>;
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         {GROUPS.map((g) => (
@@ -190,7 +215,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Bar atas mobile */}
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-rule bg-card px-4 py-3 lg:hidden">
-        <button onClick={() => setOpen(true)} className="btn-press cursor-pointer rounded-[4px] border border-rule px-2.5 py-1.5 text-sm font-semibold">
+        <button onClick={() => setOpen(true)} className="btn-press inline-flex cursor-pointer items-center justify-center gap-2 rounded-[4px] border border-rule px-2.5 py-1.5 text-sm font-semibold min-h-9">
           Menu
         </button>
         <span className="font-mono text-xs tracking-widest uppercase">HRIS</span>

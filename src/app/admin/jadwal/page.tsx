@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, MoonStars } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowRight, MoonStars, Pencil, Trash } from "@phosphor-icons/react";
 import { Btn, IconBtn, PageHead, Modal } from "@/components/ui";
+import { confirmDelete, formModal, toastOk } from "@/lib/swal";
 import { addDays, fmtDateID, parseLocalISO, toLocalISO } from "@/lib/format";
 import { useHris } from "@/lib/store";
 
-const SHIFT_CODE: Record<string, string> = { "S-PAGI": "P", "S-SIANG": "S", "S-MALAM": "M", "S-OFFICE": "O" };
+const SHIFT_CODE: Record<string, string> = { "S-PAGI": "P", "S-SIANG": "S", "S-MALAM": "M", "S-OFFICE": "OH" };
 const SHIFT_LABEL: Record<string, string> = {
   "S-PAGI": "Pagi",
   "S-SIANG": "Siang",
@@ -30,42 +31,70 @@ export default function AdminSchedule() {
   const isCurrentWeekVisible =
     new Date(weekStart) <= parseLocalISO(today) && parseLocalISO(today) <= parseLocalISO(addDays(weekStart, 6));
 
+  const [shiftModal, setShiftModal] = useState(false);
+
+  async function editShift(s: { id: string; name: string; start: string; end: string; graceMinutes: number }) {
+    const v = await formModal<{ name: string; start: string; end: string; grace: string }>("Edit Shift", [
+      { key: "name", label: "Nama shift", value: s.name },
+      { key: "start", label: "Jam mulai (HH:MM)", value: s.start },
+      { key: "end", label: "Jam selesai (HH:MM)", value: s.end },
+      { key: "grace", label: "Grace (menit)", value: String(s.graceMinutes), type: "number" },
+    ], "name");
+    if (!v || !v.name.trim()) return;
+    dispatch({ type: "UPDATE_SHIFT", id: s.id, data: { name: v.name.trim(), start: v.start || s.start, end: v.end || s.end, graceMinutes: Number(v.grace) || s.graceMinutes } });
+    toastOk("Shift disimpan");
+  }
+
+  async function deleteShift(s: { id: string; name: string }) {
+    if (await confirmDelete(s.name)) {
+      dispatch({ type: "DELETE_SHIFT", id: s.id });
+      toastOk("Shift dihapus");
+    }
+  }
+
   return (
     <>
       <PageHead
         title="Jadwal & Shift"
         sub="Papan roster mingguan seluruh lokasi. Klik kotak jadwal untuk mengubah/menugaskan shift karyawan."
-        action={
-          <div className="flex items-center gap-2">
-            <Btn variant="secondary" icon={ArrowLeft} aria-label="Minggu sebelumnya" onClick={() => setWeekStart(addDays(weekStart, -7))} className="px-2.5" />
-            <span className="tnum min-w-44 text-center text-sm font-semibold">
-              {fmtDateID(days[0]!).replace(/^\w+, /, "")} — {fmtDateID(days[6]!).replace(/^\w+, /, "")}
-            </span>
-            <Btn variant="secondary" icon={ArrowRight} aria-label="Minggu berikutnya" onClick={() => setWeekStart(addDays(weekStart, 7))} className="px-2.5" />
-          </div>
-        }
       />
 
-      {/* Pola shift — with CRUD */}
-      <ShiftManager />
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Toolbar sejajar: filter tanggal kiri, tambah shift kanan */}
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Btn variant="secondary" size="sm" icon={ArrowLeft} aria-label="Minggu sebelumnya" onClick={() => setWeekStart(addDays(weekStart, -7))} />
+          <span className="tnum min-w-44 text-center text-sm font-semibold">
+            {fmtDateID(days[0]!).replace(/^\w+, /, "")} — {fmtDateID(days[6]!).replace(/^\w+, /, "")}
+          </span>
+          <Btn variant="secondary" size="sm" icon={ArrowRight} aria-label="Minggu berikutnya" onClick={() => setWeekStart(addDays(weekStart, 7))} />
+        </div>
+        <Btn variant="official" size="sm" onClick={() => setShiftModal(true)}>+ Shift</Btn>
+      </div>
+
+      {/* Pola shift — kartu seragam, aksi selalu terlihat di footer */}
+      <div className="mb-6 grid items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {data.shifts.map((s) => (
-          <div key={s.id} className={`group border p-4 ${s.crossesMidnight ? "border-stamp/30 bg-card" : "border-rule bg-card"}`}>
-            <p className="flex items-center justify-between gap-2 text-sm font-semibold">
-              <span>{s.name}</span>
-              <span className="flex items-center gap-1">
-                {s.crossesMidnight && <span className="flex items-center gap-1 text-[10px] tracking-widest text-stamp-deep uppercase"><MoonStars size={12} weight="fill" /> Midnight</span>}
-                <Btn variant="ghost" size="sm" onClick={()=> { const n=prompt("Nama shift",s.name); if(!n) return; const st=prompt("Jam mulai (HH:MM)",s.start) ?? s.start; const en=prompt("Jam selesai",s.end) ?? s.end; const gr=Number(prompt("Grace menit",String(s.graceMinutes)) ?? s.graceMinutes); dispatch({type:"UPDATE_SHIFT", id:s.id, data:{ name:n, start:st, end:en, graceMinutes:gr }}); }} className="opacity-0 group-hover:opacity-100">Edit</Btn>
-                <Btn variant="ghost" size="sm" onClick={()=> { if(confirm(`Hapus ${s.name}?`)) dispatch({type:"DELETE_SHIFT", id:s.id}); }} className="opacity-0 group-hover:opacity-100 text-stamp">Hapus</Btn>
-              </span>
-            </p>
+          <div key={s.id} className={`flex flex-col border p-4 ${s.crossesMidnight ? "border-stamp/30 bg-card" : "border-rule bg-card"}`}>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm font-semibold leading-snug">{s.name}</p>
+              {s.crossesMidnight && (
+                <span className="flex shrink-0 items-center gap-1 text-[10px] tracking-widest text-stamp-deep uppercase">
+                  <MoonStars size={12} weight="fill" /> Midnight
+                </span>
+              )}
+            </div>
             <p className="tnum mt-1 font-mono text-lg">
               {s.start}–{s.end}
             </p>
             <p className="mt-1 text-xs text-ink-faint">Grace period {s.graceMinutes} menit</p>
+            <div className="mt-3 flex items-center justify-end gap-1 border-t border-ledger/40 pt-2.5">
+              <IconBtn label={`Edit ${s.name}`} icon={Pencil} onClick={() => void editShift(s)} />
+              <IconBtn label={`Hapus ${s.name}`} icon={Trash} onClick={() => void deleteShift(s)} className="hover:text-stamp" />
+            </div>
           </div>
         ))}
       </div>
+      <ShiftManager open={shiftModal} onClose={() => setShiftModal(false)} />
 
       {/* Papan roster */}
       <div className="overflow-x-auto border border-rule bg-card">
@@ -140,7 +169,7 @@ export default function AdminSchedule() {
       </div>
 
       <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-faint">
-        <LegendSwatch label="O Office 09:00–17:00" cls="border-rule bg-paper text-ink-soft" />
+        <LegendSwatch label="OH Office 09:00–17:00" cls="border-rule bg-paper text-ink-soft" />
         <LegendSwatch label="P Pagi 07:00–15:00" cls="border-rule bg-paper text-ink-soft" />
         <LegendSwatch label="S Siang 15:00–23:00" cls="border-rule bg-paper text-ink-soft" />
         <LegendSwatch label="M Malam 23:00–07:00" cls="border-official bg-official/10 text-official-deep" />
@@ -198,26 +227,24 @@ function LegendSwatch({ label, cls }: { label: string; cls: string }) {
   );
 }
 
-function ShiftManager(){
-  const {state,dispatch}=useHris();
-  const [open,setOpen]=useState(false);
+function ShiftManager({ open, onClose }: { open: boolean; onClose: () => void }){
+  const {dispatch}=useHris();
   const [form,setForm]=useState({ name:"", start:"09:00", end:"17:00", graceMinutes:15 });
+  if (!open) return null;
   return (
-    <div className="mb-4 flex justify-end">
-      <Btn onClick={()=> setOpen(true)}>+ Shift</Btn>
-      {open && (
-        <Modal open={open} onClose={()=> setOpen(false)} title="Shift Baru">
-          <div className="space-y-3">
-            <label className="text-xs">Nama<input value={form.name} onChange={e=> setForm({...form,name:e.target.value})} className="mt-1 w-full border border-rule bg-paper px-2 py-1.5 text-sm" /></label>
-            <div className="grid grid-cols-3 gap-2">
-              <label className="text-xs">Mulai<input type="time" value={form.start} onChange={e=> setForm({...form,start:e.target.value})} className="mt-1 w-full border border-rule bg-paper px-2 py-1.5 text-sm" /></label>
-              <label className="text-xs">Selesai<input type="time" value={form.end} onChange={e=> setForm({...form,end:e.target.value})} className="mt-1 w-full border border-rule bg-paper px-2 py-1.5 text-sm" /></label>
-              <label className="text-xs">Grace<input type="number" value={form.graceMinutes} onChange={e=> setForm({...form,graceMinutes:Number(e.target.value)})} className="mt-1 w-full border border-rule bg-paper px-2 py-1.5 text-sm" /></label>
-            </div>
-            <Btn onClick={()=> { if(!form.name) return; const id=`S-${form.name.toUpperCase().replace(/\s+/g,"")}-${Date.now()}`; dispatch({type:"CREATE_SHIFT", shift:{ id, name:form.name, start:form.start, end:form.end, graceMinutes:form.graceMinutes, crossesMidnight: form.end < form.start }}); setOpen(false); setForm({ name:"", start:"09:00", end:"17:00", graceMinutes:15 }); }}>Simpan</Btn>
-          </div>
-        </Modal>
-      )}
-    </div>
+    <Modal open={open} onClose={onClose} title="Shift Baru">
+      <div className="space-y-5">
+        <label className="block text-xs font-semibold tracking-wide text-ink-soft uppercase">Nama<input value={form.name} onChange={e=> setForm({...form,name:e.target.value})} placeholder="Contoh: Shift Pagi" className="mt-2 w-full border border-rule bg-paper px-3 py-2 text-sm" /></label>
+        <div className="grid grid-cols-3 gap-3">
+          <label className="block text-xs font-semibold tracking-wide text-ink-soft uppercase">Mulai<input type="time" value={form.start} onChange={e=> setForm({...form,start:e.target.value})} className="mt-2 w-full border border-rule bg-paper px-3 py-2 text-sm" /></label>
+          <label className="block text-xs font-semibold tracking-wide text-ink-soft uppercase">Selesai<input type="time" value={form.end} onChange={e=> setForm({...form,end:e.target.value})} className="mt-2 w-full border border-rule bg-paper px-3 py-2 text-sm" /></label>
+          <label className="block text-xs font-semibold tracking-wide text-ink-soft uppercase">Grace<input type="number" value={form.graceMinutes} onChange={e=> setForm({...form,graceMinutes:Number(e.target.value)})} className="mt-2 w-full border border-rule bg-paper px-3 py-2 text-sm" /></label>
+        </div>
+        <div className="flex gap-2 border-t border-ledger/40 pt-4">
+          <Btn onClick={()=> { if(!form.name.trim()) return; const id=`S-${form.name.toUpperCase().replace(/\s+/g,"")}-${Date.now()}`; dispatch({type:"CREATE_SHIFT", shift:{ id, name:form.name.trim(), start:form.start, end:form.end, graceMinutes:form.graceMinutes, crossesMidnight: form.end < form.start }}); onClose(); setForm({ name:"", start:"09:00", end:"17:00", graceMinutes:15 }); toastOk("Shift ditambahkan"); }}>Simpan</Btn>
+          <Btn variant="ghost" onClick={onClose}>Batal</Btn>
+        </div>
+      </div>
+    </Modal>
   );
 }

@@ -1,11 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarBlank, Check, X } from "@phosphor-icons/react";
+import { CalendarBlank, CaretLeft, CaretRight, Check, X } from "@phosphor-icons/react";
 import { Avatar, Btn, EmptyState, PageHead, Pager, Select, Stamp, StatusStamp } from "@/components/ui";
 import { leaveBalance } from "@/lib/engine";
 import { fmtDateID, fmtDateShortID } from "@/lib/format";
 import { currentUser, useHris } from "@/lib/store";
+
+const BULAN_ID = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+function monthLabel(ym: string) {
+  const [y, m] = ym.split("-").map(Number);
+  if (!y || !m) return ym;
+  return `${BULAN_ID[m - 1]} ${y}`;
+}
 
 export default function AdminCutiPage() {
   const { state, dispatch } = useHris();
@@ -15,6 +22,8 @@ export default function AdminCutiPage() {
 
   const [empId, setEmpId] = useState(data.employees[0]?.id ?? "");
   const [q, setQ] = useState("");
+  const [view, setView] = useState<"list"|"calendar">("list");
+  const [calMonth, setCalMonth] = useState(()=> new Date().toISOString().slice(0,7));
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
   const LIMIT = 10;
@@ -60,7 +69,28 @@ export default function AdminCutiPage() {
         title="Cuti"
         sub="Alurnya sederhana: pengajuan masuk sebagai Pending, HR memutuskan lewat Setujui/Tolak, saldo karyawan langsung terpotong, dan keputusan tercatat di audit log."
       />
-      <div className="mb-4 flex gap-2"><input value={q} onChange={e=> setQ(e.target.value)} placeholder="Cari nama/alasan..." className="flex-1 border border-rule bg-card px-3 py-2 text-sm" /><span className="text-xs text-ink-faint py-2">{requests.length} hasil</span></div>
+      <div className="mb-4 flex gap-2"><input value={q} onChange={e=> setQ(e.target.value)} placeholder="Cari nama/alasan..." className="flex-1 border border-rule bg-card px-3 py-2 text-sm" /><span className="text-xs text-ink-faint py-2">{requests.length} hasil</span><Btn variant={view==="list"?"primary":"secondary"} size="sm" onClick={()=> setView(view==="list"?"calendar":"list")}>{view==="list"?"Kalender":"List"}</Btn></div>
+      {view==="calendar" && (
+        <div className="mb-6 border border-rule bg-card p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <button aria-label="Bulan sebelumnya" onClick={()=> setCalMonth(m=> { const d=new Date(m+"-01"); d.setMonth(d.getMonth()-1); return d.toISOString().slice(0,7);})} className="btn-press inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-[4px] border border-rule bg-card text-ink hover:border-ink-faint"><CaretLeft size={20} weight="bold" /></button>
+            <span className="text-sm font-semibold">{monthLabel(calMonth)}</span>
+            <button aria-label="Bulan berikutnya" onClick={()=> setCalMonth(m=> { const d=new Date(m+"-01"); d.setMonth(d.getMonth()+1); return d.toISOString().slice(0,7);})} className="btn-press inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-[4px] border border-rule bg-card text-ink hover:border-ink-faint"><CaretRight size={20} weight="bold" /></button>
+          </div>
+          <div className="grid grid-cols-7 gap-1 text-center font-mono text-[10px] text-ink-faint"><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span></div>
+          <div className="mt-1 grid grid-cols-7 gap-1">
+            {(()=>{
+              const [y,m]=calMonth.split("-").map(Number); const first=new Date(y,m-1,1); const startIdx=(first.getDay()+6)%7; const dim=new Date(y,m,0).getDate();
+              return Array.from({length: startIdx+dim},(_,i)=> {
+                if(i<startIdx) return <div key={`e-${i}`} />;
+                const day=i-startIdx+1; const iso=`${calMonth}-${String(day).padStart(2,"0")}`;
+                const dayLeaves=requests.filter(r=> r.startDate<=iso && iso<=r.endDate);
+                return <div key={iso} className="min-h-14 border border-ledger/30 bg-paper p-1 text-left"><span className="font-mono text-xs">{day}</span>{dayLeaves.slice(0,2).map(r=> <span key={r.id} className="mt-0.5 block truncate rounded bg-stamp/10 px-1 py-0.5 text-[10px] text-stamp-deep">{data.employees.find(e=> e.id===r.employeeId)?.name.split(" ")[0]}</span>)}{dayLeaves.length>2 && <span className="text-[9px] text-ink-faint">+{dayLeaves.length-2}</span>}</div>;
+              });
+            })()}
+          </div>
+        </div>
+      )}
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         {/* Daftar pengajuan */}
@@ -70,10 +100,10 @@ export default function AdminCutiPage() {
             <div className="flex items-center gap-3">
               {canDecide && selected.length > 0 && (
                 <div className="flex gap-2">
-                  <Btn variant="official" icon={Check} onClick={() => bulkDecide(true)}>
+                  <Btn variant="official" size="sm" icon={Check} onClick={() => bulkDecide(true)}>
                     Setujui {selected.length}
                   </Btn>
-                  <Btn variant="danger" icon={X} onClick={() => bulkDecide(false)}>
+                  <Btn variant="danger" size="sm" icon={X} onClick={() => bulkDecide(false)}>
                     Tolak {selected.length}
                   </Btn>
                 </div>
@@ -127,11 +157,11 @@ export default function AdminCutiPage() {
                     </div>
                     <StatusStamp status={r.status} />
                     {r.status === "pending" && canDecide && (
-                      <div className="flex shrink-0 gap-2">
-                        <Btn variant="official" icon={Check} onClick={() => decide(r.id, true)}>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <Btn variant="official" size="sm" icon={Check} onClick={() => decide(r.id, true)}>
                           Setujui
                         </Btn>
-                        <Btn variant="danger" icon={X} onClick={() => decide(r.id, false)}>
+                        <Btn variant="secondary" size="sm" icon={X} onClick={() => decide(r.id, false)}>
                           Tolak
                         </Btn>
                       </div>
@@ -177,13 +207,7 @@ export default function AdminCutiPage() {
               <h2 className="font-semibold">Saldo {annualType?.name ?? "Annual Leave"}</h2>
             </header>
             <div className="px-5 py-4">
-              <Select value={empId} onChange={(ev) => setEmpId(ev.target.value)} aria-label="Pilih karyawan">
-                {data.employees.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.name} — {e.id}
-                  </option>
-                ))}
-              </Select>
+              <EmployeeSearchSelect employees={data.employees} value={empId} onChange={setEmpId} />
               {bal && (
                 <dl className="mt-4">
                   {([
@@ -219,5 +243,62 @@ export default function AdminCutiPage() {
         </aside>
       </div>
     </>
+  );
+}
+
+function EmployeeSearchSelect({ employees, value, onChange }: { employees: { id: string; name: string }[]; value: string; onChange: (id: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const selected = employees.find((e) => e.id === value);
+  const filtered = q.trim()
+    ? employees.filter((e) => `${e.name} ${e.id}`.toLowerCase().includes(q.toLowerCase())).slice(0, 8)
+    : employees.slice(0, 8);
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => { setOpen((v) => !v); setQ(""); }}
+        aria-label="Pilih karyawan"
+        aria-expanded={open}
+        className="btn-press flex min-h-9 w-full cursor-pointer items-center justify-between gap-2 rounded-[4px] border border-rule bg-card px-3 py-2 text-sm hover:border-ink-faint"
+      >
+        <span className="truncate">{selected ? `${selected.name} — ${selected.id}` : "Pilih karyawan…"}</span>
+        <span className="shrink-0 text-xs text-ink-faint">▾</span>
+      </button>
+      {open && (
+        <>
+          <button aria-label="Tutup" className="fixed inset-0 z-10 cursor-default" onClick={() => setOpen(false)} />
+          <div className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-[4px] border border-rule bg-card shadow-lg">
+            <div className="border-b border-ledger/40 bg-paper px-2 py-2">
+              <input
+                autoFocus
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Cari nama / ID…"
+                aria-label="Cari karyawan"
+                className="w-full rounded-[4px] border border-rule bg-card px-2.5 py-1.5 text-sm outline-none placeholder:text-ink-faint focus:border-official"
+              />
+            </div>
+            <ul className="max-h-52 overflow-auto py-1">
+              {filtered.map((e) => (
+                <li key={e.id}>
+                  <button
+                    type="button"
+                    onClick={() => { onChange(e.id); setOpen(false); }}
+                    className={`flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-black/[0.04] ${e.id === value ? "font-semibold text-official-deep" : ""}`}
+                  >
+                    <span className="truncate">{e.name}</span>
+                    <span className="tnum shrink-0 text-xs text-ink-faint">{e.id}</span>
+                  </button>
+                </li>
+              ))}
+              {filtered.length === 0 && (
+                <li className="px-3 py-3 text-xs text-ink-faint">Tidak ada hasil</li>
+              )}
+            </ul>
+          </div>
+        </>
+      )}
+    </div>
   );
 }

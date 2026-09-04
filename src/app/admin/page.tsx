@@ -41,7 +41,12 @@ export default function AdminDashboard() {
     a.corrections.filter((c) => c.status === "pending").map((c) => ({ att: a, c })),
   );
   const followUpEmployees = data.employees.filter((e) => e.status === "active" && (e.employmentType === "probation" || e.employmentType === "contract"));
+  // ponytail: expiry = joinDate + 365 hari untuk probation/kontrak — alert jika <30 hari lagi
+  const expirySoon = followUpEmployees.filter(e=> { const jd=new Date(e.joinDate); jd.setFullYear(jd.getFullYear()+1); const diff=(jd.getTime()-Date.now())/86400000; return diff>=0 && diff<=30; });
   const isManager = me?.user.role === "manager";
+  const last7 = Array.from({length:7},(_,i)=>{ const d=new Date(); d.setDate(d.getDate()-(6-i)); const iso=d.toISOString().slice(0,10); const c=data.attendance.filter(a=> a.date===iso && (a.status==="present"||a.status==="late"||a.status==="wfh")).length; return {iso, label: d.toLocaleDateString("id-ID",{weekday:"short"}), c}; });
+  const max7 = Math.max(1, ...last7.map(x=> x.c));
+  const leaveByType = data.leaveTypes.map(t=> ({name:t.name, c:data.leaveRequests.filter(r=> r.typeId===t.id).length})).filter(x=> x.c>0);
 
   return (
     <>
@@ -51,11 +56,11 @@ export default function AdminDashboard() {
           Selamat bertugas{me ? `, ${me.employee.name.split(" ")[0]}` : ""}
         </h1>
         <p className="mt-2 max-w-[60ch] text-sm leading-relaxed text-ink-soft">
-          {isManager ? "Ringkasan tim dan pengajuan yang menunggu persetujuan Anda." : "Ringkasan kehadiran seluruh lokasi hari ini — bento ledger yang hidup."}
+          {isManager ? "Ringkasan tim dan pengajuan yang menunggu persetujuan Anda." : "Ringkasan kehadiran seluruh karyawan untuk hari ini."}
         </p>
       </motion.div>
 
-      <motion.div initial="hidden" animate="visible" variants={{ hidden:{}, visible:{ transition:{ staggerChildren:0.08 }}}} className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.35fr)_380px]">
+      <motion.div initial="hidden" animate="visible" variants={{ hidden:{}, visible:{ transition:{ staggerChildren:0.08 }}}} className="grid items-stretch gap-6 lg:grid-cols-2">
         {/* Kolom buku kas kehadiran — bento with diffusion shadow */}
         <motion.section variants={{ hidden:{ opacity:0, y:12 }, visible:{ opacity:1, y:0, transition:{ type:"spring", stiffness:100, damping:20 }}}} className="rounded-[1.5rem] border border-slate-200/60 bg-white shadow-[0_20px_40px_-20px_rgba(0,0,0,0.08)]">
           <header className="flex items-baseline justify-between border-b border-rule px-5 py-3.5">
@@ -90,7 +95,7 @@ export default function AdminDashboard() {
         </motion.section>
 
         {/* Tabel kehadiran hari ini — janji FIRST VIEWPORT */}
-        <motion.section variants={{ hidden:{ opacity:0, y:12 }, visible:{ opacity:1, y:0, transition:{ delay:0.1, type:"spring", stiffness:100, damping:20 }}}} className="mt-6 rounded-[1.5rem] border border-slate-200/60 bg-white shadow-[0_20px_40px_-20px_rgba(0,0,0,0.08)]">
+        <motion.section variants={{ hidden:{ opacity:0, y:12 }, visible:{ opacity:1, y:0, transition:{ delay:0.1, type:"spring", stiffness:100, damping:20 }}}} className="rounded-[1.5rem] border border-slate-200/60 bg-white shadow-[0_20px_40px_-20px_rgba(0,0,0,0.08)]">
           <header className="flex items-baseline justify-between border-b border-rule px-5 py-3.5">
             <h2 className="font-semibold">Rekaman Hari Ini</h2>
             <Link href="/admin/absensi" className="text-xs font-medium text-official underline underline-offset-2 hover:text-official-deep">
@@ -124,40 +129,77 @@ export default function AdminDashboard() {
             )}
           </ul>
         </motion.section>
-
-        {/* Alert arsip — bento right column */}
-        <motion.aside variants={{ hidden:{ opacity:0, y:12 }, visible:{ opacity:1, y:0, transition:{ delay:0.15, type:"spring", stiffness:100, damping:20 }}}} className="space-y-6">
-          <section className="border border-rule bg-card">
-            <header className="border-b border-rule px-5 py-3.5">
-              <h2 className="font-semibold">Alert Arsip</h2>
-            </header>
-            <ul className="divide-y divide-ledger/60 px-5">
-              <AlertRow n={needsReview.length} label="absensi berisiko tinggi perlu review" href="/admin/absensi" />
-              <AlertRow n={pendingLeave.length} label="pengajuan cuti pending" href="/admin/cuti" />
-              <AlertRow n={pendingOT.length} label="pengajuan lembur pending" href="/admin/lembur" />
-              <AlertRow n={pendingCorrections.length} label="koreksi absensi menunggu keputusan" href="/admin/absensi" />
-              <li className="flex items-center justify-between gap-3 py-3 text-sm">
-                <span className="text-ink-soft">pegawai probation/kontrak perlu follow-up</span>
-                <span className="flex items-center gap-2"><span className="tnum text-xs font-semibold text-ink">{followUpEmployees.length}</span><StatusStamp status={followUpEmployees.length > 0 ? "pending" : "approved"} /></span>
-              </li>
-            </ul>
-          </section>
-
-          <section className="border border-rule bg-card">
-            <header className="border-b border-rule px-5 py-3.5">
-              <h2 className="font-semibold">Pengumuman Terbaru</h2>
-            </header>
-            <ul className="divide-y divide-ledger/60">
-              {data.announcements.slice(0, 3).map((a) => (
-                <li key={a.id} className="px-5 py-3">
-                  <p className="text-sm font-semibold">{a.title}</p>
-                  <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-ink-soft">{a.body}</p>
-                </li>
-              ))}
-            </ul>
-          </section>
-        </motion.aside>
       </motion.div>
+
+      {/* Alert + pengumuman — full width sejajar */}
+      <motion.div initial="hidden" whileInView="visible" viewport={{ once:true }} variants={{ hidden:{}, visible:{ transition:{ staggerChildren:0.08 }}}} className="mt-6 grid items-stretch gap-6 lg:grid-cols-2">
+        <motion.section variants={{ hidden:{ opacity:0, y:12 }, visible:{ opacity:1, y:0 }}} className="rounded-[1.5rem] border border-slate-200/60 bg-white shadow-[0_12px_32px_-16px_rgba(0,0,0,0.08)]">
+          <header className="border-b border-rule px-5 py-3.5">
+            <h2 className="font-semibold">Alert Arsip</h2>
+          </header>
+          <ul className="divide-y divide-ledger/60 px-5">
+            <AlertRow n={needsReview.length} label="absensi berisiko tinggi perlu review" href="/admin/absensi" />
+            <AlertRow n={pendingLeave.length} label="pengajuan cuti pending" href="/admin/cuti" />
+            <AlertRow n={pendingOT.length} label="pengajuan lembur pending" href="/admin/lembur" />
+            <AlertRow n={pendingCorrections.length} label="koreksi absensi menunggu keputusan" href="/admin/absensi" />
+            <li className="flex items-center justify-between gap-3 py-3 text-sm">
+              <span className="text-ink-soft">kontrak ≤30 hari lagi</span>
+              <span className="flex items-center gap-2"><span className="tnum text-xs font-semibold text-ink">{expirySoon.length}</span><StatusStamp status={expirySoon.length > 0 ? "pending" : "approved"} /></span>
+            </li>
+            <li className="flex items-center justify-between gap-3 py-3 text-sm">
+              <span className="text-ink-soft">total probation/kontrak aktif</span>
+              <span className="tnum text-xs font-semibold text-ink">{followUpEmployees.length}</span>
+            </li>
+          </ul>
+        </motion.section>
+
+        <motion.section variants={{ hidden:{ opacity:0, y:12 }, visible:{ opacity:1, y:0 }}} className="rounded-[1.5rem] border border-slate-200/60 bg-white shadow-[0_12px_32px_-16px_rgba(0,0,0,0.08)]">
+          <header className="flex items-baseline justify-between border-b border-rule px-5 py-3.5">
+            <h2 className="font-semibold">Pengumuman Terbaru</h2>
+            <Link href="/admin/pengumuman" className="text-xs font-medium text-official underline underline-offset-2 hover:text-official-deep">
+              kelola →
+            </Link>
+          </header>
+          <ul className="divide-y divide-ledger/60">
+            {data.announcements.slice(0, 3).map((a) => (
+              <li key={a.id} className="px-5 py-3">
+                <p className="text-sm font-semibold">{a.title}</p>
+                <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-ink-soft">{a.body}</p>
+              </li>
+            ))}
+            {data.announcements.length === 0 && (
+              <li className="px-5 py-4 text-sm text-ink-soft">Belum ada pengumuman.</li>
+            )}
+          </ul>
+        </motion.section>
+      </motion.div>
+
+      {/* Analytics 7-hari + pie cuti — Tier1 */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
+        <section className="rounded-[1.5rem] border border-slate-200/60 bg-white p-5 shadow-[0_12px_32px_-16px_rgba(0,0,0,0.08)]">
+          <h3 className="text-sm font-semibold">Tren Kehadiran 7 Hari</h3>
+          <div className="mt-4 flex items-end gap-1.5 h-24">
+            {last7.map(d=> (
+              <div key={d.iso} className="flex-1 flex flex-col items-center gap-1">
+                <div className="w-full rounded-t bg-official transition-all" style={{height: `${(d.c/max7)*72}px`, minHeight: d.c? "8px":"2px", opacity: d.iso===today ? 1 : 0.7}} />
+                <span className="font-mono text-[10px] text-ink-faint">{d.label}</span>
+                <span className="tnum text-xs font-semibold">{d.c}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="rounded-[1.5rem] border border-slate-200/60 bg-white p-5 shadow-[0_12px_32px_-16px_rgba(0,0,0,0.08)]">
+          <h3 className="text-sm font-semibold">Cuti per Jenis</h3>
+          {leaveByType.length===0 ? <p className="mt-3 text-xs text-ink-soft">Belum ada data</p> : (
+            <ul className="mt-3 space-y-2">
+              {leaveByType.slice(0,5).map(t=> {
+                const pct = Math.round((t.c/Math.max(1, data.leaveRequests.length))*100);
+                return <li key={t.name} className="flex items-center justify-between text-xs"><span className="text-ink-soft">{t.name}</span><span className="flex items-center gap-2"><span className="h-1.5 w-16 rounded bg-paper overflow-hidden"><span className="block h-full bg-stamp" style={{width:`${pct}%`}} /></span><span className="tnum font-semibold w-8 text-right">{t.c}</span></span></li>
+              })}
+            </ul>
+          )}
+        </section>
+      </div>
 
       {/* Perlu review — bento wide with breathing dots */}
       <motion.section initial={{ opacity:0 }} whileInView={{ opacity:1 }} viewport={{ once:true }} className="mt-8">

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Bell } from "@phosphor-icons/react";
-import { EmptyState, PageHead } from "@/components/ui";
+import { Btn, EmptyState, PageHead } from "@/components/ui";
 import { currentUser, useHris } from "@/lib/store";
 
 export default function NotificationsPage() {
@@ -31,9 +31,9 @@ export default function NotificationsPage() {
         sub="Pemberitahuan penting dari sistem HRIS."
         action={
           myNotifs.some((n) => !n.read) ? (
-            <button onClick={markAllRead} className="btn-press border border-rule px-3 py-1.5 text-xs font-semibold text-ink-soft hover:bg-black/[0.03]">
+            <Btn variant="secondary" size="sm" onClick={markAllRead}>
               Tandai semua dibaca
-            </button>
+            </Btn>
           ) : undefined
         }
       />

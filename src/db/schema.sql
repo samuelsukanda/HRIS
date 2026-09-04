@@ -231,6 +231,10 @@ CREATE TABLE IF NOT EXISTS assets (
   purchase_date  DATE NOT NULL,
   status         TEXT NOT NULL DEFAULT 'available'
 );
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS brand TEXT;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS model TEXT;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS purchase_price INTEGER;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS notes TEXT;
 
 CREATE TABLE IF NOT EXISTS asset_assignments (
   id           TEXT PRIMARY KEY,

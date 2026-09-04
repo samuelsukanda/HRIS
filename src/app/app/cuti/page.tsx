@@ -105,6 +105,15 @@ export default function EmployeeLeave() {
           <Field label="Alasan" hint="Satu kalimat cukup. Lampiran dokmen menyusul via HR bila diminta.">
             <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Contoh: acara keluarga di luar kota…" />
           </Field>
+          <Field label="Lampiran (opsional)" hint="JPG/PDF max 2MB">
+            <Input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={e=> {
+              const f=e.target.files?.[0];
+              if(!f) return;
+              if(f.size>2*1024*1024){ setFormError("File max 2MB"); return; }
+              // ponytail: simpan nama file saja, file asli tidak di-upload ke server demo
+              setReason(r=> r ? `${r} [Lampiran: ${f.name}]` : `[Lampiran: ${f.name}]`);
+            }} />
+          </Field>
           {formError && (
             <p role="alert" className="text-xs font-medium text-stamp-deep">
               {formError}
@@ -138,12 +147,9 @@ export default function EmployeeLeave() {
                     <p className="mt-1 text-xs text-stamp-deep">Ditolak oleh {r.decidedBy}</p>
                   )}
                   {r.status === "pending" && (
-                    <button
-                      onClick={() => dispatch({ type: "CANCEL_LEAVE", id: r.id })}
-                      className="btn-press mt-2 text-[10px] font-semibold text-stamp hover:underline"
-                    >
+                    <Btn variant="danger" size="sm" onClick={() => dispatch({ type: "CANCEL_LEAVE", id: r.id })} className="mt-2">
                       Batalkan Pengajuan
-                    </button>
+                    </Btn>
                   )}
                 </li>
               );

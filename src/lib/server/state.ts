@@ -156,6 +156,8 @@ export async function loadHrisData(): Promise<HrisData> {
     assets: assetR.rows.map((r): Asset => ({
       id: r.id, name: r.name, category: r.category, serialNumber: r.serial_number,
       purchaseDate: iso(r.purchase_date)!.slice(0, 10), status: r.status,
+      brand: r.brand ?? undefined, model: r.model ?? undefined,
+      purchasePrice: r.purchase_price ?? undefined, notes: r.notes ?? undefined,
     })),
     assetAssignments: assignR.rows.map((r): AssetAssignment => ({
       id: r.id, assetId: r.asset_id, employeeId: r.employee_id,
@@ -205,7 +207,8 @@ export async function nextId(table: string, prefix: string): Promise<string> {
     "employees", "users", "work_locations", "shifts", "roster", "job_postings",
     "candidates", "trainings", "training_enrollments", "assets", "asset_assignments",
     "performance_reviews", "notifications", "announcements", "leave_requests",
-    "overtime_requests", "reimbursements", "audit_logs"
+    "overtime_requests", "reimbursements", "audit_logs",
+    "branches", "departments", "positions", "leave_types"
   ];
   if (!allowed.includes(table)) throw new Error("Invalid table name: " + table);
   const r = await pool.query(`SELECT id FROM ${table} ORDER BY id DESC LIMIT 1`);

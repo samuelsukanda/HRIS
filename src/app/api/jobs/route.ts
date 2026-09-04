@@ -17,12 +17,20 @@ export async function POST(req: Request) {
   if (!HR_ROLES.includes(user.role)) return Response.json({ ok: false }, { status: 403 });
   const body = await req.json() as Record<string,string>;
   const title = body.title;
-  const departmentId = body.departmentId ?? body.department ?? "DP-TEC";
+  let departmentId = body.departmentId ?? body.department;
+  if (!departmentId) {
+    const f = await pool.query(`SELECT id FROM departments ORDER BY id LIMIT 1`);
+    departmentId = f.rows[0]?.id ?? null;
+  } else {
+    const chk = await pool.query(`SELECT id FROM departments WHERE id=$1`, [departmentId]);
+    if (chk.rows.length === 0) return Response.json({ ok: false, error: "Departemen tidak valid." }, { status: 400 });
+  }
   const description = body.description ?? "";
   const requirements = body.requirements ?? "";
   const salaryRange = (body.salaryRange ?? body.salary_range ?? `${body.salary_min ?? ""}-${body.salary_max ?? ""}`.replace(/^-|-$/g,"")) || "Negotiable";
   const status = body.status ?? "open";
   if (!title) return Response.json({ ok: false, error: "Field wajib kosong." }, { status: 400 });
+  if (!departmentId) return Response.json({ ok: false, error: "Belum ada data departemen." }, { status: 400 });
   const id = await nextId("job_postings", "JOB");
   await pool.query(`INSERT INTO job_postings (id,title,department_id,description,requirements,salary_range,status,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())`,
     [id, title, departmentId, description, requirements, salaryRange, status]);

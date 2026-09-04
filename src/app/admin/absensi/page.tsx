@@ -82,7 +82,7 @@ export default function AdminAttendance() {
       </div>
 
       {rows.length === 0 ? (
-        <EmptyState icon={MagnifyingGlass} title="Tidak ada rekaman" body="Ubah tanggal atau filter untuk melihat rekaman absensi hari lain." />
+        <EmptyState icon={MagnifyingGlass} title="Tidak ada data" body="Ubah tanggal atau filter untuk melihat data absensi hari lain." />
       ) : (
         <div className="overflow-x-auto border border-rule bg-card">
           <table className="w-full min-w-[860px] text-sm">

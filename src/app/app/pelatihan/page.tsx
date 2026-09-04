@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { GraduationCap } from "@phosphor-icons/react";
-import { EmptyState, PageHead, Stamp } from "@/components/ui";
+import { Btn, EmptyState, PageHead, Stamp } from "@/components/ui";
 import { currentUser, useHris } from "@/lib/store";
 
 export default function MyPelatihan() {
@@ -60,7 +60,7 @@ export default function MyPelatihan() {
                   <div className="flex items-center gap-2">
                     <Stamp kind={e.status === "completed" ? "approved" : "pending"}>{e.status}</Stamp>
                     {e.status === "enrolled" && (
-                      <button onClick={() => cancel(e.id)} className="btn-press rounded border border-stamp px-2 py-1 text-[10px] font-semibold text-stamp hover:bg-stamp/10">Cancel</button>
+                      <Btn variant="danger" size="sm" onClick={() => cancel(e.id)}>Cancel</Btn>
                     )}
                   </div>
                 </div>
@@ -89,9 +89,9 @@ export default function MyPelatihan() {
                 </div>
                 <p className="mt-2 text-sm text-ink-soft">{t.description}</p>
                 {!t.enrolled && t.status === "upcoming" && (
-                  <button onClick={() => enroll(t.id)} className="btn-press mt-3 border border-official px-3 py-1.5 text-xs font-semibold text-official hover:bg-official/10">
+                  <Btn variant="official" size="sm" onClick={() => enroll(t.id)} className="mt-3">
                     Daftar
-                  </button>
+                  </Btn>
                 )}
               </section>
             ))}

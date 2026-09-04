@@ -85,10 +85,10 @@ export default function AdminLemburPage() {
               <div className="flex items-center gap-3">
                 {canDecide && selected.length > 0 && (
                   <div className="flex gap-2">
-                    <Btn variant="official" icon={Check} onClick={() => bulkDecide(true)}>
+                    <Btn variant="official" size="sm" icon={Check} onClick={() => bulkDecide(true)}>
                       Setujui {selected.length}
                     </Btn>
-                    <Btn variant="danger" icon={X} onClick={() => bulkDecide(false)}>
+                    <Btn variant="secondary" size="sm" icon={X} onClick={() => bulkDecide(false)}>
                       Tolak {selected.length}
                     </Btn>
                   </div>
@@ -149,11 +149,11 @@ export default function AdminLemburPage() {
                         </td>
                         <td className="px-5 py-3">
                           {r.status === "pending" && canDecide ? (
-                            <div className="flex justify-end gap-2">
-                              <Btn variant="official" icon={Check} onClick={() => decide(r.id, true)}>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <Btn variant="official" size="sm" icon={Check} onClick={() => decide(r.id, true)}>
                                 Setujui
                               </Btn>
-                              <Btn variant="danger" icon={X} onClick={() => decide(r.id, false)}>
+                              <Btn variant="secondary" size="sm" icon={X} onClick={() => decide(r.id, false)}>
                                 Tolak
                               </Btn>
                             </div>

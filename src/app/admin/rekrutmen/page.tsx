@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { Plus, UsersThree, Pencil, Trash } from "@phosphor-icons/react";
-import { Btn, EmptyState, Field, Input, Modal, PageHead, Pager, Select, Stamp, Textarea } from "@/components/ui";
+import { Btn, EmptyState, Field, IconBtn, Input, Modal, PageHead, Pager, Select, Stamp, Textarea } from "@/components/ui";
 import { useHris } from "@/lib/store";
+import { confirmDelete, toastOk } from "@/lib/swal";
 import type { JobPosting } from "@/lib/types";
 
 const CANDIDATE_STATUS: Record<string, { label: string; kind: "pending" | "approved" | "rejected" | "neutral" }> = {
@@ -28,7 +29,7 @@ export default function AdminRekrutmen() {
 
   // Form Fields for Job Posting
   const [title, setTitle] = useState("");
-  const [departmentId, setDepartmentId] = useState("DP-TEC");
+  const [departmentId, setDepartmentId] = useState(data.departments[0]?.id ?? "");
   const [salaryRange, setSalaryRange] = useState("");
   const [description, setDescription] = useState("");
   const [requirements, setRequirements] = useState("");
@@ -60,7 +61,7 @@ export default function AdminRekrutmen() {
   const pagedCandidates = candidates.slice((page - 1) * LIMIT, page * LIMIT);
 
   function resetForm() {
-    setTitle(""); setDepartmentId("DP-TEC"); setSalaryRange(""); setDescription("");
+    setTitle(""); setDepartmentId(data.departments[0]?.id ?? ""); setSalaryRange(""); setDescription("");
     setRequirements(""); setStatus("open"); setEditId(null); setShowForm(false);
   }
 
@@ -87,6 +88,7 @@ export default function AdminRekrutmen() {
         id: editId,
         data: { title, departmentId, salaryRange, description, requirements, status },
       });
+      toastOk("Lowongan disimpan");
     } else {
       const newJob: JobPosting = {
         id: `JOB-${String(data.jobPostings.length + 100).padStart(3, "0")}`,
@@ -94,13 +96,16 @@ export default function AdminRekrutmen() {
         createdAt: new Date().toISOString(),
       };
       dispatch({ type: "CREATE_JOB_POSTING", job: newJob });
+      toastOk("Lowongan ditambahkan");
     }
     resetForm();
   }
 
-  function handleDelete(id: string) {
-    if (confirm("Hapus lowongan ini dari sistem?")) {
+  async function handleDelete(id: string) {
+    const j = data.jobPostings.find((x) => x.id === id);
+    if (await confirmDelete(j?.title ?? "lowongan ini")) {
       dispatch({ type: "DELETE_JOB_POSTING", id });
+      toastOk("Lowongan dihapus");
     }
   }
 
@@ -135,8 +140,8 @@ export default function AdminRekrutmen() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Stamp kind={jp.status === "open" ? "approved" : "neutral"}>{jp.status === "open" ? "Open" : "Closed"}</Stamp>
-                    <button onClick={() => startEdit(jp as any)} className="btn-press p-1 text-ink-faint hover:text-official"><Pencil size={14} /></button>
-                    <button onClick={() => handleDelete(jp.id)} className="btn-press p-1 text-ink-faint hover:text-stamp"><Trash size={14} /></button>
+                    <IconBtn label={`Edit ${jp.title}`} icon={Pencil} onClick={() => startEdit(jp as any)} />
+                    <IconBtn label={`Hapus ${jp.title}`} icon={Trash} onClick={() => handleDelete(jp.id)} />
                   </div>
                 </div>
                 <p className="mt-2 text-sm text-ink-soft">{jp.description}</p>

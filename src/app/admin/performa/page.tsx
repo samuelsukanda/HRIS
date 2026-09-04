@@ -4,12 +4,14 @@ import { useMemo, useState } from "react";
 import { NotePencil, Star } from "@phosphor-icons/react";
 import { Btn, EmptyState, Input, Modal, PageHead, Pager, Textarea } from "@/components/ui";
 import { currentUser, useHris } from "@/lib/store";
+import { toastOk } from "@/lib/swal";
 
 export default function AdminPerforma() {
   const { state, dispatch } = useHris();
   const { data } = state;
   const me = currentUser(state);
   const [target, setTarget] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const [score, setScore] = useState(3);
   const [strengths, setStrengths] = useState("");
   const [improvements, setImprovements] = useState("");
@@ -38,6 +40,14 @@ export default function AdminPerforma() {
   );
   const pagedReviews = reviews.slice((page - 1) * LIMIT, page * LIMIT);
 
+  function openForm() {
+    setTarget(null);
+    setStrengths("");
+    setImprovements("");
+    setGoals("");
+    setShowForm(true);
+  }
+
   function submitReview() {
     if (!target || !me) return;
     dispatch({
@@ -48,6 +58,8 @@ export default function AdminPerforma() {
     setStrengths("");
     setImprovements("");
     setGoals("");
+    setShowForm(false);
+    toastOk("Penilaian dikirim");
   }
 
   return (
@@ -55,7 +67,7 @@ export default function AdminPerforma() {
       <PageHead
         title="Performa"
         sub="Penilaian kinerja karyawan per periode."
-        action={<Btn icon={NotePencil} onClick={() => setTarget("new")}>Buat Penilaian</Btn>}
+        action={<Btn icon={NotePencil} onClick={openForm}>Buat Penilaian</Btn>}
       />
       <div className="mb-4 max-w-md">
         <Input placeholder="Cari nama / periode…" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -83,7 +95,7 @@ export default function AdminPerforma() {
               <div className="mt-2 flex items-center gap-2">
                 <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-semibold uppercase ${r.status === "final" ? "bg-official/10 text-official" : r.status === "submitted" ? "bg-yellow-100 text-yellow-700" : "bg-ink/5 text-ink-faint"}`}>{r.status}</span>
                 {r.status !== "final" && me?.user.role === "hr_manager" && (
-                  <button onClick={() => dispatch({ type: "FINALIZE_REVIEW", id: r.id })} className="btn-press rounded border border-official px-2 py-0.5 text-[10px] font-semibold text-official hover:bg-official/10">Finalize</button>
+                  <Btn variant="official" size="sm" onClick={() => dispatch({ type: "FINALIZE_REVIEW", id: r.id })}>Finalize</Btn>
                 )}
               </div>
             </section>
@@ -93,12 +105,12 @@ export default function AdminPerforma() {
 
       <Pager page={page} total={reviews.length} limit={LIMIT} onChange={setPage} />
 
-      {target === "new" && (
-        <Modal open={target === "new"} onClose={() => setTarget(null)} title="Penilaian Baru">
+      {showForm && (
+        <Modal open={showForm} onClose={() => setShowForm(false)} title="Penilaian Baru">
           <div className="space-y-3">
             <div>
               <label className="mb-1 block font-mono text-[11px] tracking-widest text-ink-faint uppercase">Karyawan</label>
-              <select value={target === "new" ? "" : target} onChange={(e) => setTarget(e.target.value)} className="w-full border border-rule bg-card px-3 py-2 text-sm">
+              <select value={target ?? ""} onChange={(e) => setTarget(e.target.value || null)} className="w-full border border-rule bg-card px-3 py-2 text-sm">
                 <option value="">Pilih karyawan</option>
                 {data.employees.filter((e) => e.status === "active").map((e) => (
                   <option key={e.id} value={e.id}>{e.name}</option>

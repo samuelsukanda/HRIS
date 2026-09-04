@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Package, Pencil, Trash } from "@phosphor-icons/react";
 import { Btn, EmptyState, Field, IconBtn, Input, Modal, PageHead, Pager, Select, Stamp, Textarea } from "@/components/ui";
 import { currentUser, useHris } from "@/lib/store";
+import { confirmDelete, toastOk } from "@/lib/swal";
 import type { Asset } from "@/lib/types";
 
 type AssetStatus = "available" | "assigned" | "maintenance" | "retired";
@@ -84,19 +85,23 @@ export default function AdminAset() {
         id: editId,
         data: { name, category, brand, model, serialNumber, purchaseDate, purchasePrice, status, notes },
       });
+      toastOk("Aset disimpan");
     } else {
       const newAsset: Asset = {
         id: `AST-${String(data.assets.length + 100).padStart(3, "0")}`,
         name, category, brand, model, serialNumber, purchaseDate, purchasePrice, status, notes,
       };
       dispatch({ type: "CREATE_ASSET", asset: newAsset });
+      toastOk("Aset ditambahkan");
     }
     resetForm();
   }
 
-  function handleDelete(id: string) {
-    if (confirm("Hapus aset ini dari sistem?")) {
+  async function handleDelete(id: string) {
+    const a = data.assets.find((x) => x.id === id);
+    if (await confirmDelete(a?.name ?? "aset ini")) {
       dispatch({ type: "DELETE_ASSET", id });
+      toastOk("Aset dihapus");
     }
   }
 

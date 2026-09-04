@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Ticket } from "@phosphor-icons/react";
-import { EmptyState, PageHead, Stamp } from "@/components/ui";
+import { Btn, EmptyState, PageHead, Stamp } from "@/components/ui";
 import { currentUser, useHris } from "@/lib/store";
 
 const STATUS_KIND: Record<string, "pending" | "approved" | "rejected" | "neutral"> = {
@@ -51,7 +51,7 @@ export default function MyReimbursements() {
       <PageHead
         title="Reimbursement"
         sub="Ajukan penggantian biaya dan lihat status."
-        action={!showForm ? <button onClick={() => setShowForm(true)} className="btn-press bg-official px-3 py-1.5 text-xs font-semibold text-white">+ Ajukan</button> : undefined}
+        action={!showForm ? <Btn variant="official" size="sm" onClick={() => setShowForm(true)}>+ Ajukan</Btn> : undefined}
       />
 
       {showForm && (
@@ -76,9 +76,13 @@ export default function MyReimbursements() {
               <label className="mb-1 block font-mono text-[11px] tracking-widest text-ink-faint uppercase">Keterangan</label>
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full border border-rule bg-card px-3 py-2 text-sm" placeholder="Jelaskan pengeluaran..." />
             </div>
+            <div>
+              <label className="mb-1 block font-mono text-[11px] tracking-widest text-ink-faint uppercase">Lampiran (opsional)</label>
+              <input type="file" accept=".jpg,.png,.pdf" onChange={e=> { const f=e.target.files?.[0]; if(!f) return; if(f.size>2*1024*1024) return; setDescription(d=> d ? `${d} [Lampiran: ${f.name}]` : `[Lampiran: ${f.name}]`); }} className="w-full border border-rule bg-card px-3 py-2 text-xs" />
+            </div>
             <div className="flex gap-2">
-              <button onClick={submit} className="btn-press bg-official px-4 py-2 text-xs font-semibold text-white" disabled={!amount || !description.trim()}>Submit</button>
-              <button onClick={() => setShowForm(false)} className="btn-press border border-rule px-4 py-2 text-xs text-ink-soft">Batal</button>
+              <Btn variant="official" size="md" onClick={submit} disabled={!amount || !description.trim()}>Submit</Btn>
+              <Btn variant="secondary" size="md" onClick={() => setShowForm(false)}>Batal</Btn>
             </div>
           </div>
         </section>

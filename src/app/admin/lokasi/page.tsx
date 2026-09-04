@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { MapPin } from "@phosphor-icons/react";
-import { Btn, PageHead, Stamp } from "@/components/ui";
+import { useEffect, useMemo, useState } from "react";
+import { MapPin, Pencil, Trash } from "@phosphor-icons/react";
+import { Btn, IconBtn, PageHead, Stamp } from "@/components/ui";
+import { confirmDelete, toastErr, toastOk } from "@/lib/swal";
 import LocationMapPicker from "@/components/location-map-picker-dynamic";
+import LocationMiniMap from "@/components/location-mini-map-dynamic";
 import { useHris } from "@/lib/store";
 import type { WorkLocation } from "@/lib/types";
 
@@ -31,6 +33,7 @@ export default function AdminLocations() {
             dispatch({ type:"CREATE_LOCATION", location:{ id:`LOC-${Date.now()}`, name:form.name.trim(), branchId:form.branchId, latitude:form.latitude, longitude:form.longitude, radiusM:form.radiusM, allowedTypes:["onsite"] }});
             setShowForm(false);
             setForm({ name:"", branchId:"BR-JKT", latitude:-6.2, longitude:106.8, radiusM:100 });
+            toastOk("Lokasi ditambahkan");
           }}
         />
       )}
@@ -41,20 +44,7 @@ export default function AdminLocations() {
         ))}
       </div>
 
-      <section className="mt-8 border border-rule bg-card">
-        <header className="border-b border-rule px-5 py-3.5">
-          <h2 className="font-semibold">Kebijakan Mode WFH</h2>
-        </header>
-        <div className="grid gap-4 px-5 py-4 sm:grid-cols-3 text-sm">
-          <PolicyRow label="GPS Kantor" value="TIDAK DIWAJIBKAN" />
-          <PolicyRow label="Face Verification" value="WAJIB" />
-          <PolicyRow label="Liveness / PAD" value="WAJIB" />
-        </div>
-        <footer className="border-t border-rule bg-paper px-5 py-3 text-xs leading-relaxed text-ink-soft">
-          Rekaman WFH tetap melalui pipeline face &amp; liveness penuh tanpa validasi geofence,
-          sesuai kebijakan PRD §26. Lokasi tidak direkam saat WFH.
-        </footer>
-      </section>
+      <WfhPolicy />
     </>
   );
 }
@@ -119,6 +109,77 @@ function PolicyRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+const WFH_DEFAULTS = { gps: "TIDAK DIWAJIBKAN", face: "WAJIB", liveness: "WAJIB" };
+const WFH_KEY = "hris-wfh-policy";
+
+function loadWfhPolicy(): { gps: string; face: string; liveness: string } {
+  try {
+    const raw = localStorage.getItem(WFH_KEY);
+    if (raw) {
+      const p = JSON.parse(raw) as Partial<typeof WFH_DEFAULTS>;
+      return { gps: p.gps || WFH_DEFAULTS.gps, face: p.face || WFH_DEFAULTS.face, liveness: p.liveness || WFH_DEFAULTS.liveness };
+    }
+  } catch { /* abaikan */ }
+  return { ...WFH_DEFAULTS };
+}
+
+function WfhPolicy() {
+  const [policy, setPolicy] = useState(() => ({ ...WFH_DEFAULTS }));
+  const [ready, setReady] = useState(false);
+  useEffect(() => { setPolicy(loadWfhPolicy()); setReady(true); }, []);
+  if (!ready) return null;
+
+  async function edit() {
+    const Swal = (await import("sweetalert2")).default;
+    const opts = ["WAJIB", "OPSIONAL", "TIDAK DIWAJIBKAN"];
+    const sel = (id: string, val: string) => `<select id="${id}" style="margin-top:4px;width:100%;border:1px solid #d6d3cb;padding:8px;border-radius:4px;font-size:14px">${opts.map((o) => `<option ${o === val ? "selected" : ""}>${o}</option>`).join("")}</select>`;
+    const { value } = await Swal.fire({
+      title: "Edit Kebijakan WFH",
+      html: `<label style="display:block;text-align:left;font-size:12px">GPS Kantor${sel("wfh-gps", policy.gps)}</label><label style="display:block;text-align:left;font-size:12px;margin-top:8px">Face Verification${sel("wfh-face", policy.face)}</label><label style="display:block;text-align:left;font-size:12px;margin-top:8px">Liveness / PAD${sel("wfh-live", policy.liveness)}</label>`,
+      showCancelButton: true, confirmButtonText: "Simpan", cancelButtonText: "Batal",
+      confirmButtonColor: "#2b4a6f", background: "#f6f5f0", color: "#1c1917",
+      preConfirm: () => ({
+        gps: (document.getElementById("wfh-gps") as HTMLSelectElement)?.value ?? policy.gps,
+        face: (document.getElementById("wfh-face") as HTMLSelectElement)?.value ?? policy.face,
+        liveness: (document.getElementById("wfh-live") as HTMLSelectElement)?.value ?? policy.liveness,
+      }),
+    });
+    if (!value) return;
+    setPolicy(value);
+    try { localStorage.setItem(WFH_KEY, JSON.stringify(value)); } catch { /* abaikan */ }
+    toastOk("Kebijakan WFH disimpan");
+  }
+
+  async function reset() {
+    if (await confirmDelete("kebijakan WFH (kembali default)")) {
+      setPolicy({ ...WFH_DEFAULTS });
+      try { localStorage.removeItem(WFH_KEY); } catch { /* abaikan */ }
+      toastOk("Kebijakan direset");
+    }
+  }
+
+  return (
+    <section className="mt-8 border border-rule bg-card">
+      <header className="flex items-center justify-between gap-2 border-b border-rule px-5 py-3.5">
+        <h2 className="font-semibold">Kebijakan Mode WFH</h2>
+        <div className="flex gap-1">
+          <IconBtn label="Edit kebijakan WFH" icon={Pencil} onClick={() => void edit()} />
+          <IconBtn label="Reset kebijakan WFH" icon={Trash} className="hover:text-stamp" onClick={() => void reset()} />
+        </div>
+      </header>
+      <div className="grid gap-4 px-5 py-4 sm:grid-cols-3 text-sm">
+        <PolicyRow label="GPS Kantor" value={policy.gps} />
+        <PolicyRow label="Face Verification" value={policy.face} />
+        <PolicyRow label="Liveness / PAD" value={policy.liveness} />
+      </div>
+      <footer className="border-t border-rule bg-paper px-5 py-3 text-xs leading-relaxed text-ink-soft">
+        Rekaman WFH tetap melalui pipeline face &amp; liveness penuh tanpa validasi geofence.
+        Lokasi tidak direkam saat WFH.
+      </footer>
+    </section>
+  );
+}
+
 function LocationCard({ loc }: { loc: WorkLocation }) {
   const { state, dispatch } = useHris();
   const [edit, setEdit] = useState(false);
@@ -133,10 +194,13 @@ function LocationCard({ loc }: { loc: WorkLocation }) {
     .slice(0, 12)
     .map((a) => a.checkInSnap!);
 
-  const size = 200;
-  const c = size / 2;
-  const maxDist = Math.max(loc.radiusM * 1.6, ...samples.map((s) => s.distanceM), 1);
-  const scale = (c - 14) / maxDist;
+  // Titik check-in hari ini untuk peta real (max 12)
+  const points = samples.slice(0, 12).map((s) => {
+    const dx = s.longitude - loc.longitude;
+    const dy = s.latitude - loc.latitude;
+    const dist = Math.hypot(dx * 111320 * Math.cos((loc.latitude * Math.PI) / 180), dy * 111320);
+    return { latitude: s.latitude, longitude: s.longitude, inside: dist <= loc.radiusM };
+  });
 
   return (
     <section className="border border-rule bg-card">
@@ -154,10 +218,10 @@ function LocationCard({ loc }: { loc: WorkLocation }) {
             </>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Stamp kind="neutral"><MapPin size={11} weight="bold" /> Onsite</Stamp>
-          {!edit && <button onClick={()=> { setForm({ name: loc.name, latitude: loc.latitude, longitude: loc.longitude, radiusM: loc.radiusM }); setEdit(true); }} className="text-xs text-official hover:underline">Edit</button>}
-          <button onClick={()=> { if(confirm(`Hapus ${loc.name}?`)) dispatch({ type:"DELETE_LOCATION", id:loc.id }); }} className="text-xs text-stamp hover:underline">Hapus</button>
+          {!edit && <IconBtn label={`Edit ${loc.name}`} icon={Pencil} onClick={()=> { setForm({ name: loc.name, latitude: loc.latitude, longitude: loc.longitude, radiusM: loc.radiusM }); setEdit(true); }} />}
+          <IconBtn label={`Hapus ${loc.name}`} icon={Trash} onClick={async ()=> { if (await confirmDelete(loc.name)) { dispatch({ type:"DELETE_LOCATION", id:loc.id }); toastOk("Lokasi dihapus"); } }} className="hover:text-stamp" />
         </div>
       </header>
 
@@ -202,7 +266,10 @@ function LocationCard({ loc }: { loc: WorkLocation }) {
               <Btn
                 disabled={!form.name.trim() || !validCoordinates(form.latitude, form.longitude) || form.radiusM <= 0}
                 onClick={() => {
+                  const v = validCoordinates(form.latitude, form.longitude);
+                  if (!v || form.radiusM < 1) { toastErr("Koordinat atau radius tidak valid"); return; }
                   dispatch({ type: "UPDATE_LOCATION", id: loc.id, data: { name: form.name.trim(), latitude: form.latitude, longitude: form.longitude, radiusM: form.radiusM } });
+                  toastOk("Lokasi diperbarui");
                   setEdit(false);
                 }}
                 className="px-3 py-1.5 text-xs"
@@ -216,34 +283,10 @@ function LocationCard({ loc }: { loc: WorkLocation }) {
           )}
         </div>
 
-        {/* Plot sebaran check-in */}
-        <figure className="mx-auto w-[150px] border border-rule bg-paper p-2">
-          <svg viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`Sebaran check-in ${loc.name}`} className="block">
-            <circle cx={c} cy={c} r={loc.radiusM * scale} fill="#2b4a6f08" stroke="#c4ceda" strokeWidth="1.5" strokeDasharray="4 3" />
-            <rect x={c - 5} y={c - 5} width={10} height={10} fill="#2b4a6f" rx="1" />
-            {samples.map((s, i) => {
-              const dx = s.longitude - loc.longitude;
-              const dy = s.latitude - loc.latitude;
-              const dist = Math.hypot(dx * 111320 * Math.cos((loc.latitude * Math.PI) / 180), dy * 111320);
-              const a = Math.atan2(dy, dx);
-              const d = Math.min(dist, maxDist) * scale;
-              const inside = dist <= loc.radiusM;
-              return (
-                <circle
-                  key={i}
-                  cx={c + Math.cos(a) * d}
-                  cy={c - Math.sin(a) * d}
-                  r={3}
-                  fill={inside ? "#2b4a6f" : "#c03a2c"}
-                  opacity={0.85}
-                />
-              );
-            })}
-          </svg>
-          <figcaption className="tnum mt-1 text-center text-[10px] text-ink-faint">
-            check-in hari ini
-          </figcaption>
-        </figure>
+        {/* Peta real sebaran check-in */}
+        <div className="mx-auto w-full max-w-[220px]">
+          <LocationMiniMap latitude={loc.latitude} longitude={loc.longitude} radiusM={loc.radiusM} points={points} />
+        </div>
       </div>
     </section>
   );

@@ -47,10 +47,13 @@ export default function AdminAuditPage() {
         sub="Setiap keputusan dan perubahan data tercatat permanen — termasuk jejak nilai before → after untuk auditabilitas penuh."
       />
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        <Input type="search" value={q} onChange={ev=> setQ(ev.target.value)} placeholder="Cari aktor/action..." aria-label="Cari audit log" className="flex-1 min-w-52" />
-        <Input type="date" value={from} onChange={e=> setFrom(e.target.value)} aria-label="Dari" className="w-36" />
-        <Input type="date" value={to} onChange={e=> setTo(e.target.value)} aria-label="Sampai" className="w-36" />
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative min-w-52 flex-1">
+          <MagnifyingGlass size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-faint" />
+          <Input type="search" value={q} onChange={ev=> setQ(ev.target.value)} placeholder="Cari aktor / action / detail…" aria-label="Cari audit log" className="pl-8" />
+        </div>
+        <label className="flex items-center gap-1.5 text-xs whitespace-nowrap text-ink-faint">Dari<Input type="date" value={from} onChange={e=> setFrom(e.target.value)} aria-label="Dari tanggal" className="w-auto px-2 py-1.5 text-xs" /></label>
+        <label className="flex items-center gap-1.5 text-xs whitespace-nowrap text-ink-faint">s.d.<Input type="date" value={to} onChange={e=> setTo(e.target.value)} aria-label="Sampai tanggal" className="w-auto px-2 py-1.5 text-xs" /></label>
         <Btn variant="secondary" size="sm" onClick={exportCsv}>Export CSV</Btn>
       </div>
 

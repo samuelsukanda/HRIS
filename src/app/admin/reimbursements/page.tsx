@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { CheckCircle, MagnifyingGlass, XCircle } from "@phosphor-icons/react";
-import { EmptyState, Input, PageHead, Pager, Select, Stamp } from "@/components/ui";
+import { Btn, EmptyState, Input, PageHead, Pager, Select, Stamp } from "@/components/ui";
 import { currentUser, useHris } from "@/lib/store";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -83,9 +83,9 @@ export default function AdminReimbursements() {
         <>
           {(isHR || isManager) && selected.length > 0 && (
             <div className="mb-3 flex gap-2">
-              {isManager && <button onClick={() => bulkDecide("manager", true)} className="btn-press rounded bg-official px-3 py-1.5 text-xs font-semibold text-white">Setujui Manager ({selected.length})</button>}
-              {isHR && <button onClick={() => bulkDecide("hr", true)} className="btn-press rounded bg-official px-3 py-1.5 text-xs font-semibold text-white">Setujui HR ({selected.length})</button>}
-              <button onClick={() => bulkDecide(isHR ? "hr" : "manager", false)} className="btn-press rounded bg-stamp px-3 py-1.5 text-xs font-semibold text-white">Tolak ({selected.length})</button>
+              {isManager && <Btn variant="official" size="sm" onClick={() => bulkDecide("manager", true)}>Setujui Manager ({selected.length})</Btn>}
+              {isHR && <Btn variant="official" size="sm" onClick={() => bulkDecide("hr", true)}>Setujui HR ({selected.length})</Btn>}
+              <Btn variant="danger" size="sm" onClick={() => bulkDecide(isHR ? "hr" : "manager", false)}>Tolak ({selected.length})</Btn>
             </div>
           )}
           <div className="overflow-x-auto border border-rule bg-card">
@@ -130,14 +130,14 @@ export default function AdminReimbursements() {
                     <td className="px-3 py-3 text-center">
                       {canApproveManager && (
                         <span className="inline-flex gap-1">
-                          <button onClick={() => decide(r.id, "manager", true)} className="btn-press rounded px-2 py-1 text-xs font-semibold text-official hover:bg-official/10"><CheckCircle size={14} /> Mgr</button>
-                          <button onClick={() => decide(r.id, "manager", false)} className="btn-press rounded px-2 py-1 text-xs font-semibold text-stamp hover:bg-stamp/10"><XCircle size={14} /></button>
+                          <Btn variant="official" size="sm" icon={CheckCircle} onClick={() => decide(r.id, "manager", true)}>Mgr</Btn>
+                          <Btn variant="danger" size="sm" icon={XCircle} aria-label="Tolak" onClick={() => decide(r.id, "manager", false)} />
                         </span>
                       )}
                       {canApproveHR && (
                         <span className="inline-flex gap-1">
-                          <button onClick={() => decide(r.id, "hr", true)} className="btn-press rounded px-2 py-1 text-xs font-semibold text-official hover:bg-official/10"><CheckCircle size={14} /> HR</button>
-                          <button onClick={() => decide(r.id, "hr", false)} className="btn-press rounded px-2 py-1 text-xs font-semibold text-stamp hover:bg-stamp/10"><XCircle size={14} /></button>
+                          <Btn variant="official" size="sm" icon={CheckCircle} onClick={() => decide(r.id, "hr", true)}>HR</Btn>
+                          <Btn variant="danger" size="sm" icon={XCircle} aria-label="Tolak" onClick={() => decide(r.id, "hr", false)} />
                         </span>
                       )}
                       {!canApproveManager && !canApproveHR && (

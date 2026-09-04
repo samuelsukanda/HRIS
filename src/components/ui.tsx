@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { X } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
@@ -73,7 +74,7 @@ export function Btn({
   return (
     <button
       {...props}
-      className={`btn-press inline-flex cursor-pointer items-center justify-center gap-2 rounded-[4px] font-semibold transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40 ${styles} ${sizes} ${className}`}
+      className={`btn-press inline-flex cursor-pointer items-center justify-center gap-2 rounded-[4px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-official/30 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-40 ${styles} ${sizes} ${className}`}
     >
       {IconCmp && <IconCmp size={size==="sm"?14:size==="icon"?16:16} weight="bold" />}
       {children}
@@ -149,12 +150,12 @@ export function Textarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
 
 export function PageHead({ title, sub, action }: { title: string; sub?: string; action?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-      <div>
+    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <div className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight text-ink">{title}</h1>
-        {sub && <p className="mt-1 max-w-[65ch] text-sm text-ink-soft">{sub}</p>}
+        {sub && <p className="max-w-[65ch] text-sm leading-relaxed text-ink-soft">{sub}</p>}
       </div>
-      {action}
+      {action && <div className="flex flex-wrap items-center gap-2">{action}</div>}
     </div>
   );
 }
@@ -238,6 +239,31 @@ export function Toast() {
         <p className="mt-1 text-ink-soft leading-relaxed">{toast.message}</p>
       </div>
       <button onClick={hideToast} className="btn-press text-ink-faint hover:text-ink"><X size={14} /></button>
+    </div>
+  );
+}
+
+export function SignaturePad({ onSave }: { onSave: (dataUrl: string) => void }) {
+  // ponytail: canvas 300x120, simpan sebagai dataURL — cukup untuk demo e-signature
+  const ref = React.useRef<HTMLCanvasElement>(null);
+  const drawing = React.useRef(false);
+  function pos(e: React.MouseEvent | React.TouchEvent){
+    const c=ref.current!; const r=c.getBoundingClientRect();
+    const t=(e as React.TouchEvent).touches?.[0];
+    const x=t ? t.clientX-r.left : (e as React.MouseEvent).clientX-r.left;
+    const y=t ? t.clientY-r.top : (e as React.MouseEvent).clientY-r.top;
+    return {x,y};
+  }
+  function start(e:React.MouseEvent|React.TouchEvent){ drawing.current=true; const {x,y}=pos(e); const ctx=ref.current!.getContext("2d")!; ctx.beginPath(); ctx.moveTo(x,y); }
+  function move(e:React.MouseEvent|React.TouchEvent){ if(!drawing.current) return; const {x,y}=pos(e); const ctx=ref.current!.getContext("2d")!; ctx.lineTo(x,y); ctx.strokeStyle="#0f172a"; ctx.lineWidth=1.7; ctx.lineCap="round"; ctx.stroke(); }
+  function end(){ drawing.current=false; }
+  return (
+    <div className="space-y-2">
+      <canvas ref={ref} width={300} height={120} className="w-full touch-none rounded border border-rule bg-paper" onMouseDown={start} onMouseMove={move} onMouseUp={end} onTouchStart={start} onTouchMove={move} onTouchEnd={end} />
+      <div className="flex gap-2">
+        <Btn variant="secondary" size="sm" onClick={()=> { const c=ref.current!; c.getContext("2d")!.clearRect(0,0,c.width,c.height); }}>Hapus</Btn>
+        <Btn variant="official" size="sm" onClick={()=> { const c=ref.current!; onSave(c.toDataURL("image/png")); }}>Simpan Tanda Tangan</Btn>
+      </div>
     </div>
   );
 }

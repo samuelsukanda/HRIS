@@ -105,32 +105,33 @@ export default function AdminLaporanPage() {
       <PageHead
         title="Laporan"
         sub="Rekap kehadiran bulanan per karyawan dari seluruh rekaman absensi tervalidasi."
-        action={
-          <div className="flex flex-wrap gap-2">
-            <Btn variant="secondary" icon={Download} onClick={exportCsv} disabled={recs.length === 0}>
-              Absensi (CSV)
-            </Btn>
-            <Btn variant="secondary" icon={Download} onClick={exportCuti}>
-              Cuti (CSV)
-            </Btn>
-            <Btn variant="secondary" icon={Download} onClick={exportLembur}>
-              Lembur (CSV)
-            </Btn>
-            <Btn variant="secondary" icon={Download} onClick={exportReimbursement}>
-              Reimburse (CSV)
-            </Btn>
-          </div>
-        }
       />
 
-      <div className="mb-6 max-w-xs">
-        <Select value={month} onChange={(ev) => setMonth(ev.target.value)} aria-label="Pilih periode bulan">
-          {months.map((m) => (
-            <option key={m.value} value={m.value}>
-              {m.label}
-            </option>
-          ))}
-        </Select>
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-2 text-xs whitespace-nowrap text-ink-faint">
+          Periode
+          <Select value={month} onChange={(ev) => setMonth(ev.target.value)} aria-label="Pilih periode bulan" className="w-48 px-2 py-1.5 text-xs">
+            {months.map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
+              </option>
+            ))}
+          </Select>
+        </label>
+        <span className="mx-1 hidden h-5 w-px bg-rule sm:block" aria-hidden />
+        <span className="text-xs font-semibold tracking-wide text-ink-faint uppercase">Export CSV:</span>
+        <Btn variant="secondary" size="sm" icon={Download} onClick={exportCsv} disabled={recs.length === 0}>
+          Absensi
+        </Btn>
+        <Btn variant="secondary" size="sm" icon={Download} onClick={exportCuti}>
+          Cuti
+        </Btn>
+        <Btn variant="secondary" size="sm" icon={Download} onClick={exportLembur}>
+          Lembur
+        </Btn>
+        <Btn variant="secondary" size="sm" icon={Download} onClick={exportReimbursement}>
+          Reimburse
+        </Btn>
       </div>
 
       <section className="border border-rule bg-card">

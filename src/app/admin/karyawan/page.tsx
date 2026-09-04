@@ -5,6 +5,7 @@ import { MagnifyingGlass, SealCheck, WarningCircle, Trash, Pencil } from "@phosp
 import { Avatar, Btn, EmptyState, Field, IconBtn, Input, Modal, PageHead, Pager, Select, Stamp } from "@/components/ui";
 import { fmtDateShortID, parseLocalISO } from "@/lib/format";
 import { useHris } from "@/lib/store";
+import { confirmDelete, toastOk } from "@/lib/swal";
 import type { Employee } from "@/lib/types";
 
 type EmploymentStatus = "probation" | "permanent" | "contract" | "intern" | "resigned";
@@ -21,15 +22,15 @@ export default function AdminEmployees() {
   const [page, setPage] = useState(1);
   const LIMIT = 10;
 
-  // Form Fields
+  // Form Fields — default dari data master pertama (bukan hardcode ID)
   const [name, setName] = useState("");
   const [nik, setNik] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [branchId, setBranchId] = useState("BR-JKT");
-  const [departmentId, setDepartmentId] = useState("DP-TEC");
-  const [positionId, setPositionId] = useState("PS-DEV");
-  const [workLocationId, setWorkLocationId] = useState("LOC-001");
+  const [branchId, setBranchId] = useState(data.branches[0]?.id ?? "");
+  const [departmentId, setDepartmentId] = useState(data.departments[0]?.id ?? "");
+  const [positionId, setPositionId] = useState(data.positions[0]?.id ?? "");
+  const [workLocationId, setWorkLocationId] = useState(data.workLocations[0]?.id ?? "");
   const [employmentType, setEmploymentType] = useState<EmploymentStatus>("probation");
   const [baseSalary, setBaseSalary] = useState(10_000_000);
   const [allowance, setAllowance] = useState(2_000_000);
@@ -54,7 +55,8 @@ export default function AdminEmployees() {
 
   function resetForm() {
     setName(""); setNik(""); setEmail(""); setPhone("");
-    setBranchId("BR-JKT"); setDepartmentId("DP-TEC"); setPositionId("PS-DEV"); setWorkLocationId("LOC-001");
+    setBranchId(data.branches[0]?.id ?? ""); setDepartmentId(data.departments[0]?.id ?? "");
+    setPositionId(data.positions[0]?.id ?? ""); setWorkLocationId(data.workLocations[0]?.id ?? "");
     setEmploymentType("probation"); setBaseSalary(10_000_000); setAllowance(2_000_000);
     setJoinDate(new Date().toISOString().slice(0, 10));
   }
@@ -72,6 +74,7 @@ export default function AdminEmployees() {
     dispatch({ type: "CREATE_EMPLOYEE", employee: newEmp });
     setShowAddForm(false);
     resetForm();
+    toastOk("Karyawan ditambahkan");
   }
 
   function startEdit(e: Employee) {
@@ -104,12 +107,14 @@ export default function AdminEmployees() {
     setShowEditForm(false);
     setSelected(null);
     resetForm();
+    toastOk("Data karyawan disimpan");
   }
 
-  function handleDeactivate(id: string) {
-    if (confirm("Nonaktifkan karyawan ini? Status akan diset tidak aktif.")) {
+  async function handleDeactivate(id: string) {
+    if (await confirmDelete("karyawan ini")) {
       dispatch({ type: "DELETE_EMPLOYEE", id });
       setSelected(null);
+      toastOk("Karyawan dinonaktifkan");
     }
   }
 
