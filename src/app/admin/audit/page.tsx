@@ -44,13 +44,13 @@ export default function AdminAuditPage() {
     <>
       <PageHead
         title="Audit Log"
-        sub="Setiap keputusan dan perubahan data tercatat permanen — termasuk jejak nilai before → after untuk auditabilitas penuh."
+        sub="Lacak aktivitas dan perubahan data untuk memastikan keamanan dan akuntabilitas sistem."
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="relative min-w-52 flex-1">
           <MagnifyingGlass size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-faint" />
-          <Input type="search" value={q} onChange={ev=> setQ(ev.target.value)} placeholder="Cari aktor / action / detail…" aria-label="Cari audit log" className="pl-8" />
+          <Input type="search" value={q} onChange={ev=> setQ(ev.target.value)} placeholder="Cari user / action / detail…" aria-label="Cari audit log" className="pl-8" />
         </div>
         <label className="flex items-center gap-1.5 text-xs whitespace-nowrap text-ink-faint">Dari<Input type="date" value={from} onChange={e=> setFrom(e.target.value)} aria-label="Dari tanggal" className="w-auto px-2 py-1.5 text-xs" /></label>
         <label className="flex items-center gap-1.5 text-xs whitespace-nowrap text-ink-faint">s.d.<Input type="date" value={to} onChange={e=> setTo(e.target.value)} aria-label="Sampai tanggal" className="w-auto px-2 py-1.5 text-xs" /></label>
@@ -74,7 +74,7 @@ export default function AdminAuditPage() {
           <div className="overflow-x-auto">
             <div className={`min-w-[900px] border-b border-rule bg-paper px-5 py-2 text-[11px] font-semibold tracking-wider text-ink-faint uppercase ${ROW}`}>
               <span>Waktu</span>
-              <span>Aktor</span>
+              <span>User</span>
               <span>Action</span>
               <span>Target</span>
               <span>Detail</span>

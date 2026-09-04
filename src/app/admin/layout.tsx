@@ -109,8 +109,8 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
       {cmdOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-ink/30 p-4" onClick={()=> setCmdOpen(false)}>
-          <div className="w-full max-w-lg rounded-[12px] border border-rule bg-card shadow-xl" onClick={e=> e.stopPropagation()}>
-            <input autoFocus value={cmdQ} onChange={e=> setCmdQ(e.target.value)} placeholder="Cari karyawan, cuti, lembur..." className="w-full border-b border-rule bg-transparent px-4 py-3 text-sm outline-none" />
+          <div className="w-full max-w-lg overflow-hidden rounded-[12px] border border-rule bg-card shadow-xl" onClick={e=> e.stopPropagation()}>
+            <input autoFocus value={cmdQ} onChange={e=> setCmdQ(e.target.value)} placeholder="Cari karyawan, cuti, lembur..." aria-label="Cari global" className="w-full border-b border-ledger/60 bg-paper px-4 py-3 text-sm outline-none placeholder:text-ink-faint focus:border-official" />
             <div className="max-h-72 overflow-auto p-2">
               {(() => {
                 const q=cmdQ.toLowerCase().trim();

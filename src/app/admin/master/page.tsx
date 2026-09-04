@@ -34,7 +34,7 @@ export default function MasterPage(){
     { key:"leave", label:"Jenis Cuti" },
   ] as const;
   return <>
-    <PageHead title="Master Data" sub="Kelola cabang, departemen, jabatan, dan jenis cuti." />
+    <PageHead title="Master Data" sub="Kelola data cabang, departemen, jabatan, dan jenis cuti." />
     <div className="mb-4 flex gap-2">
       {tabs.map(t=> <button key={t.key} onClick={()=> setTab(t.key)} className={`min-h-9 px-3 py-1.5 text-xs font-semibold border ${tab===t.key?"bg-ink text-white":"bg-card"}`}>{t.label}</button>)}
     </div>

@@ -56,7 +56,7 @@ export default function AdminSchedule() {
     <>
       <PageHead
         title="Jadwal & Shift"
-        sub="Papan roster mingguan seluruh lokasi. Klik kotak jadwal untuk mengubah/menugaskan shift karyawan."
+        sub="Kelola jadwal kerja dan penugasan shift karyawan di seluruh lokasi."
       />
 
       {/* Toolbar sejajar: filter tanggal kiri, tambah shift kanan */}
@@ -168,12 +168,12 @@ export default function AdminSchedule() {
         </table>
       </div>
 
-      <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-faint">
-        <LegendSwatch label="OH Office 09:00–17:00" cls="border-rule bg-paper text-ink-soft" />
-        <LegendSwatch label="P Pagi 07:00–15:00" cls="border-rule bg-paper text-ink-soft" />
-        <LegendSwatch label="S Siang 15:00–23:00" cls="border-rule bg-paper text-ink-soft" />
-        <LegendSwatch label="M Malam 23:00–07:00" cls="border-official bg-official/10 text-official-deep" />
-      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-ink-soft">
+        <LegendSwatch code="OH" label="Office 09:00–17:00" cls="border-rule bg-paper text-ink-soft" />
+        <LegendSwatch code="P" label="Pagi 07:00–15:00" cls="border-rule bg-paper text-ink-soft" />
+        <LegendSwatch code="S" label="Siang 15:00–23:00" cls="border-rule bg-paper text-ink-soft" />
+        <LegendSwatch code="M" label="Malam 23:00–07:00" cls="border-official bg-official/10 text-official-deep" />
+      </div>
 
       {/* Edit Roster Cell Modal */}
       {editCell && (
@@ -216,13 +216,13 @@ export default function AdminSchedule() {
   );
 }
 
-function LegendSwatch({ label, cls }: { label: string; cls: string }) {
+function LegendSwatch({ code, label, cls }: { code: string; label: string; cls: string }) {
   return (
-    <span className="flex items-center gap-1.5">
-      <span aria-hidden className={`tnum inline-block h-4 w-6 rounded-[2px] border font-mono text-[9px] leading-4 ${cls}`}>
-        ·
+    <span className="inline-flex items-center gap-2">
+      <span aria-hidden className={`tnum inline-flex h-6 min-w-8 items-center justify-center rounded-[3px] border px-1 pt-px font-mono text-xs font-semibold ${cls}`}>
+        {code}
       </span>
-      {label}
+      <span>{label}</span>
     </span>
   );
 }

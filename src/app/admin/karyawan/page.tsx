@@ -122,11 +122,11 @@ export default function AdminEmployees() {
     <>
       <PageHead
         title="Karyawan"
-        sub="Data pegawai. Status probation ditandai hingga kontrak permanen diterbitkan."
+        sub="Kelola informasi, status, dan riwayat kepegawaian."
         action={
-          <div className="flex gap-2">
-            <Btn onClick={() => { resetForm(); setShowAddForm(true); }}>+ Karyawan</Btn>
-            <span className="tnum text-sm text-ink-soft mt-2">{rows.length} orang</span>
+          <div className="flex items-center gap-3">
+            <span className="tnum text-sm text-ink-faint">{rows.length} orang</span>
+            <Btn variant="official" size="sm" onClick={() => { resetForm(); setShowAddForm(true); }}>+ Karyawan</Btn>
           </div>
         }
       />
@@ -136,18 +136,22 @@ export default function AdminEmployees() {
           <MagnifyingGlass size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-faint" />
           <Input placeholder="Cari nama, ID, departemen…" value={q} onChange={(e) => setQ(e.target.value)} className="pl-8" />
         </div>
-        <Select value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)} className="w-auto" aria-label="Filter cabang">
-          <option value="all">Semua cabang</option>
-          {data.branches.map((b) => (
-            <option key={b.id} value={b.id}>{b.name}</option>
-          ))}
-        </Select>
-        <Select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)} className="w-auto" aria-label="Filter departemen">
-          <option value="all">Semua dept</option>
-          {data.departments.map((d) => (
-            <option key={d.id} value={d.id}>{d.name}</option>
-          ))}
-        </Select>
+        <div className="w-44 shrink-0">
+          <Select value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)} aria-label="Filter cabang">
+            <option value="all">Semua cabang</option>
+            {data.branches.map((b) => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </Select>
+        </div>
+        <div className="w-44 shrink-0">
+          <Select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)} aria-label="Filter departemen">
+            <option value="all">Semua dept</option>
+            {data.departments.map((d) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </Select>
+        </div>
       </div>
 
       {rows.length === 0 ? (

@@ -19,7 +19,7 @@ export default function AdminLocations() {
     <>
       <PageHead
         title="Lokasi Kerja"
-        sub="Setiap lokasi kerja memiliki titik koordinat dan radius geofence. Absensi onsite hanya valid di dalam radius; perubahan tercatat di audit log."
+        sub="Kelola lokasi kerja dan radius geofence untuk validasi absensi onsite."
         action={<Btn variant="official" size="sm" onClick={()=> setShowForm(true)}>+ Lokasi</Btn>}
       />
       {showForm && (

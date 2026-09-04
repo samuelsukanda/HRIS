@@ -128,7 +128,7 @@ export default function AdminAset() {
     <>
       <PageHead
         title="Aset"
-        sub="Inventaris aset perusahaan, assignment ke karyawan, dan tracking pengembalian."
+        sub="Kelola inventaris aset perusahaan, penugasan kepada karyawan, dan pantau status pengembaliannya."
         action={<Btn variant="official" size="sm" onClick={() => { resetForm(); setShowForm(true); }}>+ Aset</Btn>}
       />
       <div className="mb-4 max-w-md">

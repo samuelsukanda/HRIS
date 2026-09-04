@@ -66,7 +66,7 @@ export default function AdminPerforma() {
     <>
       <PageHead
         title="Performa"
-        sub="Penilaian kinerja karyawan per periode."
+        sub="Kelola penilaian dan pantau kinerja karyawan berdasarkan periode penilaian."
         action={<Btn icon={NotePencil} onClick={openForm}>Buat Penilaian</Btn>}
       />
       <div className="mb-4 max-w-md">

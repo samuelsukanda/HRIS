@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Download, LockSimpleOpen, Play } from "@phosphor-icons/react";
-import { Btn, EmptyState, Input, PageHead, SignaturePad, Stamp } from "@/components/ui";
+import { Btn, EmptyState, Input, PageHead, Stamp } from "@/components/ui";
 import { fmtRupiah } from "@/lib/format";
 import type { PayrollBreakdown } from "@/lib/payroll";
 
@@ -29,7 +29,6 @@ export default function AdminPayroll() {
   const [period, setPeriod] = useState(() => new Date().toISOString().slice(0, 7));
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [sig, setSig] = useState<string | null>(null);
 
   const loadRuns = useCallback(async () => {
     const j = await fetch("/api/payroll/runs").then((r) => r.json());
@@ -123,7 +122,7 @@ export default function AdminPayroll() {
     <>
       <PageHead
         title="Payroll"
-        sub="Hitung gaji dari attendance tervalidasi + lembur disetujui. Approve mengunci periode."
+        sub="Kelola perhitungan gaji berdasarkan kehadiran tervalidasi dan lembur yang telah disetujui."
         action={
           <Btn variant="secondary" icon={Download} onClick={exportCsv} disabled={!detail}>
             Export CSV
@@ -188,13 +187,9 @@ export default function AdminPayroll() {
               <span className="font-normal text-ink-soft">· {detail.slips.length} karyawan</span>
             </h2>
             {detail.run.status === "draft" ? (
-              sig ? (
-                <Btn variant="official" icon={LockSimpleOpen} onClick={() => void approve()} disabled={busy}>
-                  Approve &amp; Kunci (tertanda)
-                </Btn>
-              ) : (
-                <div className="w-80 border border-rule bg-card p-3"><p className="mb-2 text-xs font-semibold">Tanda tangan approver</p><SignaturePad onSave={setSig} /></div>
-              )
+              <Btn variant="official" icon={LockSimpleOpen} onClick={() => void approve()} disabled={busy}>
+                Approve &amp; Kunci
+              </Btn>
             ) : (
               <Stamp kind="approved">Locked · {detail.run.approvedBy}</Stamp>
             )}

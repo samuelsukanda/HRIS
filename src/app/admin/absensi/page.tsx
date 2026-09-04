@@ -51,7 +51,7 @@ export default function AdminAttendance() {
     <>
       <PageHead
         title="Absensi"
-        sub="Setiap rekaman membawa bukti berlapis: GPS, geofence, skor wajah, liveness, perangkat, dan skor risiko. Koreksi hanya lewat alur ini — jejak before/after tercatat di audit log."
+        sub="Kelola data absensi berdasarkan lokasi, perangkat, verifikasi wajah, dan validasi kehadiran."
         action={
           pendingCount > 0 ? (
             <span className="stamp stamp-pending">

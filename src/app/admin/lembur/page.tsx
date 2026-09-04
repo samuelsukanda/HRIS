@@ -50,7 +50,7 @@ export default function AdminLemburPage() {
     <>
       <PageHead
         title="Lembur"
-        sub="Pengajuan lembur karyawan menunggu keputusan HR; yang disetujui masuk rekap jam bulan berjalan dan menjadi dasar kompensasi."
+        sub="Kelola pengajuan lembur dan pantau rekap jam lembur karyawan."
       />
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">

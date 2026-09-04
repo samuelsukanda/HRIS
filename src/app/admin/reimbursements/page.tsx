@@ -61,7 +61,7 @@ export default function AdminReimbursements() {
 
   return (
     <>
-      <PageHead title="Reimbursement" sub="Pengajuan biaya karyawan menunggu approval manager lalu HR/Finance." />
+      <PageHead title="Reimbursement" sub="Kelola pengajuan dan proses persetujuan biaya karyawan." />
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="relative min-w-52 flex-1">
           <MagnifyingGlass size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-faint" />

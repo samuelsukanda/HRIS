@@ -113,7 +113,7 @@ export default function AdminRekrutmen() {
     <>
       <PageHead
         title="Rekrutmen"
-        sub="Kelola lowongan pekerjaan dan tracking pelamar."
+        sub="Kelola lowongan pekerjaan dan pantau proses serta status pelamar."
         action={
           tab === "lowongan" ? (
             <Btn variant="official" size="sm" onClick={() => { resetForm(); setShowForm(true); }}>+ Lowongan</Btn>

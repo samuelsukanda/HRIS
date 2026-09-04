@@ -67,7 +67,7 @@ export default function AdminCutiPage() {
     <>
       <PageHead
         title="Cuti"
-        sub="Alurnya sederhana: pengajuan masuk sebagai Pending, HR memutuskan lewat Setujui/Tolak, saldo karyawan langsung terpotong, dan keputusan tercatat di audit log."
+        sub="Kelola pengajuan dan persetujuan cuti serta pantau saldo cuti karyawan."
       />
       <div className="mb-4 flex gap-2"><input value={q} onChange={e=> setQ(e.target.value)} placeholder="Cari nama/alasan..." className="flex-1 border border-rule bg-card px-3 py-2 text-sm" /><span className="text-xs text-ink-faint py-2">{requests.length} hasil</span><Btn variant={view==="list"?"primary":"secondary"} size="sm" onClick={()=> setView(view==="list"?"calendar":"list")}>{view==="list"?"Kalender":"List"}</Btn></div>
       {view==="calendar" && (

@@ -104,7 +104,7 @@ export default function AdminLaporanPage() {
     <>
       <PageHead
         title="Laporan"
-        sub="Rekap kehadiran bulanan per karyawan dari seluruh rekaman absensi tervalidasi."
+        sub="Lihat dan kelola rekap kehadiran karyawan secara berkala."
       />
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
@@ -145,8 +145,8 @@ export default function AdminLaporanPage() {
         {rows.length === 0 ? (
           <EmptyState
             icon={Table}
-            title="Tidak ada rekaman bulan ini"
-            body="Belum ada data absensi untuk periode terpilih. Pilih bulan lain atau lakukan check-in untuk mengisi rekap."
+            title="Belum Ada Data"
+            body="Tidak ada data absensi pada periode yang dipilih. Silakan pilih periode lain untuk melihat laporan."
           />
         ) : (
           <div className="overflow-x-auto">

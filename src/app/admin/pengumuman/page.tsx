@@ -52,7 +52,7 @@ export default function AdminPengumumanPage() {
     <>
       <PageHead
         title="Pengumuman"
-        sub="Kelola pengumuman untuk seluruh karyawan."
+        sub="Kelola dan publikasikan informasi penting untuk seluruh karyawan."
         action={<Btn variant="official" size="sm" onClick={() => { reset(); setShowForm(true); }}>+ Pengumuman</Btn>}
       />
 

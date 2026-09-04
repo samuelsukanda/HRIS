@@ -98,7 +98,7 @@ export default function AdminPelatihan() {
     <>
       <PageHead
         title="Pelatihan"
-        sub="Jadwal pelatihan, pendaftaran, dan tracking completion karyawan."
+        sub="Kelola jadwal pelatihan, pendaftaran, dan pantau progres pelatihan karyawan."
         action={<Btn variant="official" size="sm" onClick={() => { resetForm(); setShowForm(true); }}>+ Pelatihan</Btn>}
       />
       <div className="mb-4 max-w-md">
