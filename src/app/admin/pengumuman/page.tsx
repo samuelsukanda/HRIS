@@ -12,6 +12,8 @@ export default function AdminPengumumanPage() {
   const { state, dispatch } = useHris();
   const { data } = state;
   const [showForm, setShowForm] = useState(false);
+  const [pq, setPq] = useState("");
+  const [pcat, setPcat] = useState("all");
   const [editId, setEditId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -55,12 +57,28 @@ export default function AdminPengumumanPage() {
         sub="Kelola dan publikasikan informasi penting untuk seluruh karyawan."
         action={<Btn variant="official" size="sm" onClick={() => { reset(); setShowForm(true); }}>+ Pengumuman</Btn>}
       />
+      <div className="mb-4 flex max-w-md flex-wrap items-center gap-2">
+        <div className="min-w-52 flex-1">
+          <Input placeholder="Cari judul / isi…" value={pq} onChange={(e) => { setPq(e.target.value); }} />
+        </div>
+        <div className="w-36 shrink-0">
+          <Select value={pcat} onChange={(e) => setPcat(e.target.value)} aria-label="Filter kategori">
+            <option value="all">Semua</option>
+            <option value="pengumuman">Pengumuman</option>
+            <option value="kebijakan">Kebijakan</option>
+            <option value="libur">Libur</option>
+            <option value="acara">Acara</option>
+          </Select>
+        </div>
+      </div>
 
       {data.announcements.length === 0 ? (
         <EmptyState icon={Megaphone} title="Belum ada pengumuman" body="Buat pengumuman baru untuk karyawan." />
       ) : (
         <ul className="space-y-3">
-          {data.announcements.map((a) => (
+          {data.announcements
+            .filter((a) => (pcat === "all" || a.category === pcat) && (!pq.trim() || `${a.title} ${a.body}`.toLowerCase().includes(pq.toLowerCase())))
+            .map((a) => (
             <li key={a.id} className="border border-rule bg-card p-4">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="font-semibold">{a.title}</h3>

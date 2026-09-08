@@ -147,6 +147,9 @@ export default function AdminCutiPage() {
                         {type?.name ?? r.typeId} · <span className="tnum">{r.days} hari</span>
                       </p>
                       <p className="mt-1 max-w-[52ch] text-sm italic text-ink-faint">{r.reason}</p>
+                      {r.attachmentUrl && (
+                        <p className="mt-1 text-xs"><a href={r.attachmentUrl} target="_blank" rel="noreferrer" className="text-official underline">Lihat lampiran</a></p>
+                      )}
                     </div>
                     <div className="text-sm">
                       <p className="tnum">

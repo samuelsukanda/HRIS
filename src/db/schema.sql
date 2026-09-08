@@ -257,6 +257,43 @@ CREATE TABLE IF NOT EXISTS performance_reviews (
   created_at   TIMESTAMPTZ NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS shift_swaps (
+  id              TEXT PRIMARY KEY,
+  employee_id     TEXT NOT NULL REFERENCES employees(id),
+  date            DATE NOT NULL,
+  from_shift_id   TEXT REFERENCES shifts(id),
+  target_shift_id TEXT REFERENCES shifts(id),
+  reason          TEXT NOT NULL DEFAULT '',
+  status          TEXT NOT NULL DEFAULT 'pending',
+  decided_by      TEXT,
+  created_at      TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS settings (
+  key        TEXT PRIMARY KEY,
+  value      TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+INSERT INTO settings (key, value, updated_at) VALUES
+  ('wfh_gps', 'TIDAK DIWAJIBKAN', NOW()),
+  ('wfh_face', 'WAJIB', NOW()),
+  ('wfh_liveness', 'WAJIB', NOW())
+ON CONFLICT (key) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS asset_requests (
+  id           TEXT PRIMARY KEY,
+  employee_id  TEXT NOT NULL REFERENCES employees(id),
+  category     TEXT NOT NULL,
+  description  TEXT NOT NULL,
+  status       TEXT NOT NULL DEFAULT 'pending',
+  decided_by   TEXT,
+  created_at   TIMESTAMPTZ NOT NULL
+);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS attachment_url TEXT;
+ALTER TABLE reimbursements ADD COLUMN IF NOT EXISTS attachment_url TEXT;
+
 CREATE TABLE IF NOT EXISTS notifications (
   id         TEXT PRIMARY KEY,
   user_id    TEXT NOT NULL REFERENCES users(id),

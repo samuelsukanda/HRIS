@@ -5,6 +5,7 @@ import type {
   ApprovalEntry,
   Asset,
   AssetAssignment,
+  AssetRequest,
   AttendanceRecord,
   AuditLogEntry,
   Candidate,
@@ -16,6 +17,7 @@ import type {
   Reimbursement,
   RosterEntry,
   Shift,
+  ShiftSwap,
   Training,
   TrainingEnrollment,
   VerificationSnapshot,
@@ -84,9 +86,14 @@ type Action =
   | { type: "BULK_DECIDE_OVERTIME"; ids: string[]; approve: boolean; byName: string }
   | { type: "BULK_DECIDE_REIMBURSEMENT"; ids: string[]; approve: boolean; level: "manager" | "hr" }
   | { type: "CANCEL_LEAVE"; id: string }
+  | { type: "CANCEL_OVERTIME"; id: string }
   | { type: "CREATE_LOCATION"; location: WorkLocation }
   | { type: "UPDATE_LOCATION"; id: string; data: Partial<WorkLocation> }
-  | { type: "DELETE_LOCATION"; id: string };
+  | { type: "DELETE_LOCATION"; id: string }
+  | { type: "REQUEST_SHIFT_SWAP"; swap: ShiftSwap }
+  | { type: "DECIDE_SHIFT_SWAP"; id: string; approve: boolean }
+  | { type: "REQUEST_ASSET"; request: AssetRequest }
+  | { type: "DECIDE_ASSET_REQUEST"; id: string; approve: boolean };
 
 function log(
   data: HrisData,
@@ -510,10 +517,22 @@ function reducer(state: State, action: Action): State {
       return { ...state, data: { ...state.data, reimbursements: state.data.reimbursements.map((r) => (action.ids.includes(r.id) ? { ...r, status: action.approve ? (action.level === "hr" ? "approved" as const : "manager_approved" as const) : "rejected" as const } : r)) } };
     case "CANCEL_LEAVE":
       return { ...state, data: { ...state.data, leaveRequests: state.data.leaveRequests.map((l) => (l.id === action.id ? { ...l, status: "cancelled" as const } : l)) } };
+    case "CANCEL_OVERTIME":
+      return { ...state, data: { ...state.data, overtimeRequests: state.data.overtimeRequests.map((o) => (o.id === action.id ? { ...o, status: "cancelled" as const } : o)) } };
     case "CREATE_LOCATION":
       return { ...state, data: { ...state.data, workLocations: [...state.data.workLocations, action.location] } };
     case "DELETE_LOCATION":
       return { ...state, data: { ...state.data, workLocations: state.data.workLocations.filter((l) => l.id !== action.id) } };
+    case "REQUEST_SHIFT_SWAP":
+      return { ...state, data: { ...state.data, shiftSwaps: [action.swap, ...state.data.shiftSwaps] } };
+    case "DECIDE_SHIFT_SWAP":
+      return { ...state, data: { ...state.data, shiftSwaps: state.data.shiftSwaps.map((s) => (s.id === action.id ? { ...s, status: action.approve ? "approved" as const : "rejected" as const } : s)) } };
+    case "REQUEST_ASSET":
+      return { ...state, data: { ...state.data, assetRequests: [action.request, ...state.data.assetRequests] } };
+    case "DECIDE_ASSET_REQUEST":
+      return { ...state, data: { ...state.data, assetRequests: state.data.assetRequests.map((r) => (r.id === action.id ? { ...r, status: action.approve ? "approved" as const : "rejected" as const } : r)) } };
+    default:
+      return state;
   }
 }
 
@@ -530,6 +549,7 @@ export interface CheckInPayload {
   livenessPassed: boolean;
   deviceId: string;
   deviceName: string;
+  wfh?: boolean;
 }
 
 export class ApiError extends Error {
@@ -666,10 +686,20 @@ async function syncAction(a: Action): Promise<boolean> {
       return (await postJSON(`/api/reimbursements/bulk`, { ids: a.ids, approve: a.approve, level: a.level }, "POST")).r.ok;
     case "CANCEL_LEAVE":
       return (await postJSON(`/api/leave/${a.id}`, { cancel: true }, "PATCH")).r.ok;
+    case "CANCEL_OVERTIME":
+      return (await postJSON(`/api/overtime/${a.id}`, { cancel: true }, "PATCH")).r.ok;
     case "CREATE_LOCATION":
       return (await postJSON("/api/locations", a.location)).r.ok;
     case "DELETE_LOCATION":
       return (await postJSON(`/api/locations/${a.id}`, {}, "DELETE")).r.ok;
+    case "REQUEST_SHIFT_SWAP":
+      return (await postJSON("/api/shift-swaps", { id: a.swap.id, date: a.swap.date, fromShiftId: a.swap.fromShiftId, targetShiftId: a.swap.targetShiftId, reason: a.swap.reason })).r.ok;
+    case "DECIDE_SHIFT_SWAP":
+      return (await postJSON(`/api/shift-swaps/${a.id}`, { approve: a.approve }, "PATCH")).r.ok;
+    case "REQUEST_ASSET":
+      return (await postJSON("/api/asset-requests", { id: a.request.id, category: a.request.category, description: a.request.description })).r.ok;
+    case "DECIDE_ASSET_REQUEST":
+      return (await postJSON(`/api/asset-requests/${a.id}`, { approve: a.approve }, "PATCH")).r.ok;
     case "MARK_NOTIFICATION_READ":
       return (await postJSON(`/api/notifications`, { id: a.id }, "PATCH")).r.ok;
     case "MARK_ALL_NOTIFICATIONS_READ":
@@ -682,6 +712,7 @@ async function syncAction(a: Action): Promise<boolean> {
 const Ctx = createContext<{
   state: State;
   dispatch: React.Dispatch<Action>;
+  refresh: () => Promise<boolean>;
   login: (email: string, password: string) => Promise<string | null>;
   logout: () => Promise<void>;
   submitCheckIn: (payload: CheckInPayload) => Promise<AttendanceRecord>;
@@ -750,6 +781,11 @@ export function HrisProvider({ children }: { children: React.ReactNode }) {
       await refresh();
       setReady(true);
     })();
+    // ponytail: polling ringan 60s saat tab terlihat — notifikasi tetap segar tanpa realtime infra
+    const t = setInterval(() => {
+      if (document.visibilityState === "visible") void refresh();
+    }, 60000);
+    return () => clearInterval(t);
   }, [refresh]);
 
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
@@ -816,8 +852,8 @@ export function HrisProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ state, dispatch, login, logout, submitCheckIn, submitCheckOut, toast, showToast, hideToast }),
-    [state, dispatch, login, logout, submitCheckIn, submitCheckOut, toast, showToast, hideToast],
+    () => ({ state, dispatch, refresh, login, logout, submitCheckIn, submitCheckOut, toast, showToast, hideToast }),
+    [state, dispatch, refresh, login, logout, submitCheckIn, submitCheckOut, toast, showToast, hideToast],
   );
   if (!ready) return <div className="min-h-[100dvh] bg-paper" aria-hidden />;
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

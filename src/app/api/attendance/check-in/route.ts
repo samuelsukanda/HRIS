@@ -43,9 +43,18 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, error: "Anda sudah melakukan check-in hari ini.", code: "duplicate" }, { status: 409 });
   }
 
-  // ── 03 Geofence — hard gate di server ──
+  // ── Kebijakan WFH dari server (bukan klaim client) ──
+  const setR = await pool.query(`SELECT key, value FROM settings WHERE key IN ('wfh_gps','wfh_face','wfh_liveness')`);
+  const policy = Object.fromEntries(setR.rows.map((x: { key: string; value: string }) => [x.key, x.value]));
+  const wfhFaceRequired = (policy.wfh_face ?? "WAJIB") === "WAJIB";
+  const wfhLiveRequired = (policy.wfh_liveness ?? "WAJIB") === "WAJIB";
+  const isWfh = (body as CheckInBody & { wfh?: boolean }).wfh === true;
+
+  // ── 03 Geofence — hard gate di server (dilewati untuk WFH) ──
   const office = { latitude: emp.lat, longitude: emp.lng, radiusM: emp.radius_m };
-  const geo = checkGeofence({ latitude: body.latitude, longitude: body.longitude }, office);
+  const geo = isWfh
+    ? { pass: true, distanceM: -1, maxRadiusM: emp.radius_m }
+    : checkGeofence({ latitude: body.latitude, longitude: body.longitude }, office);
   if (!geo.pass) {
     return Response.json({
       ok: false,
@@ -85,8 +94,9 @@ export async function POST(req: Request) {
   const withinWindow = shift ? Math.abs(nowMin - (+shift.start.slice(0, 2) * 60 + +shift.start.slice(3))) <= 60 : false;
 
   // ── Verifikasi wajah 1:1 — descriptor live vs template terdaftar (server-side) ──
+  // WFH ikut policy server: bila TIDAK DIWAJIBKAN, tahap dilewati (tetap tercatat di snapshot)
   const stored = emp.face_descriptor ? decryptDescriptor(emp.face_descriptor as any) : null;
-  if (!stored) {
+  if (!stored && (wfhFaceRequired || !isWfh)) {
     return Response.json({
       ok: false,
       code: "face_not_registered",
@@ -95,28 +105,32 @@ export async function POST(req: Request) {
     }, { status: 422 });
   }
   if (!Array.isArray(body.descriptor) || body.descriptor.length !== 128) {
-    return Response.json({
-      ok: false,
-      code: "face_invalid",
-      title: "Data wajah tidak valid.",
-      lines: ["Wajah tidak terbaca jelas.", "Pastikan pencahayaan cukup dan wajah menghadap kamera."],
-    }, { status: 422 });
+    if (!isWfh || wfhFaceRequired) {
+      return Response.json({
+        ok: false,
+        code: "face_invalid",
+        title: "Data wajah tidak valid.",
+        lines: ["Wajah tidak terbaca jelas.", "Pastikan pencahayaan cukup dan wajah menghadap kamera."],
+      }, { status: 422 });
+    }
   }
-  const faceDistance = descriptorDistance(body.descriptor, stored);
-  const faceMatch = faceDistance < 0.5;
+  const hasDescriptor = Array.isArray(body.descriptor) && body.descriptor.length === 128 && !!stored;
+  const faceDistance = hasDescriptor ? descriptorDistance(body.descriptor as number[], stored as number[]) : 1;
+  const faceMatch = hasDescriptor ? faceDistance < 0.5 : false;
+  const livenessOk = !!body.livenessPassed || (isWfh && !wfhLiveRequired);
 
   // ── Pipeline penuh di server ──
   const pipeline = runValidationPipeline({
     authenticated: true,
     deviceTrusted,
-    gpsActive: Number.isFinite(body.latitude),
+    gpsActive: isWfh || Number.isFinite(body.latitude),
     geofence: geo,
     mockLocation: !!body.mockLocation,
-    faceDetected: Array.isArray(body.descriptor),
-    livenessPassed: !!body.livenessPassed,
+    faceDetected: hasDescriptor,
+    livenessPassed: livenessOk,
     faceScore: faceMatch ? 0.95 : 0.6,
-    faceMatch,
-    faceDetail: `Jarak wajah ${faceDistance.toFixed(2)} (threshold 0,50)`,
+    faceMatch: faceMatch || (isWfh && !wfhFaceRequired),
+    faceDetail: hasDescriptor ? `Jarak wajah ${faceDistance.toFixed(2)} (threshold 0,50)` : "Verifikasi wajah dilewati (policy WFH)",
     hasScheduleToday: !!shift,
     withinCheckInWindow: withinWindow,
   });
@@ -126,21 +140,24 @@ export async function POST(req: Request) {
     developerMode: !!body.developerMode,
     accuracyM: body.accuracyM ?? 0,
     faceScore: faceMatch ? 0.95 : 0.6,
-    livenessPassed: !!body.livenessPassed,
+    livenessPassed: livenessOk,
     distanceOverByM: 0,
     deviceChanged: !deviceTrusted && !firstEver,
   });
 
   const criticalFail = pipeline.stages.find((s) => !s.pass && [3, 5, 6].includes(s.stage));
+  const faceGateOk = faceMatch || (isWfh && !wfhFaceRequired);
   const verificationStatus = criticalFail
     ? "rejected"
     : risk.score >= 60
       ? "review"
-      : pipeline.valid && faceMatch
+      : pipeline.valid && faceGateOk
         ? "valid"
         : "review";
 
   const classification = shift ? classifyCheckIn(shift as never, now) : { kind: "early" as const, lateMinutes: 0 };
+  // WFH tercatat sebagai status wfh agar rekap & UI konsisten
+  const finalStatus = isWfh ? ("wfh" as const) : statusFromCheckIn(classification);
 
   const snap: VerificationSnapshot = {
     at: now.toISOString(),
@@ -153,7 +170,7 @@ export async function POST(req: Request) {
     faceScore: Math.max(0, Math.min(1, 1 - faceDistance)),
     faceDistance,
     livenessScore: body.livenessScore ?? 0,
-    livenessPassed: !!body.livenessPassed,
+    livenessPassed: livenessOk,
     deviceId: body.deviceId ?? "-",
     deviceName: body.deviceName ?? "-",
     ip: req.headers.get("x-forwarded-for") ?? "local",
@@ -167,7 +184,7 @@ export async function POST(req: Request) {
     [
       existingId, emp.id, date, now,
       JSON.stringify(snap),
-      statusFromCheckIn(classification),
+      finalStatus,
       risk.score,
       verificationStatus,
       criticalFail ? criticalFail.detail : null,
@@ -181,7 +198,7 @@ export async function POST(req: Request) {
     action: verificationStatus === "rejected" ? "Attendance rejected" : "Checked in",
     targetType: "attendance",
     targetId: existingId,
-    detail: `Check-in ${emp.loc_name} · jarak ${geo.distanceM} m · risiko ${risk.score}/100 (${verificationStatus})`,
+    detail: isWfh ? `Check-in WFH · risiko ${risk.score}/100 (${verificationStatus})` : `Check-in ${emp.loc_name} · jarak ${geo.distanceM} m · risiko ${risk.score}/100 (${verificationStatus})`,
     at: snap.at,
   });
 
@@ -191,7 +208,7 @@ export async function POST(req: Request) {
     date,
     checkInAt: snap.at,
     checkInSnap: snap,
-    status: statusFromCheckIn(classification),
+    status: finalStatus,
     riskScore: risk.score,
     verificationStatus,
     rejectionReason: criticalFail?.detail,

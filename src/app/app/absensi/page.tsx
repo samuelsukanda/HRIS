@@ -68,6 +68,8 @@ export default function AttendancePage() {
   const attToday = state.data.attendance.find((a) => a.employeeId === me?.employee.id && a.date === today);
   const shift = me ? rosterShiftFor(state.data, me.employee.id, today) : null;
   const location = state.data.workLocations.find((w) => w.id === me?.employee.workLocationId);
+  const wfhPolicy = state.data.settings;
+  const [isWfh, setIsWfh] = useState(false);
   const mode: "in" | "out" = attToday?.checkInAt && !attToday?.checkOutAt ? "out" : "in";
   const verb = mode === "in" ? "Check In" : "Check Out";
 
@@ -135,9 +137,13 @@ export default function AttendancePage() {
       // 01 — Autentikasi & perangkat terikat
       await runStep(0);
 
-      // 02 — GPS
+      // 02 — GPS (dilewati untuk WFH — lokasi tidak direkam)
       await runStep(1);
       let coords: { latitude: number; longitude: number; accuracyM: number };
+      if (isWfh) {
+        coords = { latitude: 0, longitude: 0, accuracyM: 0 };
+        await sleep(250);
+      } else {
       try {
         const pos = await getGPS();
         coords = {
@@ -157,9 +163,11 @@ export default function AttendancePage() {
         });
         return;
       }
+      }
 
-      // 03 — Geofence
+      // 03 — Geofence (dilewati untuk WFH — policy server yang menentukan)
       await runStep(2);
+      if (!isWfh) {
       const point = { latitude: coords.latitude, longitude: coords.longitude };
       const geo = checkGeofence(point, office);
       if (!geo.pass) {
@@ -173,6 +181,7 @@ export default function AttendancePage() {
           ],
         });
         return;
+      }
       }
 
       // 04 — Kamera & deteksi wajah nyata
@@ -265,6 +274,7 @@ export default function AttendancePage() {
         livenessPassed: true,
         deviceId: deviceId(),
         deviceName: navigator.userAgent.includes("Mobile") ? "Perangkat Mobile" : "Desktop Browser",
+        wfh: isWfh,
       };
 
       // Verdict ditentukan server (geofence, risk, pipeline) — anti-fraud nyata
@@ -438,12 +448,28 @@ export default function AttendancePage() {
             dengan template terenkripsi Anda. Semua tahap berjalan lokal di perangkat ini.
           </p>
           <ul className="tnum mt-4 space-y-1 text-xs text-ink-faint">
-            <li>· Lokasi hanya direkam saat absensi — tanpa tracking pasif.</li>
+            <li>· Lokasi hanya direkam saat absensi onsite — tanpa tracking pasif.</li>
             <li>· Template wajah tidak dapat dibalik menjadi foto.</li>
             <li>· Rekaman masuk ke audit log permanen.</li>
           </ul>
+          <div className="mt-4 flex items-center justify-between gap-3 border border-dashed border-rule bg-paper px-3 py-2.5">
+            <div>
+              <p className="text-sm font-semibold">Mode WFH</p>
+              <p className="text-xs text-ink-soft">
+                GPS {wfhPolicy.wfh_gps ?? "TIDAK DIWAJIBKAN"} · Face {wfhPolicy.wfh_face ?? "WAJIB"} · Liveness {wfhPolicy.wfh_liveness ?? "WAJIB"}
+              </p>
+            </div>
+            <button
+              role="switch"
+              aria-checked={isWfh}
+              onClick={() => setIsWfh((v) => !v)}
+              className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors ${isWfh ? "bg-official" : "bg-ledger"}`}
+            >
+              <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${isWfh ? "left-[22px]" : "left-0.5"}`} />
+            </button>
+          </div>
           <Btn className="mt-5 w-full py-3 text-base" onClick={() => run()}>
-            Mulai {verb}
+            Mulai {verb}{isWfh ? " (WFH)" : ""}
           </Btn>
         </div>
       </section>

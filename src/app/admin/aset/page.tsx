@@ -122,6 +122,13 @@ export default function AdminAset() {
 
   function doReturn(assignmentId: string) {
     dispatch({ type: "RETURN_ASSET", assignmentId });
+    toastOk("Aset dikembalikan");
+  }
+
+  const pendingRequests = data.assetRequests.filter((r) => r.status === "pending");
+  function decideRequest(id: string, approve: boolean) {
+    dispatch({ type: "DECIDE_ASSET_REQUEST", id, approve });
+    toastOk(approve ? "Permintaan disetujui" : "Permintaan ditolak");
   }
 
   return (
@@ -131,6 +138,31 @@ export default function AdminAset() {
         sub="Kelola inventaris aset perusahaan, penugasan kepada karyawan, dan pantau status pengembaliannya."
         action={<Btn variant="official" size="sm" onClick={() => { resetForm(); setShowForm(true); }}>+ Aset</Btn>}
       />
+      {pendingRequests.length > 0 && (
+        <section className="mb-6 border border-rule bg-card">
+          <header className="flex items-baseline justify-between border-b border-rule px-5 py-3.5">
+            <h2 className="font-semibold">Permintaan Aset</h2>
+            <span className="tnum text-xs text-ink-faint">{pendingRequests.length} pending</span>
+          </header>
+          <ul className="divide-y divide-ledger/50">
+            {pendingRequests.map((r) => {
+              const emp = data.employees.find((e) => e.id === r.employeeId);
+              return (
+                <li key={r.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold">{emp?.name ?? r.employeeId} <span className="font-normal text-ink-faint capitalize">· {r.category}</span></p>
+                    <p className="truncate text-xs text-ink-soft">{r.description}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <Btn variant="official" size="sm" onClick={() => decideRequest(r.id, true)}>Setujui</Btn>
+                    <Btn variant="secondary" size="sm" onClick={() => decideRequest(r.id, false)}>Tolak</Btn>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
       <div className="mb-4 max-w-md">
         <Input placeholder="Cari nama / kategori / serial…" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>

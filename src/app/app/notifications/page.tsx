@@ -1,14 +1,19 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { Bell } from "@phosphor-icons/react";
 import { Btn, EmptyState, PageHead } from "@/components/ui";
 import { currentUser, useHris } from "@/lib/store";
 
 export default function NotificationsPage() {
-  const { state, dispatch } = useHris();
+  const { state, dispatch, refresh } = useHris();
   const { data } = state;
   const me = currentUser(state);
+
+  // ponytail: ambil terbaru tiap buka halaman — tanpa realtime infra
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh eksplisit saat mount, bukan derive-state
+  useEffect(() => { void refresh(); }, [refresh]);
 
   const myNotifs = me
     ? data.notifications

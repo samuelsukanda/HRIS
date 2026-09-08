@@ -172,6 +172,7 @@ export interface LeaveRequest {
   submittedAt: string;
   decidedBy?: string;
   decidedAt?: string;
+  attachmentUrl?: string;
 }
 
 export interface OvertimeRequest {
@@ -182,7 +183,7 @@ export interface OvertimeRequest {
   end: string;
   hours: number;
   reason: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "cancelled";
   submittedAt: string;
   decidedBy?: string;
 }
@@ -232,6 +233,9 @@ export interface HrisData {
   assetAssignments: AssetAssignment[];
   performanceReviews: PerformanceReview[];
   notifications: Notification[];
+  shiftSwaps: ShiftSwap[];
+  assetRequests: AssetRequest[];
+  settings: Record<string, string>;
 }
 
 // ── Phase 3-4 modules ──────────────────────────────────────────────
@@ -254,6 +258,7 @@ export interface Reimbursement {
   status: "pending" | "manager_approved" | "approved" | "rejected";
   submittedAt: string;
   approvals: ApprovalEntry[];
+  attachmentUrl?: string;
 }
 
 export interface JobPosting {
@@ -340,4 +345,26 @@ export interface Notification {
   read: boolean;
   createdAt: string;
   link?: string;
+}
+
+export interface ShiftSwap {
+  id: string;
+  employeeId: string;
+  date: string;
+  fromShiftId: string | null;
+  targetShiftId: string | null;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  decidedBy?: string;
+  createdAt: string;
+}
+
+export interface AssetRequest {
+  id: string;
+  employeeId: string;
+  category: string;
+  description: string;
+  status: "pending" | "approved" | "rejected";
+  decidedBy?: string;
+  createdAt: string;
 }

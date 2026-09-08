@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { MapPin, Pencil, Trash } from "@phosphor-icons/react";
 import { Btn, IconBtn, PageHead, Stamp } from "@/components/ui";
 import { confirmDelete, toastErr, toastOk } from "@/lib/swal";
@@ -110,24 +110,31 @@ function PolicyRow({ label, value }: { label: string; value: string }) {
 }
 
 const WFH_DEFAULTS = { gps: "TIDAK DIWAJIBKAN", face: "WAJIB", liveness: "WAJIB" };
-const WFH_KEY = "hris-wfh-policy";
-
-function loadWfhPolicy(): { gps: string; face: string; liveness: string } {
-  try {
-    const raw = localStorage.getItem(WFH_KEY);
-    if (raw) {
-      const p = JSON.parse(raw) as Partial<typeof WFH_DEFAULTS>;
-      return { gps: p.gps || WFH_DEFAULTS.gps, face: p.face || WFH_DEFAULTS.face, liveness: p.liveness || WFH_DEFAULTS.liveness };
-    }
-  } catch { /* abaikan */ }
-  return { ...WFH_DEFAULTS };
-}
 
 function WfhPolicy() {
-  const [policy, setPolicy] = useState(() => ({ ...WFH_DEFAULTS }));
-  const [ready, setReady] = useState(false);
-  useEffect(() => { setPolicy(loadWfhPolicy()); setReady(true); }, []);
-  if (!ready) return null;
+  const { state } = useHris();
+  const [saving, setSaving] = useState(false);
+  const policy = {
+    gps: state.data.settings.wfh_gps ?? WFH_DEFAULTS.gps,
+    face: state.data.settings.wfh_face ?? WFH_DEFAULTS.face,
+    liveness: state.data.settings.wfh_liveness ?? WFH_DEFAULTS.liveness,
+  };
+
+  async function save(next: typeof policy) {
+    setSaving(true);
+    const r = await fetch("/api/settings", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ wfh_gps: next.gps, wfh_face: next.face, wfh_liveness: next.liveness }),
+    });
+    setSaving(false);
+    if (r.ok) {
+      // sinkron optimistis via refresh state
+      window.location.reload();
+      toastOk("Kebijakan WFH disimpan");
+    } else {
+      toastErr("Gagal menyimpan kebijakan");
+    }
+  }
 
   async function edit() {
     const Swal = (await import("sweetalert2")).default;
@@ -145,15 +152,12 @@ function WfhPolicy() {
       }),
     });
     if (!value) return;
-    setPolicy(value);
-    try { localStorage.setItem(WFH_KEY, JSON.stringify(value)); } catch { /* abaikan */ }
-    toastOk("Kebijakan WFH disimpan");
+    await save(value);
   }
 
   async function reset() {
-    if (await confirmDelete("kebijakan WFH (kembali default)")) {
-      setPolicy({ ...WFH_DEFAULTS });
-      try { localStorage.removeItem(WFH_KEY); } catch { /* abaikan */ }
+    if (await confirmDelete("kebijakan WFH")) {
+      await save({ ...WFH_DEFAULTS });
       toastOk("Kebijakan direset");
     }
   }
@@ -161,7 +165,7 @@ function WfhPolicy() {
   return (
     <section className="mt-8 border border-rule bg-card">
       <header className="flex items-center justify-between gap-2 border-b border-rule px-5 py-3.5">
-        <h2 className="font-semibold">Kebijakan Mode WFH</h2>
+        <h2 className="font-semibold">Kebijakan Mode WFH {saving && <span className="text-xs font-normal text-ink-faint">· menyimpan…</span>}</h2>
         <div className="flex gap-1">
           <IconBtn label="Edit kebijakan WFH" icon={Pencil} onClick={() => void edit()} />
           <IconBtn label="Reset kebijakan WFH" icon={Trash} className="hover:text-stamp" onClick={() => void reset()} />

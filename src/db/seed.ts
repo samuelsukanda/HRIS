@@ -37,7 +37,7 @@ async function main() {
 
   await q(`TRUNCATE payslips, payroll_runs, attendance, roster, leave_requests, overtime_requests,
     audit_logs, announcements, notifications, reimbursements, candidates, training_enrollments,
-    asset_assignments, performance_reviews, assets, trainings, job_postings,
+    asset_assignments, performance_reviews, assets, trainings, job_postings, shift_swaps, asset_requests,
     users, employees, shifts, work_locations, departments, positions,
     branches, leave_types RESTART IDENTITY CASCADE`);
 

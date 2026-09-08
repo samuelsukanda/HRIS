@@ -175,6 +175,8 @@ export default function AdminSchedule() {
         <LegendSwatch code="M" label="Malam 23:00–07:00" cls="border-official bg-official/10 text-official-deep" />
       </div>
 
+      <SwapReview />
+
       {/* Edit Roster Cell Modal */}
       {editCell && (
         <Modal open={!!editCell} onClose={() => setEditCell(null)} title="Tugaskan Shift">
@@ -224,6 +226,38 @@ function LegendSwatch({ code, label, cls }: { code: string; label: string; cls: 
       </span>
       <span>{label}</span>
     </span>
+  );
+}
+
+function SwapReview() {
+  const { state, dispatch } = useHris();
+  const pending = state.data.shiftSwaps.filter((s) => s.status === "pending");
+  if (pending.length === 0) return null;
+  const shiftName = (id: string | null) => id ? state.data.shifts.find((s) => s.id === id)?.name ?? id : "Off";
+  return (
+    <section className="mt-6 border border-rule bg-card">
+      <header className="flex items-baseline justify-between border-b border-rule px-5 py-3.5">
+        <h2 className="font-semibold">Permintaan Tukar Shift</h2>
+        <span className="tnum text-xs text-ink-faint">{pending.length} pending</span>
+      </header>
+      <ul className="divide-y divide-ledger/50">
+        {pending.map((s) => {
+          const emp = state.data.employees.find((e) => e.id === s.employeeId);
+          return (
+            <li key={s.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">{emp?.name ?? s.employeeId} <span className="tnum font-normal text-ink-faint">· {s.date}</span></p>
+                <p className="text-xs text-ink-soft">{shiftName(s.fromShiftId)} → {shiftName(s.targetShiftId)}{s.reason ? ` · ${s.reason}` : ""}</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <Btn variant="official" size="sm" onClick={() => { dispatch({ type: "DECIDE_SHIFT_SWAP", id: s.id, approve: true }); toastOk("Tukar shift disetujui"); }}>Setujui</Btn>
+                <Btn variant="secondary" size="sm" onClick={() => { dispatch({ type: "DECIDE_SHIFT_SWAP", id: s.id, approve: false }); toastOk("Tukar shift ditolak"); }}>Tolak</Btn>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

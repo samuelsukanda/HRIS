@@ -9,14 +9,14 @@ export async function POST(req: Request) {
   if (!user) return Response.json({ ok: false }, { status: 401 });
 
   const body = await req.json();
-  const { category, amount, description } = body as { category: string; amount: number; description: string };
+  const { category, amount, description, attachmentUrl } = body as { category: string; amount: number; description: string; attachmentUrl?: string };
   if (!category || !amount || !description) return Response.json({ ok: false, error: "Field wajib kosong." }, { status: 400 });
 
   const id = await nextId("reimbursements", "RBM");
   await pool.query(
-    `INSERT INTO reimbursements (id,employee_id,category,amount,description,status,submitted_at,approvals)
-     VALUES ($1,$2,$3,$4,$5,'pending',NOW(),'[]')`,
-    [id, user.employee_id, category, amount, description],
+    `INSERT INTO reimbursements (id,employee_id,category,amount,description,status,submitted_at,approvals,attachment_url)
+     VALUES ($1,$2,$3,$4,$5,'pending',NOW(),'[]',$6)`,
+    [id, user.employee_id, category, amount, description, attachmentUrl ?? null],
   );
 
   const empR = await pool.query(`SELECT name FROM employees WHERE id=$1`, [user.employee_id]);

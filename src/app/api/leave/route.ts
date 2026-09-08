@@ -7,7 +7,7 @@ import { toLocalISO, addDays } from "@/lib/format";
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return Response.json({ ok: false }, { status: 401 });
-  const body = (await req.json()) as { typeId: string; startDate: string; endDate: string; reason: string };
+  const body = (await req.json()) as { typeId: string; startDate: string; endDate: string; reason: string; attachmentUrl?: string };
   if (!body.typeId || !body.startDate || !body.endDate || !body.reason?.trim()) {
     return Response.json({ ok: false, error: "Lengkapi formulir." }, { status: 400 });
   }
@@ -18,9 +18,9 @@ export async function POST(req: Request) {
 
   const id = await nextId("leave_requests", "LRV");
   await pool.query(
-    `INSERT INTO leave_requests (id,employee_id,type_id,start_date,end_date,days,reason,status,submitted_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',$8)`,
-    [id, user.employee_id, body.typeId, body.startDate, body.endDate, days, body.reason.trim(), new Date()],
+    `INSERT INTO leave_requests (id,employee_id,type_id,start_date,end_date,days,reason,status,submitted_at,attachment_url)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',$8,$9)`,
+    [id, user.employee_id, body.typeId, body.startDate, body.endDate, days, body.reason.trim(), new Date(), body.attachmentUrl ?? null],
   );
 
   const nameR = await pool.query(`SELECT name FROM employees WHERE id = $1`, [user.employee_id]);

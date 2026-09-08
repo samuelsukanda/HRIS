@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Clock } from "@phosphor-icons/react";
 import { Btn, EmptyState, Field, Input, Textarea, StatusStamp } from "@/components/ui";
+import { confirmDelete, toastOk } from "@/lib/swal";
 import { fmtDateShortID } from "@/lib/format";
 import { currentUser, useHris } from "@/lib/store";
 
@@ -24,7 +25,13 @@ export default function EmployeeLembur() {
     const sm = Number(start.slice(3)), em = Number(end.slice(3));
     const hours = Math.round(((eh*60+em)-(sh*60+sm))/60*10)/10;
     dispatch({ type:"SUBMIT_OVERTIME", request:{ id:`OT-${String(state.data.overtimeRequests.length+100).padStart(3,"0")}`, employeeId: me!.employee.id, date, start, end, hours, reason:reason.trim(), status:"pending", submittedAt:new Date().toISOString() }});
-    setReason("");
+    setReason(""); toastOk("Pengajuan lembur dikirim");
+  }
+  async function cancel(id: string) {
+    if (await confirmDelete("pengajuan lembur ini")) {
+      dispatch({ type: "CANCEL_OVERTIME", id });
+      toastOk("Pengajuan dibatalkan");
+    }
   }
   return <>
     <h1 className="mb-1 text-xl font-bold tracking-tight">Lembur</h1>
@@ -51,6 +58,9 @@ export default function EmployeeLembur() {
               <div className="flex items-center justify-between"><p className="text-sm font-semibold">{fmtDateShortID(r.date)} · {r.start}–{r.end} · {r.hours} jam</p><StatusStamp status={r.status} /></div>
               <p className="mt-1 text-xs text-ink-faint">{r.reason}</p>
               {r.decidedBy && <p className="mt-1 text-xs text-ink-soft">Oleh {r.decidedBy}</p>}
+              {r.status === "pending" && (
+                <Btn variant="danger" size="sm" className="mt-2" onClick={() => void cancel(r.id)}>Batalkan</Btn>
+              )}
             </li>
           ))}
         </ul>

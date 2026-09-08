@@ -4,6 +4,7 @@ import type {
   ApprovalEntry,
   Asset,
   AssetAssignment,
+  AssetRequest,
   AttendanceRecord,
   AuditLogEntry,
   Branch,
@@ -22,6 +23,7 @@ import type {
   Role,
   RosterEntry,
   Shift,
+  ShiftSwap,
   Training,
   TrainingEnrollment,
   User,
@@ -36,6 +38,7 @@ export async function loadHrisData(): Promise<HrisData> {
     usersR, branchesR, departmentsR, positionsR, locationsR, employeesR, shiftsR,
     rosterR, attendanceR, leaveTypesR, leaveReqR, otReqR, logsR, annsR,
     reimbR, jpR, candR, trainR, enrollR, assetR, assignR, revR, notifR,
+    swapR, assetReqR, settingsR,
   ] = await Promise.all([
     pool.query(`SELECT * FROM users`),
     pool.query(`SELECT * FROM branches ORDER BY id`),
@@ -60,6 +63,9 @@ export async function loadHrisData(): Promise<HrisData> {
     pool.query(`SELECT * FROM asset_assignments ORDER BY assigned_at DESC`),
     pool.query(`SELECT * FROM performance_reviews ORDER BY created_at DESC`),
     pool.query(`SELECT * FROM notifications ORDER BY created_at DESC`),
+    pool.query(`SELECT * FROM shift_swaps ORDER BY created_at DESC`),
+    pool.query(`SELECT * FROM asset_requests ORDER BY created_at DESC`),
+    pool.query(`SELECT * FROM settings`),
   ]);
 
   const employees: Employee[] = employeesR.rows.map((r) => ({
@@ -116,6 +122,7 @@ export async function loadHrisData(): Promise<HrisData> {
       startDate: iso(r.start_date)!.slice(0, 10), endDate: iso(r.end_date)!.slice(0, 10),
       days: r.days, reason: r.reason, status: r.status,
       submittedAt: iso(r.submitted_at)!, decidedBy: r.decided_by ?? undefined, decidedAt: iso(r.decided_at),
+      attachmentUrl: r.attachment_url ?? undefined,
     })),
     overtimeRequests: otReqR.rows.map((r): OvertimeRequest => ({
       id: r.id, employeeId: r.employee_id, date: iso(r.date)!.slice(0, 10),
@@ -134,6 +141,7 @@ export async function loadHrisData(): Promise<HrisData> {
       id: r.id, employeeId: r.employee_id, category: r.category, amount: r.amount,
       description: r.description, status: r.status, submittedAt: iso(r.submitted_at)!,
       approvals: (r.approvals ?? []) as ApprovalEntry[],
+      attachmentUrl: r.attachment_url ?? undefined,
     })),
     jobPostings: jpR.rows.map((r): JobPosting => ({
       id: r.id, title: r.title, departmentId: r.department_id, description: r.description,
@@ -172,6 +180,18 @@ export async function loadHrisData(): Promise<HrisData> {
       id: r.id, userId: r.user_id, title: r.title, body: r.body, type: r.type,
       read: r.read, createdAt: iso(r.created_at)!, link: r.link ?? undefined,
     })),
+    shiftSwaps: swapR.rows.map((r): ShiftSwap => ({
+      id: r.id, employeeId: r.employee_id, date: iso(r.date)!.slice(0, 10),
+      fromShiftId: r.from_shift_id ?? null, targetShiftId: r.target_shift_id ?? null,
+      reason: r.reason ?? "", status: r.status, decidedBy: r.decided_by ?? undefined,
+      createdAt: iso(r.created_at)!,
+    })),
+    assetRequests: assetReqR.rows.map((r): AssetRequest => ({
+      id: r.id, employeeId: r.employee_id, category: r.category,
+      description: r.description, status: r.status, decidedBy: r.decided_by ?? undefined,
+      createdAt: iso(r.created_at)!,
+    })),
+    settings: Object.fromEntries(settingsR.rows.map((r) => [r.key, r.value] as [string, string])),
   };
 }
 
@@ -181,6 +201,10 @@ export function scopeForUser(data: HrisData, user: User | null): HrisData {
   const own = <T extends { employeeId: string }>(arr: T[]) => arr.filter((x) => x.employeeId === user.employeeId);
   return {
     ...data,
+    // gaji hanya milik sendiri yang terlihat
+    employees: data.employees.map((e) =>
+      e.id === user.employeeId ? e : { ...e, baseSalary: undefined, allowance: undefined },
+    ),
     attendance: own(data.attendance),
     leaveRequests: own(data.leaveRequests),
     overtimeRequests: own(data.overtimeRequests),
@@ -188,7 +212,10 @@ export function scopeForUser(data: HrisData, user: User | null): HrisData {
     trainingEnrollments: own(data.trainingEnrollments),
     assetAssignments: own(data.assetAssignments),
     performanceReviews: own(data.performanceReviews),
+    shiftSwaps: own(data.shiftSwaps),
+    assetRequests: own(data.assetRequests),
     notifications: data.notifications.filter((n) => n.userId === user.id),
+    auditLogs: [],
   };
 }
 
@@ -208,7 +235,8 @@ export async function nextId(table: string, prefix: string): Promise<string> {
     "candidates", "trainings", "training_enrollments", "assets", "asset_assignments",
     "performance_reviews", "notifications", "announcements", "leave_requests",
     "overtime_requests", "reimbursements", "audit_logs",
-    "branches", "departments", "positions", "leave_types"
+    "branches", "departments", "positions", "leave_types",
+    "shift_swaps", "asset_requests", "settings"
   ];
   if (!allowed.includes(table)) throw new Error("Invalid table name: " + table);
   const r = await pool.query(`SELECT id FROM ${table} ORDER BY id DESC LIMIT 1`);

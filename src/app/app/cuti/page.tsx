@@ -14,6 +14,7 @@ export default function EmployeeLeave() {
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [reason, setReason] = useState("");
+  const [attachmentUrl, setAttachmentUrl] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
   if (!me) return null;
@@ -45,11 +46,13 @@ export default function EmployeeLeave() {
         reason: reason.trim(),
         status: "pending",
         submittedAt: new Date().toISOString(),
+        ...(attachmentUrl ? { attachmentUrl } : {}),
       },
     });
     setStart("");
     setEnd("");
     setReason("");
+    setAttachmentUrl("");
   }
 
   return (
@@ -105,14 +108,22 @@ export default function EmployeeLeave() {
           <Field label="Alasan" hint="Satu kalimat cukup. Lampiran dokmen menyusul via HR bila diminta.">
             <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Contoh: acara keluarga di luar kota…" />
           </Field>
-          <Field label="Lampiran (opsional)" hint="JPG/PDF max 2MB">
-            <Input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={e=> {
+          <Field label="Lampiran (opsional)" hint="JPG/PNG/PDF max 2MB">
+            <Input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={async e=> {
               const f=e.target.files?.[0];
               if(!f) return;
               if(f.size>2*1024*1024){ setFormError("File max 2MB"); return; }
-              // ponytail: simpan nama file saja, file asli tidak di-upload ke server demo
-              setReason(r=> r ? `${r} [Lampiran: ${f.name}]` : `[Lampiran: ${f.name}]`);
+              setFormError(null);
+              const fd=new FormData(); fd.append("file", f);
+              try {
+                const r=await fetch("/api/uploads",{method:"POST",body:fd});
+                const j=await r.json() as {ok:boolean;url?:string;error?:string};
+                if(j.ok && j.url){ setAttachmentUrl(j.url); }
+                else setFormError(j.error ?? "Upload gagal.");
+              } catch { setFormError("Upload gagal. Coba lagi."); }
+              e.target.value="";
             }} />
+            {attachmentUrl && <p className="mt-1 text-xs text-official-deep">Terlampir: <a href={attachmentUrl} target="_blank" rel="noreferrer" className="underline">{attachmentUrl.split("/").pop()}</a> <button type="button" onClick={()=> setAttachmentUrl("")} className="ml-1 text-stamp hover:underline">hapus</button></p>}
           </Field>
           {formError && (
             <p role="alert" className="text-xs font-medium text-stamp-deep">
@@ -143,6 +154,9 @@ export default function EmployeeLeave() {
                     {r.endDate !== r.startDate ? ` – ${fmtDateShortID(r.endDate)}` : ""} · {r.days} hari
                   </p>
                   <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-ink-faint">{r.reason}</p>
+                  {r.attachmentUrl && (
+                    <p className="mt-1 text-xs"><a href={r.attachmentUrl} target="_blank" rel="noreferrer" className="text-official underline">Lihat lampiran</a></p>
+                  )}
                   {r.status === "rejected" && r.decidedBy && (
                     <p className="mt-1 text-xs text-stamp-deep">Ditolak oleh {r.decidedBy}</p>
                   )}

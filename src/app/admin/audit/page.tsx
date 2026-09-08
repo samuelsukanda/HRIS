@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { MagnifyingGlass } from "@phosphor-icons/react";
-import { Btn, EmptyState, Input, PageHead, Pager } from "@/components/ui";
+import { Btn, EmptyState, Input, PageHead, Pager, Select } from "@/components/ui";
 import { useHris } from "@/lib/store";
 
 const MONS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
@@ -21,12 +21,15 @@ export default function AdminAuditPage() {
   const [q, setQ] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [faction, setFaction] = useState("all");
   const [page, setPage] = useState(1);
   const LIMIT = 10;
 
+  const actions = [...new Set(data.auditLogs.map((e) => e.action))].sort();
   const needle = q.trim().toLowerCase();
   const logs = data.auditLogs.filter(e=> {
     if(needle && ![e.actorName, e.action, e.detail, e.targetId].some(v=> v.toLowerCase().includes(needle))) return false;
+    if(faction !== "all" && e.action !== faction) return false;
     if(from && e.at.slice(0,10) < from) return false;
     if(to && e.at.slice(0,10) > to) return false;
     return true;
@@ -54,6 +57,12 @@ export default function AdminAuditPage() {
         </div>
         <label className="flex items-center gap-1.5 text-xs whitespace-nowrap text-ink-faint">Dari<Input type="date" value={from} onChange={e=> setFrom(e.target.value)} aria-label="Dari tanggal" className="w-auto px-2 py-1.5 text-xs" /></label>
         <label className="flex items-center gap-1.5 text-xs whitespace-nowrap text-ink-faint">s.d.<Input type="date" value={to} onChange={e=> setTo(e.target.value)} aria-label="Sampai tanggal" className="w-auto px-2 py-1.5 text-xs" /></label>
+        <div className="w-44 shrink-0">
+          <Select value={faction} onChange={e=> setFaction(e.target.value)} aria-label="Filter action" className="px-2 py-1.5 text-xs">
+            <option value="all">Semua action</option>
+            {actions.map((a) => <option key={a} value={a}>{a}</option>)}
+          </Select>
+        </div>
         <Btn variant="secondary" size="sm" onClick={exportCsv}>Export CSV</Btn>
       </div>
 

@@ -279,6 +279,7 @@ export default function AdminEmployees() {
               <Input type="number" value={allowance} onChange={(e) => setAllowance(Number(e.target.value))} />
             </Field>
           </div>
+          {showEditForm && <AccountSection employeeId={selected!} />}
           <Btn variant="official" onClick={showEditForm ? handleEdit : handleAdd} disabled={!name || !email} className="w-full">
             {showEditForm ? "Simpan Perubahan" : "Simpan Karyawan"}
           </Btn>
@@ -288,8 +289,41 @@ export default function AdminEmployees() {
   );
 }
 
-function empStatusStamp(e: Employee) {
-  if (e.status === "on_leave") return <Stamp kind="neutral">On Leave</Stamp>;
+function AccountSection({ employeeId }: { employeeId: string }) {
+  const { state, showToast } = useHris();
+  const account = state.data.users.find((u) => u.employeeId === employeeId);
+  const [role, setRole] = useState(account?.role ?? "employee");
+  const [busy, setBusy] = useState(false);
+  if (!account) return null;
+  async function save(patch: Record<string, unknown>, msg: string) {
+    setBusy(true);
+    const r = await fetch(`/api/users/${account!.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+    const j = await r.json().catch(() => ({}));
+    setBusy(false);
+    showToast(j.ok ? msg : (j.error ?? "Gagal."), j.ok ? "success" : "error");
+    if (j.ok) location.reload();
+  }
+  return (
+    <div className="border border-dashed border-rule bg-paper p-3">
+      <p className="mb-2 text-xs font-semibold tracking-wide text-ink-soft uppercase">Akun Login</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={role} onChange={(e) => setRole(e.target.value as never)} aria-label="Role akun" className="!w-auto px-2 py-1.5 text-xs">
+          <option value="employee">employee</option>
+          <option value="manager">manager</option>
+          <option value="hr_admin">hr_admin</option>
+          <option value="hr_manager">hr_manager</option>
+          <option value="finance">finance</option>
+          <option value="super_admin">super_admin</option>
+        </Select>
+        <Btn variant="secondary" size="sm" disabled={busy || role === account.role} onClick={() => void save({ role }, "Role diperbarui")}>Simpan Role</Btn>
+        <Btn variant="danger" size="sm" disabled={busy} onClick={() => void save({ active: false }, "Login dinonaktifkan")}>Nonaktifkan Login</Btn>
+        <Btn variant="official" size="sm" disabled={busy} onClick={() => void save({ active: true }, "Login diaktifkan")}>Aktifkan</Btn>
+      </div>
+    </div>
+  );
+}
+
+function empStatusStamp(e: Employee) {  if (e.status === "on_leave") return <Stamp kind="neutral">On Leave</Stamp>;
   if (e.employmentType === "probation") return <Stamp kind="pending">Probation</Stamp>;
   if (e.employmentType === "contract") return <Stamp kind="neutral">Kontrak</Stamp>;
   if (e.employmentType === "intern") return <Stamp kind="neutral">Intern</Stamp>;

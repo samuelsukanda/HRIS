@@ -31,15 +31,15 @@ export default function MyPayslips() {
       ) : slips.length === 0 ? (
         <EmptyState icon={Wallet} title="Belum ada slip" body="Slip muncul setelah HR menjalankan dan menyetujui payroll periode berjalan." />
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-3 print:space-y-6">
           {slips.map((s) => {
             const isOpen = open === s.period;
             return (
-              <li key={s.period} className="border border-rule bg-card">
+              <li key={s.period} className="border border-rule bg-card print:break-inside-avoid">
                 <button
                   onClick={() => setOpen(isOpen ? null : s.period)}
                   aria-expanded={isOpen}
-                  className="flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-black/[0.02]"
+                  className="flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-black/[0.02] print:hidden"
                 >
                   <div>
                     <p className="text-sm font-bold">{formatPeriod(s.period)}</p>
@@ -52,7 +52,11 @@ export default function MyPayslips() {
                     <CaretDown size={14} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
                   </span>
                 </button>
-                {isOpen && (
+                <div className="hidden px-4 py-3 print:block">
+                  <p className="text-sm font-bold">{formatPeriod(s.period)}</p>
+                  <p className="tnum mt-0.5 font-mono text-xs text-ink-soft">Take-home {fmtRupiah(s.breakdown.net)}</p>
+                </div>
+                <div className={`${isOpen ? "" : "hidden"} print:block`}>
                   <dl className="divide-y divide-ledger/60 border-t border-rule px-4 text-sm">
                     <Row k="Gaji pokok" v={fmtRupiah(s.breakdown.basePaid)} />
                     <Row k="Tunjangan tetap" v={fmtRupiah(s.breakdown.allowancePaid)} />
@@ -78,11 +82,16 @@ export default function MyPayslips() {
                       <dd className="tnum font-mono font-bold text-official">{fmtRupiah(s.breakdown.net)}</dd>
                     </div>
                   </dl>
-                )}
+                </div>
               </li>
             );
           })}
         </ul>
+      )}
+      {slips !== null && slips.length > 0 && (
+        <button onClick={() => window.print()} className="btn-press mt-4 w-full cursor-pointer rounded-[4px] border border-rule bg-card px-4 py-2.5 text-sm font-semibold hover:border-ink-faint print:hidden">
+          Cetak / Simpan PDF
+        </button>
       )}
     </>
   );

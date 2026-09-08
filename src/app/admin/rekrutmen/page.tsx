@@ -22,7 +22,9 @@ export default function AdminRekrutmen() {
   const [tab, setTab] = useState<"lowongan" | "pelamar" | "tambah_lowongan">("lowongan");
   const [statusFilter, setStatusFilter] = useState("all");
   const [q, setQ] = useState("");
+  const [qJob, setQJob] = useState("");
   const [page, setPage] = useState(1);
+  const [jobPage, setJobPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const LIMIT = 10;
@@ -43,6 +45,14 @@ export default function AdminRekrutmen() {
     })),
     [data.jobPostings, data.departments, data.candidates],
   );
+  const filteredPostings = useMemo(() =>
+    postings.filter((jp) => {
+      if (!qJob.trim()) return true;
+      return `${jp.title} ${jp.dept?.name ?? ""}`.toLowerCase().includes(qJob.toLowerCase());
+    }),
+    [postings, qJob],
+  );
+  const pagedPostings = filteredPostings.slice((jobPage - 1) * LIMIT, jobPage * LIMIT);
 
   const candidates = useMemo(() =>
     data.candidates
@@ -130,8 +140,15 @@ export default function AdminRekrutmen() {
         postings.length === 0 ? (
           <EmptyState icon={UsersThree} title="Belum ada lowongan" body="Buat lowongan baru untuk mulai rekrutmen." />
         ) : (
+          <>
+            <div className="mb-4 max-w-md">
+              <Input placeholder="Cari judul / departemen…" value={qJob} onChange={(e) => { setQJob(e.target.value); setJobPage(1); }} />
+            </div>
+            {filteredPostings.length === 0 ? (
+              <EmptyState icon={UsersThree} title="Tidak ada hasil" body="Ubah kata kunci pencarian lowongan." />
+            ) : (
           <div className="space-y-3">
-            {postings.map((jp) => (
+            {pagedPostings.map((jp) => (
               <section key={jp.id} className="border border-rule bg-card p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -152,6 +169,9 @@ export default function AdminRekrutmen() {
               </section>
             ))}
           </div>
+            )}
+            <Pager page={jobPage} total={filteredPostings.length} limit={LIMIT} onChange={setJobPage} />
+          </>
         )
       )}
 

@@ -568,5 +568,8 @@ export function seedData(): HrisData {
     assetAssignments,
     performanceReviews,
     notifications,
+    shiftSwaps: [],
+    assetRequests: [],
+    settings: { wfh_gps: "TIDAK DIWAJIBKAN", wfh_face: "WAJIB", wfh_liveness: "WAJIB" },
   };
 }

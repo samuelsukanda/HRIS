@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { CalendarBlank } from "@phosphor-icons/react";
-import { Btn, EmptyState, Field, Input, Textarea } from "@/components/ui";
+import { Btn, EmptyState, Field, Input, StatusStamp, Textarea } from "@/components/ui";
+import { formModal, toastOk } from "@/lib/swal";
 import { addDays, fmtDateID, parseLocalISO, toLocalISO } from "@/lib/format";
 import { currentUser, rosterShiftFor, todayISO, useHris } from "@/lib/store";
 
 export default function EmployeeSchedule() {
-  const { state } = useHris();
+  const { state, dispatch } = useHris();
   const me = currentUser(state);
   const today = todayISO();
   const monday = useMemo(() => {
@@ -20,6 +21,7 @@ export default function EmployeeSchedule() {
     date: d,
     shift: me ? rosterShiftFor(state.data, me.employee.id, d) : null,
   })), [days, me, state.data]);
+  const mySwaps = me ? state.data.shiftSwaps.filter((s) => s.employeeId === me.employee.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)) : [];
   if (!me) return null;
 
   return (
@@ -60,7 +62,15 @@ export default function EmployeeSchedule() {
                     <p className="text-sm tracking-wide text-ink-faint uppercase">Libur</p>
                   )}
                 </div>
-                <button onClick={async()=>{ const Swal=(await import("sweetalert2")).default; const {value:f}=await Swal.fire({ title:`Tukar shift ${date}`, html:`<label style="display:block;text-align:left;font-size:12px">Shift tujuan (kosongkan = Off)<input id="sw-shift" value="${shift?.id ?? ""}" placeholder="S-PAGI / S-SIANG / S-MALAM / S-OFFICE" style="margin-top:4px;width:100%;border:1px solid #d6d3cb;padding:8px;border-radius:4px;font-size:14px" /></label><label style="display:block;text-align:left;font-size:12px;margin-top:8px">Alasan<input id="sw-reason" placeholder="Alasan tukar shift" style="margin-top:4px;width:100%;border:1px solid #d6d3cb;padding:8px;border-radius:4px;font-size:14px" /></label>`, showCancelButton:true, confirmButtonText:"Kirim", cancelButtonText:"Batal", confirmButtonColor:"#2b4a6f", background:"#f6f5f0", preConfirm:()=> ({ t:(document.getElementById("sw-shift") as HTMLInputElement)?.value ?? "", r:(document.getElementById("sw-reason") as HTMLInputElement)?.value ?? "" }) }); if(!f) return; const res=await fetch("/api/shift-swaps",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({date,targetShiftId:f.t||null,reason:f.r})}); const j=await res.json(); void Swal.fire({ toast:true, position:"top-end", icon: j.ok?"success":"error", title: j.ok?"Permintaan terkirim":"Gagal", showConfirmButton:false, timer:2200, background:"#f6f5f0" }); }} className="min-h-9 px-2 text-[10px] font-semibold text-official hover:underline">Tukar</button>
+                <button onClick={async () => {
+                  const v = await formModal<{ target: string; reason: string }>(`Tukar shift ${date}`, [
+                    { key: "target", label: "Shift tujuan (kosongkan = Off)", value: shift?.id ?? "" },
+                    { key: "reason", label: "Alasan", value: "" },
+                  ]);
+                  if (!v) return;
+                  dispatch({ type: "REQUEST_SHIFT_SWAP", swap: { id: `SWP-${Date.now().toString(36).toUpperCase()}`, employeeId: me.employee.id, date, fromShiftId: shift?.id ?? null, targetShiftId: v.target || null, reason: v.reason, status: "pending", createdAt: new Date().toISOString() } });
+                  toastOk("Permintaan terkirim");
+                }} className="min-h-9 px-2 text-[10px] font-semibold text-official hover:underline">Tukar</button>
                 {isToday && (
                   <span aria-hidden className="flex items-center gap-1.5">
                     <span className="h-2 w-2 animate-pulse rounded-full bg-stamp" />
@@ -77,6 +87,19 @@ export default function EmployeeSchedule() {
         Window check-in dibuka ±60 menit dari jam mulai shift. Di luar window, ajukan koreksi
         di bawah.
       </p>
+      {mySwaps.length > 0 && (
+        <section className="mt-4" aria-label="Status tukar shift">
+          <h2 className="mb-2 text-sm font-semibold">Status Tukar Shift</h2>
+          <ul className="divide-y divide-ledger/60 border border-rule bg-card px-4">
+            {mySwaps.slice(0, 5).map((s) => (
+              <li key={s.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                <span className="text-ink-soft">{s.date} → {s.targetShiftId ?? "Off"}</span>
+                <StatusStamp status={s.status} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <div className="mt-4"><CorrectionForm /></div>
     </>
   );

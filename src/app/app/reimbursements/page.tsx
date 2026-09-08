@@ -19,6 +19,8 @@ export default function MyReimbursements() {
   const [category, setCategory] = useState<string>("transport");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
+  const [attachmentUrl, setAttachmentUrl] = useState("");
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
 
   const myReimb = useMemo(() =>
@@ -39,10 +41,12 @@ export default function MyReimbursements() {
         status: "pending",
         submittedAt: new Date().toISOString(),
         approvals: [],
+        ...(attachmentUrl ? { attachmentUrl } : {}),
       },
     });
     setAmount("");
     setDescription("");
+    setAttachmentUrl("");
     setShowForm(false);
   }
 
@@ -77,8 +81,23 @@ export default function MyReimbursements() {
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full border border-rule bg-card px-3 py-2 text-sm" placeholder="Jelaskan pengeluaran..." />
             </div>
             <div>
-              <label className="mb-1 block font-mono text-[11px] tracking-widest text-ink-faint uppercase">Lampiran (opsional)</label>
-              <input type="file" accept=".jpg,.png,.pdf" onChange={e=> { const f=e.target.files?.[0]; if(!f) return; if(f.size>2*1024*1024) return; setDescription(d=> d ? `${d} [Lampiran: ${f.name}]` : `[Lampiran: ${f.name}]`); }} className="w-full border border-rule bg-card px-3 py-2 text-xs" />
+              <label className="mb-1 block font-mono text-[11px] tracking-widest text-ink-faint uppercase">Lampiran (opsional, JPG/PNG/PDF max 2MB)</label>
+              <input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={async e=> {
+                const f=e.target.files?.[0];
+                if(!f) return;
+                if(f.size>2*1024*1024){ setUploadErr("File max 2MB"); return; }
+                setUploadErr(null);
+                const fd=new FormData(); fd.append("file", f);
+                try {
+                  const r=await fetch("/api/uploads",{method:"POST",body:fd});
+                  const j=await r.json() as {ok:boolean;url?:string;error?:string};
+                  if(j.ok && j.url){ setAttachmentUrl(j.url); }
+                  else setUploadErr(j.error ?? "Upload gagal.");
+                } catch { setUploadErr("Upload gagal. Coba lagi."); }
+                e.target.value="";
+              }} className="w-full border border-rule bg-card px-3 py-2 text-xs" />
+              {uploadErr && <p role="alert" className="mt-1 text-xs text-stamp-deep">{uploadErr}</p>}
+              {attachmentUrl && <p className="mt-1 text-xs text-official-deep">Terlampir: <a href={attachmentUrl} target="_blank" rel="noreferrer" className="underline">{attachmentUrl.split("/").pop()}</a> <button type="button" onClick={()=> setAttachmentUrl("")} className="ml-1 text-stamp hover:underline">hapus</button></p>}
             </div>
             <div className="flex gap-2">
               <Btn variant="official" size="md" onClick={submit} disabled={!amount || !description.trim()}>Submit</Btn>
@@ -100,6 +119,9 @@ export default function MyReimbursements() {
               </div>
               <p className="tnum mt-1 font-mono text-sm text-official">Rp {r.amount.toLocaleString("id-ID")}</p>
               <p className="mt-0.5 text-xs text-ink-soft">{r.description}</p>
+              {r.attachmentUrl && (
+                <p className="mt-1 text-xs"><a href={r.attachmentUrl} target="_blank" rel="noreferrer" className="text-official underline">Lihat lampiran</a></p>
+              )}
               {r.approvals.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
                   {r.approvals.map((a, i) => (

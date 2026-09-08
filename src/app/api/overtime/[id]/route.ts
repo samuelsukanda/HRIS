@@ -9,22 +9,33 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const user = await getSessionUser();
   if (!user) return Response.json({ ok: false }, { status: 401 });
   const { id } = await ctx.params;
-  const { approve } = (await req.json()) as { approve: boolean };
+  const body = await req.json() as { approve?: boolean; cancel?: boolean };
 
-  if (!ADMIN_ROLES.includes(user.role)) {
-    return Response.json({ ok: false, error: "Hanya atasan/admin." }, { status: 403 });
-  }
   const r = await pool.query(
     `SELECT o.*, e.name emp_name FROM overtime_requests o JOIN employees e ON e.id = o.employee_id WHERE o.id = $1`,
     [id],
   );
   const ot = r.rows[0];
   if (!ot) return Response.json({ ok: false, error: "Tidak ditemukan." }, { status: 404 });
+
+  // Cancel oleh karyawan sendiri
+  if (body.cancel) {
+    if (ot.employee_id !== user.employee_id) return Response.json({ ok: false, error: "Bukan milik Anda." }, { status: 403 });
+    if (ot.status !== "pending") return Response.json({ ok: false, error: "Hanya bisa batalkan yang pending." }, { status: 409 });
+    await pool.query(`UPDATE overtime_requests SET status='cancelled' WHERE id=$1`, [id]);
+    await writeAudit({ actorId: user.id, actorName: ot.emp_name, action: "Overtime cancelled", targetType: "overtime_request", targetId: id, detail: `${ot.date} ${ot.hours} jam`, before: "pending", after: "cancelled", at: new Date().toISOString() });
+    return Response.json({ ok: true, status: "cancelled" });
+  }
+
+  if (!ADMIN_ROLES.includes(user.role)) {
+    return Response.json({ ok: false, error: "Hanya atasan/admin." }, { status: 403 });
+  }
   if (ot.status !== "pending") return Response.json({ ok: false, error: "Sudah diputuskan." }, { status: 409 });
 
   const approverR = await pool.query(`SELECT name FROM employees WHERE id = $1`, [user.employee_id]);
   const approverName = approverR.rows[0]?.name ?? user.employee_id;
 
+  const { approve } = body;
   const status = approve ? "approved" : "rejected";
   await pool.query(`UPDATE overtime_requests SET status=$1, decided_by=$2 WHERE id=$3`, [status, approverName, id]);
   await writeAudit({

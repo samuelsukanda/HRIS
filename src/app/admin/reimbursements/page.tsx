@@ -125,7 +125,7 @@ export default function AdminReimbursements() {
                     </td>
                     <td className="px-3 py-3 capitalize">{r.category}</td>
                     <td className="tnum px-3 py-3 text-right font-mono">Rp {r.amount.toLocaleString("id-ID")}</td>
-                    <td className="max-w-[200px] truncate px-3 py-3 text-ink-soft">{r.description}</td>
+                    <td className="max-w-[200px] truncate px-3 py-3 text-ink-soft">{r.description}{r.attachmentUrl && <> · <a href={r.attachmentUrl} target="_blank" rel="noreferrer" className="text-official underline">lampiran</a></>}</td>
                     <td className="px-3 py-3 text-center"><Stamp kind={STATUS_KIND[r.status] ?? "pending"}>{STATUS_LABEL[r.status]}</Stamp></td>
                     <td className="px-3 py-3 text-center">
                       {canApproveManager && (
