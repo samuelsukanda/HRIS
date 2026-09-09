@@ -48,7 +48,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           {children}
           <Toast />
         </HrisProvider>
-        <script dangerouslySetInnerHTML={{__html:`if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}`}} />
+        {process.env.NODE_ENV === "production" && (
+          <script dangerouslySetInnerHTML={{__html:`if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}`}} />
+        )}
       </body>
     </html>
   );

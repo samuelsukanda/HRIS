@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import { Btn, EmptyState, Input, PageHead, Pager, Select } from "@/components/ui";
-import { downloadCsv } from "@/lib/format";
+import { exportExcel } from "@/lib/excel";
 import { useHris } from "@/lib/store";
 
 const MONS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
@@ -37,8 +37,8 @@ export default function AdminAuditPage() {
   });
   const paged = logs.slice((page - 1) * LIMIT, page * LIMIT);
   function exportCsv(){
-    downloadCsv(
-      `audit-${from||"all"}-${to||"all"}.csv`,
+    void exportExcel(
+      `audit-${from||"all"}-${to||"all"}.xlsx`,
       ["Waktu","User","Action","Target","Detail","Before","After"],
       logs.map(e=> [e.at,e.actorName,e.action,`${e.targetType}#${e.targetId}`,e.detail,e.before??"",e.after??""]),
     );
@@ -64,7 +64,7 @@ export default function AdminAuditPage() {
             {actions.map((a) => <option key={a} value={a}>{a}</option>)}
           </Select>
         </div>
-        <Btn variant="secondary" size="sm" onClick={exportCsv}>Export CSV</Btn>
+        <Btn variant="secondary" size="sm" onClick={exportCsv}>Export Excel</Btn>
       </div>
 
       <section className="border border-rule bg-card">

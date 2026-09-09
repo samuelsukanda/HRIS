@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CalendarBlank, CaretLeft, CaretRight, Check, X } from "@phosphor-icons/react";
 import { Avatar, Btn, EmptyState, PageHead, Pager, Select, Stamp, StatusStamp } from "@/components/ui";
+import { toastOk } from "@/lib/swal";
 import { leaveBalance } from "@/lib/engine";
 import { fmtDateID, fmtDateShortID } from "@/lib/format";
 import { currentUser, useHris } from "@/lib/store";
@@ -46,6 +47,7 @@ export default function AdminCutiPage() {
   function decide(id: string, approve: boolean) {
     if (!canDecide || !me) return;
     dispatch({ type: "DECIDE_LEAVE", id, approve, byName: me.employee.name });
+    toastOk(approve ? "Cuti disetujui" : "Cuti ditolak");
   }
 
   function toggleSelect(id: string) {
@@ -60,6 +62,7 @@ export default function AdminCutiPage() {
   function bulkDecide(approve: boolean) {
     if (!canDecide || !me || selected.length === 0) return;
     dispatch({ type: "BULK_DECIDE_LEAVE", ids: selected, approve, byName: me.employee.name });
+    toastOk(approve ? `${selected.length} cuti disetujui` : `${selected.length} cuti ditolak`);
     setSelected([]);
   }
 

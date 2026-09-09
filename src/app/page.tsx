@@ -40,28 +40,21 @@ export default function LoginPage() {
   return (
     <main className="grid min-h-[100dvh] lg:grid-cols-[1.15fr_0.85fr]">
       {/* Panel identitas — asymmetric bento with liquid glass */}
-      <section className="relative hidden flex-col justify-between overflow-hidden border-r border-rule bg-card px-12 py-12 lg:flex">
+      <section className="relative hidden flex-col overflow-hidden border-r border-rule bg-card px-12 py-12 lg:flex">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_20%_80%,rgba(220,38,38,0.06),transparent_50%),radial-gradient(ellipse_at_80%_20%,rgba(14,165,233,0.06),transparent_50%)]" />
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.16,1,0.3,1] }} className="flex items-center gap-2 font-mono text-xs tracking-widest text-ink-soft uppercase">
           <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-stamp opacity-30" /><span className="relative inline-flex h-2 w-2 rounded-full bg-stamp" /></span>
-          HRIS — Buku Induk
+          HRIS — Human Resource Information System
         </motion.div>
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.6, ease: [0.16,1,0.3,1] }} className="max-w-[30ch]">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.6, ease: [0.16,1,0.3,1] }} className="flex max-w-[30ch] flex-1 flex-col justify-center">
           <p className="text-5xl leading-[0.95] font-extrabold tracking-tighter text-balance">
-            Satu rekaman kehadiran yang <em className="text-stamp not-italic underline decoration-stamp/40 decoration-4 underline-offset-8">terverifikasi</em>.
+            <em className="text-stamp not-italic underline decoration-stamp/40 decoration-4 underline-offset-8">Satu sistem.</em> <span className="whitespace-nowrap">Seluruh proses HR.</span>
           </p>
           <p className="mt-6 max-w-[52ch] text-sm leading-relaxed text-ink-soft">
-            GPS geofencing, face verification 1:1, liveness detection, device binding,
-            dan risk engine — dicap dalam satu alur detik.
+            Kelola kehadiran, karyawan, payroll, cuti, performa, dan berbagai
+            proses HR dalam satu sistem terintegrasi.
           </p>
         </motion.div>
-        <motion.ul initial="hidden" animate="visible" variants={{ hidden:{}, visible:{ transition:{ staggerChildren:0.08, delayChildren:0.3 }}}} className="grid max-w-md grid-cols-3 gap-4 font-mono text-[11px] tracking-wide text-ink-faint uppercase">
-          {["Geofence", "Face 1:1", "Liveness", "Device Bind", "Risk Engine", "Audit Trail"].map((f) => (
-            <motion.li key={f} variants={{ hidden:{ opacity:0, y:6 }, visible:{ opacity:1, y:0 }}} className="border-t border-ledger pt-2">
-              {f}
-            </motion.li>
-          ))}
-        </motion.ul>
       </section>
 
       {/* Panel masuk */}
@@ -73,7 +66,7 @@ export default function LoginPage() {
           </div>
           <h1 className="text-xl font-bold tracking-tight">Masuk</h1>
           <p className="mt-1 mb-6 text-sm text-ink-soft">
-            Gunakan akun perusahaan Anda. Demo memakai kredensial sintetis.
+            Masuk menggunakan akun perusahaan Anda untuk mengakses sistem HRIS.
           </p>
 
           <form
@@ -94,7 +87,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="nama@hrissmart.id"
+                placeholder="nama@hris.id"
                 className="w-full border border-rule bg-card px-3 py-2.5 text-sm outline-none focus:border-official"
               />
             </div>
@@ -157,8 +150,7 @@ export default function LoginPage() {
 
           <p className="mt-8 flex items-start gap-2 text-xs leading-relaxed text-ink-faint">
             <GlobeSimple size={14} weight="light" className="mt-0.5 shrink-0" />
-            Lokasi &amp; kamera hanya diakses saat Anda melakukan absensi — tidak ada
-            pelacakan di luar itu.
+            Akses lokasi dan kamera hanya aktif saat Anda melakukan absensi dan tidak digunakan untuk pelacakan di luar proses tersebut.
           </p>
         </div>
       </section>

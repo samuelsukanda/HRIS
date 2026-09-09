@@ -320,6 +320,7 @@ export interface AssetAssignment {
   employeeId: string;
   assignedAt: string;
   returnedAt?: string;
+  returnRequestedAt?: string;
 }
 
 export interface PerformanceReview {

@@ -95,7 +95,7 @@ export default function AdminPerforma() {
               <div className="mt-2 flex items-center gap-2">
                 <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-semibold uppercase ${r.status === "final" ? "bg-official/10 text-official" : r.status === "submitted" ? "bg-yellow-100 text-yellow-700" : "bg-ink/5 text-ink-faint"}`}>{r.status}</span>
                 {r.status !== "final" && me?.user.role === "hr_manager" && (
-                  <Btn variant="official" size="sm" onClick={() => dispatch({ type: "FINALIZE_REVIEW", id: r.id })}>Finalize</Btn>
+                  <Btn variant="official" size="sm" onClick={() => { dispatch({ type: "FINALIZE_REVIEW", id: r.id }); toastOk("Penilaian difinalisasi"); }}>Finalize</Btn>
                 )}
               </div>
             </section>

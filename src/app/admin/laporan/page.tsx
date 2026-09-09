@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Download, Table } from "@phosphor-icons/react";
 import { Btn, EmptyState, PageHead, Select } from "@/components/ui";
-import { downloadCsv } from "@/lib/format";
+import { exportExcel } from "@/lib/excel";
 import { useHris } from "@/lib/store";
 
 const BULAN_PENUH = [
@@ -44,8 +44,8 @@ export default function AdminLaporanPage() {
   });
 
   function exportCsv() {
-    downloadCsv(
-      `hris-absensi-${month}.csv`,
+    void exportExcel(
+      `hris-absensi-${month}.xlsx`,
       ["EmployeeID", "Nama", "Tanggal", "Status", "CheckIn", "RiskScore"],
       recs.map((a) => {
         const emp = data.employees.find((e) => e.id === a.employeeId);
@@ -55,8 +55,8 @@ export default function AdminLaporanPage() {
   }
 
   function exportCuti() {
-    downloadCsv(
-      `hris-cuti-${month}.csv`,
+    void exportExcel(
+      `hris-cuti-${month}.xlsx`,
       ["EmployeeID", "Nama", "Jenis", "TanggalMulai", "TanggalAkhir", "Hari", "Alasan", "Status"],
       data.leaveRequests.filter((r) => r.startDate.startsWith(month)).map((r) => {
         const emp = data.employees.find((e) => e.id === r.employeeId);
@@ -67,8 +67,8 @@ export default function AdminLaporanPage() {
   }
 
   function exportLembur() {
-    downloadCsv(
-      `hris-lembur-${month}.csv`,
+    void exportExcel(
+      `hris-lembur-${month}.xlsx`,
       ["EmployeeID", "Nama", "Tanggal", "JamMulai", "JamAkhir", "Durasi", "Alasan", "Status"],
       data.overtimeRequests.filter((r) => r.date.startsWith(month)).map((r) => {
         const emp = data.employees.find((e) => e.id === r.employeeId);
@@ -78,8 +78,8 @@ export default function AdminLaporanPage() {
   }
 
   function exportReimbursement() {
-    downloadCsv(
-      `hris-reimbursement-${month}.csv`,
+    void exportExcel(
+      `hris-reimbursement-${month}.xlsx`,
       ["EmployeeID", "Nama", "Kategori", "Jumlah", "Keterangan", "Status"],
       data.reimbursements.filter((r) => r.submittedAt?.startsWith(month)).map((r) => {
         const emp = data.employees.find((e) => e.id === r.employeeId);
@@ -107,7 +107,7 @@ export default function AdminLaporanPage() {
           </Select>
         </label>
         <span className="mx-1 hidden h-5 w-px bg-rule sm:block" aria-hidden />
-        <span className="text-xs font-semibold tracking-wide text-ink-faint uppercase">Export CSV:</span>
+        <span className="text-xs font-semibold tracking-wide text-ink-faint uppercase">Export Excel:</span>
         <Btn variant="secondary" size="sm" icon={Download} onClick={exportCsv} disabled={recs.length === 0}>
           Absensi
         </Btn>
@@ -168,7 +168,8 @@ export default function AdminLaporanPage() {
           </div>
         )}
         <footer className="border-t border-rule bg-paper px-5 py-3 text-xs text-ink-faint">
-          Ekspor CSV mencakup seluruh rekaman absensi periode terpilih. Ekspor Excel/PDF menyusul (Phase 3).
+          <p className="font-semibold">Ekspor Excel</p>
+          <p className="mt-1 text-xs leading-relaxed text-ink-soft">Unduh rekap absensi periode terpilih dalam format Excel (.xlsx).</p>
         </footer>
       </section>
     </>

@@ -52,7 +52,19 @@ describe("computePayslip", () => {
   it("BPJS mengikuti rumus", () => {
     const p = computePayslip({ ...base, scheduledDays: 20, presentDays: 19, paidLeaveDays: 1, overtimeHours: 0 });
     expect(p.bpjsHealth).toBe(Math.round(p.gross * 0.01));
-    expect(p.bpjsJht).toBe(200_000); // 2% dari base
+    expect(p.bpjsJht).toBe(Math.round(p.basePaid * 0.02)); // 2% dari upah terbayar
+  });
+
+  it("alpha penuh: upah tak pernah negatif dan potongan nol", () => {
+    // replika September 2026: 3 hari kerja, alpha 3, pembulatan harian 6.500.001
+    const p = computePayslip({ baseSalary: 6_500_000, allowance: 1_200_000, scheduledDays: 3, presentDays: 0, paidLeaveDays: 0, overtimeHours: 0 });
+    expect(p.basePaid).toBe(0);
+    expect(p.allowancePaid).toBe(0);
+    expect(p.gross).toBe(0);
+    expect(p.bpjsJht).toBe(0);
+    expect(p.bpjsHealth).toBe(0);
+    expect(p.tax).toBe(0);
+    expect(p.net).toBe(0);
   });
 
   it("scheduledDays 0 tapi ada presensi → tidak NaN", () => {

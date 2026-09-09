@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { GraduationCap } from "@phosphor-icons/react";
 import { Btn, EmptyState, PageHead, Stamp } from "@/components/ui";
+import { confirmDelete, toastOk } from "@/lib/swal";
 import { currentUser, useHris } from "@/lib/store";
 
 export default function MyPelatihan() {
@@ -35,15 +36,19 @@ export default function MyPelatihan() {
         enrolledAt: new Date().toISOString(),
       },
     });
+    toastOk("Berhasil mendaftar pelatihan");
   }
 
-  function cancel(enrollmentId: string) {
-    dispatch({ type: "CANCEL_ENROLLMENT", id: enrollmentId });
+  async function cancel(enrollmentId: string) {
+    if (await confirmDelete("pendaftaran pelatihan ini")) {
+      dispatch({ type: "CANCEL_ENROLLMENT", id: enrollmentId });
+      toastOk("Pendaftaran dibatalkan");
+    }
   }
 
   return (
     <>
-      <PageHead title="Pelatihan" sub="Jadwal pelatihan yang tersedia dan yang sudah Anda ikuti." />
+      <PageHead title="Pelatihan" sub="Lihat pelatihan yang tersedia dan riwayat pelatihan Anda." />
 
       {myEnrolled.length > 0 && (
         <section className="mb-6">

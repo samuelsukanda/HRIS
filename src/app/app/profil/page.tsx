@@ -10,6 +10,7 @@ import {
   ShieldCheck,
 } from "@phosphor-icons/react";
 import { Avatar, Btn, Field, Input, Select, Stamp } from "@/components/ui";
+import { toastOk } from "@/lib/swal";
 import { detectDescriptor, loadFaceApi } from "@/lib/face";
 import { fmtDateShortID } from "@/lib/format";
 import { currentUser, useHris } from "@/lib/store";
@@ -66,6 +67,7 @@ export default function EmployeeProfile() {
       },
     });
     setEditMode(false);
+    toastOk("Profil disimpan");
   }
 
   async function openCamera() {
@@ -112,6 +114,7 @@ export default function EmployeeProfile() {
       setQualityNote("Menyimpan template terenkripsi…");
       streamRef.current?.getTracks().forEach((t) => t.stop());
       dispatch({ type: "REGISTER_FACE", employeeId: employee.id, descriptor: avg });
+      toastOk("Wajah terdaftar");
       setRegPhase("done");
     } catch {
       setQualityNote("");

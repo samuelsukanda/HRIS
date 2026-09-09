@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Ticket } from "@phosphor-icons/react";
+import { Ticket, X } from "@phosphor-icons/react";
 import { Btn, EmptyState, PageHead, Stamp } from "@/components/ui";
+import { toastOk } from "@/lib/swal";
 import { currentUser, useHris } from "@/lib/store";
 
 const STATUS_KIND: Record<string, "pending" | "approved" | "rejected" | "neutral"> = {
@@ -20,6 +21,7 @@ export default function MyReimbursements() {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [attachmentUrl, setAttachmentUrl] = useState("");
+  const [fileName, setFileName] = useState("");
   const [uploadErr, setUploadErr] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
 
@@ -47,14 +49,16 @@ export default function MyReimbursements() {
     setAmount("");
     setDescription("");
     setAttachmentUrl("");
+    setFileName("");
     setShowForm(false);
+    toastOk("Pengajuan reimbursement dikirim");
   }
 
   return (
     <>
       <PageHead
         title="Reimbursement"
-        sub="Ajukan penggantian biaya dan lihat status."
+        sub="Ajukan klaim penggantian biaya dan pantau proses persetujuannya."
         action={!showForm ? <Btn variant="official" size="sm" onClick={() => setShowForm(true)}>+ Ajukan</Btn> : undefined}
       />
 
@@ -81,12 +85,29 @@ export default function MyReimbursements() {
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full border border-rule bg-card px-3 py-2 text-sm" placeholder="Jelaskan pengeluaran..." />
             </div>
             <div>
-              <label className="mb-1 block font-mono text-[11px] tracking-widest text-ink-faint uppercase">Lampiran (opsional, JPG/PNG/PDF max 2MB)</label>
-              <input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={async e=> {
+              <label className="mb-1 block font-mono text-[11px] tracking-widest text-ink-faint uppercase">Lampiran (opsional)</label>
+              <p className="mb-1 text-xs text-ink-faint">JPG/PNG/PDF max 2MB</p>
+              <label className="btn-press flex min-h-9 cursor-pointer items-center gap-3 rounded-[4px] border border-dashed border-rule bg-paper px-3 py-2 text-sm hover:border-ink-faint">
+                <span className="shrink-0 rounded-[4px] border border-rule bg-card px-3 py-1 text-xs font-semibold">Pilih File</span>
+                <span className="min-w-0 flex-1 truncate text-xs text-ink-faint">
+                  {fileName || "Belum ada file dipilih"}
+                </span>
+                {attachmentUrl && (
+                  <button
+                    type="button"
+                    aria-label="Hapus file lampiran"
+                    onClick={(e) => { e.preventDefault(); setAttachmentUrl(""); setFileName(""); }}
+                    className="btn-press shrink-0 cursor-pointer rounded-full p-1 text-ink-faint hover:bg-black/5 hover:text-stamp"
+                  >
+                    <X size={14} weight="bold" />
+                  </button>
+                )}
+                <input type="file" accept=".jpg,.jpeg,.png,.pdf" className="sr-only" onChange={async e=> {
                 const f=e.target.files?.[0];
                 if(!f) return;
                 if(f.size>2*1024*1024){ setUploadErr("File max 2MB"); return; }
                 setUploadErr(null);
+                setFileName(f.name);
                 const fd=new FormData(); fd.append("file", f);
                 try {
                   const r=await fetch("/api/uploads",{method:"POST",body:fd});
@@ -95,9 +116,9 @@ export default function MyReimbursements() {
                   else setUploadErr(j.error ?? "Upload gagal.");
                 } catch { setUploadErr("Upload gagal. Coba lagi."); }
                 e.target.value="";
-              }} className="w-full border border-rule bg-card px-3 py-2 text-xs" />
+              }} />
+              </label>
               {uploadErr && <p role="alert" className="mt-1 text-xs text-stamp-deep">{uploadErr}</p>}
-              {attachmentUrl && <p className="mt-1 text-xs text-official-deep">Terlampir: <a href={attachmentUrl} target="_blank" rel="noreferrer" className="underline">{attachmentUrl.split("/").pop()}</a> <button type="button" onClick={()=> setAttachmentUrl("")} className="ml-1 text-stamp hover:underline">hapus</button></p>}
             </div>
             <div className="flex gap-2">
               <Btn variant="official" size="md" onClick={submit} disabled={!amount || !description.trim()}>Submit</Btn>

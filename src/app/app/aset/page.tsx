@@ -53,7 +53,7 @@ export default function MyAset() {
 
   return (
     <>
-      <PageHead title="Aset Saya" sub="Aset yang ditugaskan kepada Anda." />
+      <PageHead title="Aset Saya" sub="Lihat daftar aset perusahaan yang sedang ditugaskan kepada Anda." />
       <section className="mb-6 border border-rule bg-card p-4">
         <h2 className="mb-3 text-sm font-semibold">Ajukan Kebutuhan Aset</h2>
         <div className="space-y-3">
@@ -89,7 +89,7 @@ export default function MyAset() {
         </section>
       )}
       {myAssignments.length === 0 ? (
-        <EmptyState icon={Package} title="Belum ada aset" body="Aset yang ditugaskan ke Anda akan muncul di sini." />
+        <EmptyState icon={Package} title="Belum Ada Aset" body="Aset yang ditugaskan kepada Anda akan ditampilkan di sini." />
       ) : (
         <>
           {active.length > 0 && (
@@ -103,7 +103,11 @@ export default function MyAset() {
                       <Stamp kind="pending">Active</Stamp>
                     </div>
                     <p className="tnum mt-1 text-xs text-ink-soft">Serial: {a.asset?.serialNumber} · Sejak: {new Date(a.assignedAt).toLocaleDateString("id-ID")}</p>
-                    <Btn variant="secondary" size="sm" className="mt-2" onClick={() => void doReturn(a.id)}>Ajukan Pengembalian →</Btn>
+                    {a.returnRequestedAt ? (
+                      <p className="mt-2 text-xs font-medium text-official-deep">Menunggu konfirmasi HR…</p>
+                    ) : (
+                      <Btn variant="secondary" size="sm" className="mt-2" onClick={() => void doReturn(a.id)}>Ajukan Pengembalian →</Btn>
+                    )}
                   </div>
                 ))}
               </div>

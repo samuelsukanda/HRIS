@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { CheckCircle, MagnifyingGlass, XCircle } from "@phosphor-icons/react";
 import { Btn, EmptyState, Input, PageHead, Pager, Select, Stamp } from "@/components/ui";
+import { toastOk } from "@/lib/swal";
 import { currentUser, useHris } from "@/lib/store";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -47,6 +48,7 @@ export default function AdminReimbursements() {
 
   function decide(id: string, level: "manager" | "hr", approve: boolean) {
     dispatch({ type: "DECIDE_REIMBURSEMENT", id, level, approve, byName: me?.employee.name ?? "-" });
+    toastOk(approve ? "Reimbursement disetujui" : "Reimbursement ditolak");
   }
 
   function toggleSelect(id: string) {
@@ -56,6 +58,7 @@ export default function AdminReimbursements() {
   function bulkDecide(level: "manager" | "hr", approve: boolean) {
     if (selected.length === 0) return;
     dispatch({ type: "BULK_DECIDE_REIMBURSEMENT", ids: selected, approve, level });
+    toastOk(approve ? `${selected.length} reimbursement disetujui` : `${selected.length} reimbursement ditolak`);
     setSelected([]);
   }
 

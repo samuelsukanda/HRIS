@@ -30,9 +30,9 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
   const unreadCount = me ? state.data.notifications.filter((n) => n.userId === me.user.id && !n.read).length : 0;
 
   return (
-    <div className="mx-auto flex min-h-[100dvh] max-w-lg flex-col border-x border-rule bg-paper">
+    <div className="mx-auto flex min-h-[100dvh] max-w-lg flex-col border-x border-rule bg-paper print:max-w-none print:border-x-0 print:bg-white">
       {/* Header */}
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-rule bg-card/95 px-5 py-3 backdrop-blur-sm">
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-rule bg-card/95 px-5 py-3 backdrop-blur-sm print:hidden">
         <div>
           <p className="font-mono text-[10px] tracking-widest text-ink-faint uppercase">HRIS</p>
           <p className="text-sm leading-tight font-bold">{me ? `Hai, ${me.employee.name.split(" ")[0]}` : "…"}</p>
@@ -62,12 +62,12 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
         </div>
       </header>
 
-      <main className="flex-1 px-4 pt-5 pb-24">{children}</main>
+      <main className="flex-1 px-4 pt-5 pb-24 print:p-0">{children}</main>
 
       {/* Navigasi bawah */}
       <nav
         aria-label="Navigasi utama"
-        className="fixed inset-x-0 bottom-0 z-20 mx-auto flex max-w-lg items-stretch justify-around border-t border-rule bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm"
+        className="fixed inset-x-0 bottom-0 z-20 mx-auto flex max-w-lg items-stretch justify-around border-t border-rule bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm print:hidden"
       >
         {NAV.map((item) => {
           const active = item.href === "/app" ? pathname === "/app" : pathname.startsWith(item.href);

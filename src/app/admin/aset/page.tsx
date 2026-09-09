@@ -118,6 +118,7 @@ export default function AdminAset() {
     });
     setAssignTarget(null);
     setEmpId("");
+    toastOk("Aset ditugaskan");
   }
 
   function doReturn(assignmentId: string) {

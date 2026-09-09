@@ -387,7 +387,7 @@ function reducer(state: State, action: Action): State {
           {
             ...state.data,
             assetAssignments: state.data.assetAssignments.map((a) =>
-              a.id === action.assignmentId ? { ...a, returnedAt: new Date().toISOString() } : a,
+              a.id === action.assignmentId ? { ...a, returnRequestedAt: new Date().toISOString() } : a,
             ),
             assets: state.data.assets.map((a) => (a.id === aa.assetId ? { ...a, status: "available" as const } : a)),
           },

@@ -197,9 +197,11 @@ export default function AdminSchedule() {
                     const newId = "RST-" + Math.random().toString(36).slice(2, 10);
                     dispatch({ type: "CREATE_ROSTER", roster: { id: newId, employeeId: editCell.employeeId, date: editCell.date, shiftId } });
                   }
+                  toastOk("Jadwal diperbarui");
                 } else {
                   if (entry) {
                     dispatch({ type: "DELETE_ROSTER", id: entry.id });
+                    toastOk("Jadwal diliburkan");
                   }
                 }
                 setEditCell(null);

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { HandHeart } from "@phosphor-icons/react";
+import { HandHeart, X } from "@phosphor-icons/react";
 import { Btn, EmptyState, Field, Input, Select, Stamp, StatusStamp, Textarea } from "@/components/ui";
+import { confirmDelete, toastOk } from "@/lib/swal";
 import { leaveBalance } from "@/lib/engine";
 import { fmtDateShortID } from "@/lib/format";
 import { currentUser, useHris } from "@/lib/store";
@@ -15,6 +16,7 @@ export default function EmployeeLeave() {
   const [end, setEnd] = useState("");
   const [reason, setReason] = useState("");
   const [attachmentUrl, setAttachmentUrl] = useState("");
+  const [fileName, setFileName] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
   if (!me) return null;
@@ -54,17 +56,19 @@ export default function EmployeeLeave() {
     setEnd("");
     setReason("");
     setAttachmentUrl("");
+    setFileName("");
+    toastOk("Pengajuan cuti dikirim");
   }
 
   return (
     <>
       <h1 className="mb-1 text-xl font-bold tracking-tight">Cuti &amp; Izin</h1>
-      <p className="mb-4 text-sm text-ink-soft">Ajukan cuti dan pantau saldonya — persis seperti buku cuti tahunan.</p>
+      <p className="mb-4 text-sm text-ink-soft">Ajukan cuti dan izin, serta pantau sisa cuti dan status pengajuan.</p>
 
       {/* Saldo per jenis */}
       <section aria-label="Saldo cuti" className="mb-6 border border-rule bg-card">
         <header className="border-b border-rule px-4 py-2.5">
-          <h2 className="text-sm font-semibold">Buku Saldo</h2>
+          <h2 className="text-sm font-semibold">Sisa Cuti</h2>
         </header>
         <ul className="px-4">
           {state.data.leaveTypes.slice(0, 5).map((t) => {
@@ -106,15 +110,31 @@ export default function EmployeeLeave() {
               <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} min={start || undefined} />
             </Field>
           </div>
-          <Field label="Alasan" hint="Satu kalimat cukup. Lampiran dokmen menyusul via HR bila diminta.">
+          <Field label="Alasan">
             <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Contoh: acara keluarga di luar kota…" />
           </Field>
           <Field label="Lampiran (opsional)" hint="JPG/PNG/PDF max 2MB">
-            <Input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={async e=> {
+            <label className="btn-press flex min-h-9 cursor-pointer items-center gap-3 rounded-[4px] border border-dashed border-rule bg-paper px-3 py-2 text-sm hover:border-ink-faint">
+              <span className="shrink-0 rounded-[4px] border border-rule bg-card px-3 py-1 text-xs font-semibold">Pilih File</span>
+              <span className="min-w-0 flex-1 truncate text-xs text-ink-faint">
+                {fileName || "Belum ada file dipilih"}
+              </span>
+              {attachmentUrl && (
+                <button
+                  type="button"
+                  aria-label="Hapus file lampiran"
+                  onClick={(e) => { e.preventDefault(); setAttachmentUrl(""); setFileName(""); }}
+                  className="btn-press shrink-0 cursor-pointer rounded-full p-1 text-ink-faint hover:bg-black/5 hover:text-stamp"
+                >
+                  <X size={14} weight="bold" />
+                </button>
+              )}
+              <input type="file" accept=".jpg,.jpeg,.png,.pdf" className="sr-only" onChange={async e=> {
               const f=e.target.files?.[0];
               if(!f) return;
               if(f.size>2*1024*1024){ setFormError("File max 2MB"); return; }
               setFormError(null);
+              setFileName(f.name);
               const fd=new FormData(); fd.append("file", f);
               try {
                 const r=await fetch("/api/uploads",{method:"POST",body:fd});
@@ -124,7 +144,7 @@ export default function EmployeeLeave() {
               } catch { setFormError("Upload gagal. Coba lagi."); }
               e.target.value="";
             }} />
-            {attachmentUrl && <p className="mt-1 text-xs text-official-deep">Terlampir: <a href={attachmentUrl} target="_blank" rel="noreferrer" className="underline">{attachmentUrl.split("/").pop()}</a> <button type="button" onClick={()=> setAttachmentUrl("")} className="ml-1 text-stamp hover:underline">hapus</button></p>}
+            </label>
           </Field>
           {formError && (
             <p role="alert" className="text-xs font-medium text-stamp-deep">
@@ -162,7 +182,7 @@ export default function EmployeeLeave() {
                     <p className="mt-1 text-xs text-stamp-deep">Ditolak oleh {r.decidedBy}</p>
                   )}
                   {r.status === "pending" && (
-                    <Btn variant="danger" size="sm" onClick={() => dispatch({ type: "CANCEL_LEAVE", id: r.id })} className="mt-2">
+                    <Btn variant="danger" size="sm" onClick={async () => { if (await confirmDelete("pengajuan cuti ini")) { dispatch({ type: "CANCEL_LEAVE", id: r.id }); toastOk("Pengajuan dibatalkan"); } }} className="mt-2">
                       Batalkan Pengajuan
                     </Btn>
                   )}
@@ -172,10 +192,6 @@ export default function EmployeeLeave() {
           </ul>
         )}
       </section>
-
-      <div className="mt-4 flex items-center gap-2 px-1 text-xs text-ink-faint">
-        <Stamp kind="pending">Pending</Stamp> berarti menunggu keputusan supervisor &amp; HR.
-      </div>
     </>
   );
 }

@@ -189,6 +189,18 @@ textarea {
   background: #fff;
 }
 
+/* Cetak slip: kertas A4 bersih tanpa latar arsip & margin shell */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+  html,
+  body {
+    background: #fff;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

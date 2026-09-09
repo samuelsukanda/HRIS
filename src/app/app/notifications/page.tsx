@@ -33,7 +33,7 @@ export default function NotificationsPage() {
     <>
       <PageHead
         title="Notifikasi"
-        sub="Pemberitahuan penting dari sistem HRIS."
+        sub="Pantau pemberitahuan dan informasi penting terkait aktivitas HRIS Anda."
         action={
           myNotifs.some((n) => !n.read) ? (
             <Btn variant="secondary" size="sm" onClick={markAllRead}>

@@ -243,6 +243,7 @@ CREATE TABLE IF NOT EXISTS asset_assignments (
   assigned_at  TIMESTAMPTZ NOT NULL,
   returned_at  TIMESTAMPTZ
 );
+ALTER TABLE asset_assignments ADD COLUMN IF NOT EXISTS return_requested_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS performance_reviews (
   id           TEXT PRIMARY KEY,

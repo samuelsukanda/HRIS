@@ -26,8 +26,6 @@ export default function EmployeeHome() {
     ? leaveBalance(annual.allocationDays, myLeave.filter((r) => r.typeId === annual.id))
     : { remaining: 0, allocation: 0, used: 0, pending: 0 };
   const loc = me ? data.workLocations.find((w) => w.id === me.employee.workLocationId) : null;
-  const jamSekarang = now?.getHours() ?? 12;
-  const salam = jamSekarang < 11 ? "Selamat pagi" : jamSekarang < 15 ? "Selamat siang" : jamSekarang < 18 ? "Selamat sore" : "Selamat malam";
   if (!me) return null;
   const { employee } = me;
 
@@ -86,7 +84,7 @@ export default function EmployeeHome() {
         </div>
       </motion.section>
 
-      {/* Ringkasan cepat — bento 2x2 asymmetric, no 3-col */}
+      {/* Ringkasan cepat — grid seragam 2 kolom */}
       <div className="grid grid-cols-2 gap-4">
         <motion.div variants={{ hidden:{ opacity:0, y:8 }, visible:{ opacity:1, y:0 }}}><QuickCard
           href="/app/cuti"
@@ -102,39 +100,33 @@ export default function EmployeeHome() {
           value="Payslip"
           sub="riwayat gaji →"
         /></motion.div>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-[1.35fr_0.65fr]">
         <motion.div variants={{ hidden:{ opacity:0, y:8 }, visible:{ opacity:1, y:0 }}}><QuickCard
           href="/app/reimbursements"
           icon={Wallet}
           title="Reimburse"
           value="Biaya"
-          sub="ajukan reimbursement →"
+          sub="ajukan →"
         /></motion.div>
-        <div className="grid gap-4">
-          <motion.div variants={{ hidden:{ opacity:0, y:8 }, visible:{ opacity:1, y:0 }}}><QuickCard
-            href="/app/pelatihan"
-            icon={GraduationCap}
-            title="Pelatihan"
-            value="Kelas"
-            sub="jadwal →"
-          /></motion.div>
-          <motion.div variants={{ hidden:{ opacity:0, y:8 }, visible:{ opacity:1, y:0 }}}><QuickCard
-            href="/app/aset"
-            icon={Package}
-            title="Aset"
-            value="Inventaris"
-            sub="saya →"
-          /></motion.div>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
+        <motion.div variants={{ hidden:{ opacity:0, y:8 }, visible:{ opacity:1, y:0 }}}><QuickCard
+          href="/app/pelatihan"
+          icon={GraduationCap}
+          title="Pelatihan"
+          value="Kelas"
+          sub="jadwal →"
+        /></motion.div>
+        <motion.div variants={{ hidden:{ opacity:0, y:8 }, visible:{ opacity:1, y:0 }}}><QuickCard
+          href="/app/aset"
+          icon={Package}
+          title="Aset"
+          value="Inventaris"
+          sub="saya →"
+        /></motion.div>
         <motion.div variants={{ hidden:{ opacity:0, y:8 }, visible:{ opacity:1, y:0 }}}><QuickCard
           href="/app/lembur"
           icon={Briefcase}
           title="Lembur"
           value="Overtime"
-          sub="ajukan lembur →"
+          sub="ajukan →"
         /></motion.div>
         <motion.div variants={{ hidden:{ opacity:0, y:8 }, visible:{ opacity:1, y:0 }}}><QuickCard
           href="/app/performa"
@@ -167,11 +159,6 @@ export default function EmployeeHome() {
           ))}
         </ul>
       </section>
-
-      <p className="mt-6 px-2 text-[11px] leading-relaxed text-ink-faint">
-        {salam}, {employee.name.split(" ")[0]}. Lokasi Anda hanya diakses saat menekan tombol
-        check-in — tidak ada pelacakan di luar itu.
-      </p>
     </motion.div>
   );
 }

@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Download, LockSimpleOpen, Play } from "@phosphor-icons/react";
 import { Btn, EmptyState, Input, PageHead, Stamp } from "@/components/ui";
-import { downloadCsv, fmtRupiah } from "@/lib/format";
+import { fmtRupiah } from "@/lib/format";
+import { exportExcel } from "@/lib/excel";
 import type { PayrollBreakdown } from "@/lib/payroll";
 
 interface RunSummary {
@@ -95,8 +96,8 @@ export default function AdminPayroll() {
 
   function exportCsv() {
     if (!detail) return;
-    downloadCsv(
-      `payroll-${detail.run.period}.csv`,
+    void exportExcel(
+      `payroll-${detail.run.period}.xlsx`,
       ["ID", "Nama", "Dept", "Terjadwal", "Hadir", "Alpha", "Bruto", "BPJS Kes", "BPJS JHT", "PPH21", "Net"],
       detail.slips.map((s) => [
         s.employeeId, s.name, s.dept ?? "-", s.breakdown.scheduledDays, s.breakdown.attendedDays,
@@ -121,7 +122,7 @@ export default function AdminPayroll() {
         sub="Kelola perhitungan gaji berdasarkan kehadiran tervalidasi dan lembur yang telah disetujui."
         action={
           <Btn variant="secondary" icon={Download} onClick={exportCsv} disabled={!detail}>
-            Export CSV
+            Export Excel
           </Btn>
         }
       />
@@ -227,10 +228,6 @@ export default function AdminPayroll() {
               </tbody>
             </table>
           </div>
-          <p className="mt-3 text-xs leading-relaxed text-ink-faint">
-            ponytail: PPH21 memakai metode tahunan dengan PTKP tunggal 54 jt tanpa status kawin/tanggungan —
-            validasi ke konsultan pajak sebelum dipakai produksi.
-          </p>
         </section>
       )}
     </>

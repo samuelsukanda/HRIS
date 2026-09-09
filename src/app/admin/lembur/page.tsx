@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { Check, Clock, X } from "@phosphor-icons/react";
 import { Btn, EmptyState, PageHead, Pager, StatusStamp } from "@/components/ui";
-import { overtimePay } from "@/lib/payroll";
-import { fmtDateShortID, fmtRupiah } from "@/lib/format";
+import { toastOk } from "@/lib/swal";
+import { fmtDateShortID } from "@/lib/format";
 import { currentUser, todayISO, useHris } from "@/lib/store";
 
 export default function AdminLemburPage() {
@@ -19,12 +19,10 @@ export default function AdminLemburPage() {
   );
   const otHours = approvedThisMonth.reduce((s, r) => s + r.hours, 0);
   const pending = data.overtimeRequests.filter((r) => r.status === "pending");
-  const contoh = approvedThisMonth.slice(0, 4);
 
   const nameOf = (id: string) => data.employees.find((e) => e.id === id)?.name ?? id;
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState<string[]>([]);
   const LIMIT = 10;
   const filtered = data.overtimeRequests.filter(r=> !q.trim() || `${nameOf(r.employeeId)} ${r.reason}`.toLowerCase().includes(q.toLowerCase()));
   const paged = filtered.slice((page - 1) * LIMIT, page * LIMIT);
@@ -32,16 +30,7 @@ export default function AdminLemburPage() {
   function decide(id: string, approve: boolean) {
     if (!canDecide || !me) return;
     dispatch({ type: "DECIDE_OVERTIME", id, approve, byName: me.employee.name });
-  }
-
-  function toggleSelect(id: string) {
-    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  }
-
-  function bulkDecide(approve: boolean) {
-    if (!canDecide || !me || selected.length === 0) return;
-    dispatch({ type: "BULK_DECIDE_OVERTIME", ids: selected, approve, byName: me.employee.name });
-    setSelected([]);
+    toastOk(approve ? "Lembur disetujui" : "Lembur ditolak");
   }
 
   return (
@@ -51,8 +40,7 @@ export default function AdminLemburPage() {
         sub="Kelola pengajuan lembur dan pantau rekap jam lembur karyawan."
       />
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <div>
+      <div>
           {/* Statistik ringkas */}
           <div className="mb-6 grid gap-3 sm:grid-cols-2">
             <section className="border border-rule bg-card px-5 py-4">
@@ -80,19 +68,7 @@ export default function AdminLemburPage() {
           <section className="border border-rule bg-card">
             <header className="flex items-baseline justify-between border-b border-rule px-5 py-3.5">
               <h2 className="font-semibold">Daftar Pengajuan</h2>
-              <div className="flex items-center gap-3">
-                {canDecide && selected.length > 0 && (
-                  <div className="flex gap-2">
-                    <Btn variant="official" size="sm" icon={Check} onClick={() => bulkDecide(true)}>
-                      Setujui {selected.length}
-                    </Btn>
-                    <Btn variant="secondary" size="sm" icon={X} onClick={() => bulkDecide(false)}>
-                      Tolak {selected.length}
-                    </Btn>
-                  </div>
-                )}
-                <span className="tnum text-xs text-ink-faint">{filtered.length} total</span>
-              </div>
+              <span className="tnum text-xs text-ink-faint">{filtered.length} total</span>
             </header>
             {data.overtimeRequests.length === 0 ? (
               <EmptyState
@@ -102,10 +78,9 @@ export default function AdminLemburPage() {
               />
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] text-sm">
+                <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-rule bg-paper text-left text-xs tracking-wide text-ink-faint uppercase">
-                      {canDecide && <th className="w-10 px-2 py-2.5"><span className="sr-only">Pilih</span></th>}
                       <th className="px-5 py-2.5 font-semibold">Karyawan</th>
                       <th className="px-3 py-2.5 font-semibold">Tanggal</th>
                       <th className="px-3 py-2.5 font-semibold">Jam</th>
@@ -118,18 +93,6 @@ export default function AdminLemburPage() {
                   <tbody className="divide-y divide-ledger/60">
                     {paged.map((r) => (
                       <tr key={r.id}>
-                        {canDecide && (
-                          <td className="px-2 py-3">
-                            {r.status === "pending" && (
-                              <input
-                                type="checkbox"
-                                checked={selected.includes(r.id)}
-                                onChange={() => toggleSelect(r.id)}
-                                className="h-4 w-4 accent-official"
-                              />
-                            )}
-                          </td>
-                        )}
                         <td className="px-5 py-3">
                           <p className="font-semibold">{nameOf(r.employeeId)}</p>
                           <p className="tnum text-xs text-ink-faint">{r.employeeId}</p>
@@ -167,48 +130,6 @@ export default function AdminLemburPage() {
             )}
           </section>
           <Pager page={page} total={filtered.length} limit={LIMIT} onChange={setPage} />
-        </div>
-
-        {/* Kartu samping */}
-        <aside>
-          <section className="border border-rule bg-card">
-            <header className="border-b border-rule px-5 py-3.5">
-              <h2 className="font-semibold">Estimasi Kompensasi</h2>
-            </header>
-            <div className="space-y-4 px-5 py-4 text-sm">
-              <p className="text-ink-soft">
-                Lembur disetujui dikompensasi per karyawan: jam pertama 1,5×, berikutnya 2× dari upah per jam (1/173 gaji).
-              </p>
-              <div>
-                <p className="mb-1 text-xs font-semibold tracking-wide text-ink-faint uppercase">
-                  Contoh perhitungan — approved bulan ini
-                </p>
-                {contoh.length === 0 ? (
-                  <p className="py-2 text-ink-faint">Belum ada lembur approved bulan ini.</p>
-                ) : (
-                  <ul className="divide-y divide-ledger/60">
-                    {contoh.map((r) => {
-                      const emp = data.employees.find((e) => e.id === r.employeeId);
-                      return (
-                      <li key={r.id} className="flex items-baseline justify-between gap-3 py-2">
-                        <span className="min-w-0 truncate text-ink-soft">
-                          {fmtDateShortID(r.date)} · <span className="tnum">{r.hours} jam</span>
-                        </span>
-                        <span className="tnum shrink-0 font-semibold">
-                          {fmtRupiah(overtimePay(r.hours, emp?.baseSalary ?? 0, emp?.allowance ?? 0))}
-                        </span>
-                      </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-              <p className="text-xs text-ink-faint">
-                Tarif di atas adalah catatan kebijakan; tarif resmi mengikuti upah per jam masing-masing karyawan.
-              </p>
-            </div>
-          </section>
-        </aside>
       </div>
     </>
   );

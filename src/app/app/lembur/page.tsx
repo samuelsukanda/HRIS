@@ -35,7 +35,7 @@ export default function EmployeeLembur() {
   }
   return <>
     <h1 className="mb-1 text-xl font-bold tracking-tight">Lembur</h1>
-    <p className="mb-4 text-sm text-ink-soft">Ajukan lembur — akan direview atasan.</p>
+    <p className="mb-4 text-sm text-ink-soft">Ajukan lembur dan pantau status pengajuannya.</p>
     <section className="mb-6 border border-rule bg-card p-4">
       <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Clock size={16} weight="duotone" className="text-official" /> Pengajuan Baru</h2>
       <div className="space-y-3">

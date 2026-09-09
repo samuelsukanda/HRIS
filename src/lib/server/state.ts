@@ -181,6 +181,7 @@ export async function loadHrisData(): Promise<HrisData> {
     assetAssignments: assignR.rows.map((r): AssetAssignment => ({
       id: r.id, assetId: r.asset_id, employeeId: r.employee_id,
       assignedAt: iso(r.assigned_at)!, returnedAt: iso(r.returned_at),
+      returnRequestedAt: iso(r.return_requested_at),
     })),
     performanceReviews: revR.rows.map((r): PerformanceReview => ({
       id: r.id, employeeId: r.employee_id, reviewerId: r.reviewer_id, period: r.period,

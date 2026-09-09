@@ -72,15 +72,18 @@ export function computePayslip(input: PayrollInput): PayrollBreakdown {
   const attendedDays = Math.min(presentDays + paidLeaveDays, workdays);
   const alphaDays = Math.max(0, workdays - attendedDays);
   const dailyRate = Math.round(baseSalary / Math.max(workdays, 1));
-  const basePaid = baseSalary - Math.round(dailyRate * alphaDays);
-  const allowancePaid = allowance - Math.round((allowance / Math.max(workdays, 1)) * alphaDays);
+  // clamp ≥ 0: pembulatan harian tak boleh membuat upah negatif saat alpha penuh
+  const basePaid = Math.max(0, baseSalary - Math.round(dailyRate * alphaDays));
+  const allowancePaid = Math.max(0, allowance - Math.round((allowance / Math.max(workdays, 1)) * alphaDays));
 
   const otPay = overtimePay(overtimeHours, baseSalary, allowance);
   const gross = basePaid + allowancePaid + otPay;
 
   // Biaya jabatan 5%, maks 500 rb/bulan
   const biayaJabatan = Math.min(Math.round(gross * 0.05), 500_000);
-  const bpjsJht = Math.round(baseSalary * 0.02);
+  // BPJS JHT mengikuti upah terbayar (konsisten dgn bpjsHealth atas gross) —
+  // bulan alpha penuh tak menimbulkan potongan dari uang yang tak diterima.
+  const bpjsJht = Math.round(basePaid * 0.02);
   const bpjsHealth = Math.round(gross * 0.01);
   const monthlyNetto = gross - biayaJabatan - bpjsJht;
   const tax = Math.round(Math.max(0, annualTax(monthlyNetto * 12)) / 12);
