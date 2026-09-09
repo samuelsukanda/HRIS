@@ -16,6 +16,9 @@ export async function POST(req: Request) {
   if (!employeeId || !period || !score || !strengths || !improvements || !goals) {
     return Response.json({ ok: false, error: "Field wajib kosong." }, { status: 400 });
   }
+  if (!Number.isInteger(score) || score < 1 || score > 5) {
+    return Response.json({ ok: false, error: "Skor harus 1–5." }, { status: 400 });
+  }
 
   const id = await nextId("performance_reviews", "PRF");
   await pool.query(

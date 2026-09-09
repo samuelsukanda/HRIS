@@ -3,11 +3,9 @@
 import { useState } from "react";
 import { Check, Clock, X } from "@phosphor-icons/react";
 import { Btn, EmptyState, PageHead, Pager, StatusStamp } from "@/components/ui";
-import { overtimeAmount } from "@/lib/engine";
+import { overtimePay } from "@/lib/payroll";
 import { fmtDateShortID, fmtRupiah } from "@/lib/format";
 import { currentUser, todayISO, useHris } from "@/lib/store";
-
-const RATE_CONTOH = 25_000;
 
 export default function AdminLemburPage() {
   const { state, dispatch } = useHris();
@@ -179,15 +177,8 @@ export default function AdminLemburPage() {
             </header>
             <div className="space-y-4 px-5 py-4 text-sm">
               <p className="text-ink-soft">
-                Lembur disetujui dikompensasi proporsional: jumlah jam × tarif per jam.
+                Lembur disetujui dikompensasi per karyawan: jam pertama 1,5×, berikutnya 2× dari upah per jam (1/173 gaji).
               </p>
-              <div className="border border-dashed border-rule bg-paper px-3 py-2.5">
-                <p className="text-xs font-semibold tracking-wide text-ink-faint uppercase">Tarif contoh</p>
-                <p className="tnum mt-0.5 text-lg font-bold">
-                  {fmtRupiah(RATE_CONTOH)}
-                  <span className="text-sm font-medium text-ink-faint">/jam</span>
-                </p>
-              </div>
               <div>
                 <p className="mb-1 text-xs font-semibold tracking-wide text-ink-faint uppercase">
                   Contoh perhitungan — approved bulan ini
@@ -196,16 +187,19 @@ export default function AdminLemburPage() {
                   <p className="py-2 text-ink-faint">Belum ada lembur approved bulan ini.</p>
                 ) : (
                   <ul className="divide-y divide-ledger/60">
-                    {contoh.map((r) => (
+                    {contoh.map((r) => {
+                      const emp = data.employees.find((e) => e.id === r.employeeId);
+                      return (
                       <li key={r.id} className="flex items-baseline justify-between gap-3 py-2">
                         <span className="min-w-0 truncate text-ink-soft">
                           {fmtDateShortID(r.date)} · <span className="tnum">{r.hours} jam</span>
                         </span>
                         <span className="tnum shrink-0 font-semibold">
-                          {fmtRupiah(overtimeAmount(r.hours, RATE_CONTOH))}
+                          {fmtRupiah(overtimePay(r.hours, emp?.baseSalary ?? 0, emp?.allowance ?? 0))}
                         </span>
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
                 )}
               </div>

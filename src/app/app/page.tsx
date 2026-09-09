@@ -21,11 +21,10 @@ export default function EmployeeHome() {
   const attToday = me ? data.attendance.find((a) => a.employeeId === me.employee.id && a.date === today) : null;
   const myLeave = me ? data.leaveRequests.filter((r) => r.employeeId === me.employee.id) : [];
   const pendingMine = myLeave.filter((r) => r.status === "pending").length;
-  const annual = data.leaveTypes[0]!;
-  const annualBal = leaveBalance(
-    annual.allocationDays,
-    myLeave.filter((r) => r.typeId === annual.id),
-  );
+  const annual = data.leaveTypes[0];
+  const annualBal = annual
+    ? leaveBalance(annual.allocationDays, myLeave.filter((r) => r.typeId === annual.id))
+    : { remaining: 0, allocation: 0, used: 0, pending: 0 };
   const loc = me ? data.workLocations.find((w) => w.id === me.employee.workLocationId) : null;
   const jamSekarang = now?.getHours() ?? 12;
   const salam = jamSekarang < 11 ? "Selamat pagi" : jamSekarang < 15 ? "Selamat siang" : jamSekarang < 18 ? "Selamat sore" : "Selamat malam";
@@ -93,7 +92,7 @@ export default function EmployeeHome() {
           href="/app/cuti"
           icon={HandHeart}
           title="Annual Leave"
-          value={`${annualBal.remaining}/${annual.allocationDays} hari`}
+          value={annual ? `${annualBal.remaining}/${annual.allocationDays} hari` : "—"}
           sub={pendingMine > 0 ? `saldo tersisa · ${pendingMine} pending` : "saldo tersisa"}
         /></motion.div>
         <motion.div variants={{ hidden:{ opacity:0, y:8 }, visible:{ opacity:1, y:0 }}}><QuickCard

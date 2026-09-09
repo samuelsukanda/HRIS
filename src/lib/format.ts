@@ -18,6 +18,18 @@ export function toLocalISO(d: Date): string {
   return `${y}-${m}-${dd}`;
 }
 
+/** Unduh string CSV (dengan BOM agar Excel baca UTF-8) sebagai file. */
+export function downloadCsv(filename: string, header: string[], rows: unknown[][]): void {
+  const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const csv = "﻿" + [header.join(","), ...rows.map((r) => r.map(esc).join(","))].join("\r\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function addDays(iso: string, n: number): string {
   const d = parseLocalISO(iso);
   d.setDate(d.getDate() + n);

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import { Btn, EmptyState, Input, PageHead, Pager, Select } from "@/components/ui";
+import { downloadCsv } from "@/lib/format";
 import { useHris } from "@/lib/store";
 
 const MONS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
@@ -36,11 +37,11 @@ export default function AdminAuditPage() {
   });
   const paged = logs.slice((page - 1) * LIMIT, page * LIMIT);
   function exportCsv(){
-    const header=["Waktu","Aktor","Action","Target","Detail","Before","After"].join(",");
-    const rows=logs.map(e=> [e.at,e.actorName,e.action,`${e.targetType}#${e.targetId}`,e.detail,e.before??"",e.after??""].map(v=> `"${String(v).replace(/"/g,'""')}"`).join(","));
-    const csv="\uFEFF"+[header,...rows].join("\r\n");
-    const url=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
-    const a=document.createElement("a"); a.href=url; a.download=`audit-${from||"all"}-${to||"all"}.csv`; a.click(); URL.revokeObjectURL(url);
+    downloadCsv(
+      `audit-${from||"all"}-${to||"all"}.csv`,
+      ["Waktu","User","Action","Target","Detail","Before","After"],
+      logs.map(e=> [e.at,e.actorName,e.action,`${e.targetType}#${e.targetId}`,e.detail,e.before??"",e.after??""]),
+    );
   }
 
   return (

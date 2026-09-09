@@ -107,8 +107,11 @@ function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "HYDRATE":
       return action.state;
-    case "LOGIN":
-      return { ...state, session: { userId: action.userId, employeeId: state.data.users.find((u) => u.id === action.userId)!.employeeId } };
+    case "LOGIN": {
+      const loginUser = state.data.users.find((u) => u.id === action.userId);
+      if (!loginUser) return state;
+      return { ...state, session: { userId: action.userId, employeeId: loginUser.employeeId } };
+    }
     case "LOGOUT":
       return { ...state, session: null };
     case "CHECK_IN":
@@ -486,7 +489,7 @@ function reducer(state: State, action: Action): State {
     case "DELETE_SHIFT":
       return { ...state, data: { ...state.data, shifts: state.data.shifts.filter((s) => s.id !== action.id) } };
     case "CREATE_ROSTER":
-      return { ...state, data: { ...state.data, roster: [...state.data.roster, action.roster] } };
+      return { ...state, data: { ...state.data, roster: [...state.data.roster.filter((r) => !(r.employeeId === action.roster.employeeId && r.date === action.roster.date)), { ...action.roster, id: `${action.roster.employeeId}-${action.roster.date}` }] } };
     case "UPDATE_ROSTER":
       return { ...state, data: { ...state.data, roster: state.data.roster.map((r) => (r.id === action.id ? { ...r, ...action.data } : r)) } };
     case "DELETE_ROSTER":
@@ -514,7 +517,11 @@ function reducer(state: State, action: Action): State {
     case "BULK_DECIDE_OVERTIME":
       return { ...state, data: { ...state.data, overtimeRequests: state.data.overtimeRequests.map((o) => (action.ids.includes(o.id) ? { ...o, status: action.approve ? "approved" as const : "rejected" as const, decidedBy: action.byName } : o)) } };
     case "BULK_DECIDE_REIMBURSEMENT":
-      return { ...state, data: { ...state.data, reimbursements: state.data.reimbursements.map((r) => (action.ids.includes(r.id) ? { ...r, status: action.approve ? (action.level === "hr" ? "approved" as const : "manager_approved" as const) : "rejected" as const } : r)) } };
+      return { ...state, data: { ...state.data, reimbursements: state.data.reimbursements.map((r) => {
+        if (!action.ids.includes(r.id)) return r;
+        const entry: ApprovalEntry = { level: action.level, byName: "", at: new Date().toISOString(), approved: action.approve };
+        return { ...r, status: action.approve ? (action.level === "hr" ? "approved" as const : "manager_approved" as const) : "rejected" as const, approvals: [...r.approvals, entry] };
+      }) } };
     case "CANCEL_LEAVE":
       return { ...state, data: { ...state.data, leaveRequests: state.data.leaveRequests.map((l) => (l.id === action.id ? { ...l, status: "cancelled" as const } : l)) } };
     case "CANCEL_OVERTIME":
@@ -641,7 +648,7 @@ async function syncAction(a: Action): Promise<boolean> {
     case "DELETE_ANNOUNCEMENT":
       return (await postJSON(`/api/announcements/${a.id}`, {}, "DELETE")).r.ok;
     case "CREATE_EMPLOYEE":
-      return (await postJSON("/api/employees", { name: a.employee.name, email: a.employee.email, phone: a.employee.phone, role: a.employee.positionId, position: a.employee.positionId, division: a.employee.departmentId, base_salary: a.employee.baseSalary, allowance: a.employee.allowance, location_id: a.employee.workLocationId, join_date: a.employee.joinDate })).r.ok;
+      return (await postJSON("/api/employees", { name: a.employee.name, email: a.employee.email, phone: a.employee.phone, nik: a.employee.nik, role: "employee", departmentId: a.employee.departmentId, positionId: a.employee.positionId, branchId: a.employee.branchId, workLocationId: a.employee.workLocationId, employmentType: a.employee.employmentType, base_salary: a.employee.baseSalary, allowance: a.employee.allowance, join_date: a.employee.joinDate })).r.ok;
     case "UPDATE_EMPLOYEE":
       return (await postJSON(`/api/employees/${a.id}`, a.data, "PATCH")).r.ok;
     case "DELETE_EMPLOYEE":
@@ -655,7 +662,7 @@ async function syncAction(a: Action): Promise<boolean> {
     case "DELETE_SHIFT":
       return (await postJSON(`/api/shifts/${a.id}`, {}, "DELETE")).r.ok;
     case "CREATE_ROSTER":
-      return (await postJSON("/api/rosters", a.roster)).r.ok;
+      return (await postJSON("/api/rosters", { employee_id: a.roster.employeeId, date: a.roster.date, shift_id: a.roster.shiftId })).r.ok;
     case "UPDATE_ROSTER":
       return (await postJSON(`/api/rosters/${a.id}`, a.data, "PATCH")).r.ok;
     case "DELETE_ROSTER":
@@ -870,8 +877,11 @@ import { toLocalISO } from "./format";
 
 export function currentUser(state: State) {
   if (!state.session) return null;
-  const user = state.data.users.find((u) => u.id === state.session!.userId)!;
-  return { user, employee: state.data.employees.find((e) => e.id === user.employeeId)! };
+  const user = state.data.users.find((u) => u.id === state.session!.userId);
+  if (!user) return null;
+  const employee = state.data.employees.find((e) => e.id === user.employeeId);
+  if (!employee) return null;
+  return { user, employee };
 }
 
 export function rosterShiftFor(data: HrisData, employeeId: string, date: string) {

@@ -15,7 +15,10 @@ export async function PATCH(req: Request) {
   if (!HR.includes(u.role)) return Response.json({ ok: false }, { status: 403 });
   const body = await req.json() as Record<string, string>;
   const actor = (await pool.query(`SELECT name FROM employees WHERE id=$1`, [u.employee_id])).rows[0]?.name ?? u.employee_id;
-  for (const [key, value] of Object.entries(body)) {
+  const ALLOWED_KEYS = new Set(["wfh_gps", "wfh_face", "wfh_liveness"]);
+  const entries = Object.entries(body).filter(([k]) => ALLOWED_KEYS.has(k));
+  if (entries.length === 0) return Response.json({ ok: false, error: "Key tidak dikenal." }, { status: 400 });
+  for (const [key, value] of entries) {
     await pool.query(`INSERT INTO settings (key,value,updated_at) VALUES ($1,$2,NOW()) ON CONFLICT (key) DO UPDATE SET value=$2, updated_at=NOW()`, [key, value]);
     await writeAudit({ actorId: u.id, actorName: actor, action: "Setting updated", targetType: "setting", targetId: key, detail: `${key}=${value}`, at: new Date().toISOString() });
   }

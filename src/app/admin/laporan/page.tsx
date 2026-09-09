@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Download, Table } from "@phosphor-icons/react";
 import { Btn, EmptyState, PageHead, Select } from "@/components/ui";
+import { downloadCsv } from "@/lib/format";
 import { useHris } from "@/lib/store";
 
 const BULAN_PENUH = [
@@ -43,61 +44,48 @@ export default function AdminLaporanPage() {
   });
 
   function exportCsv() {
-    const header = ["EmployeeID", "Nama", "Tanggal", "Status", "CheckIn", "RiskScore"];
-    const lines = recs.map((a) => {
-      const emp = data.employees.find((e) => e.id === a.employeeId);
-      return [a.employeeId, emp?.name ?? "", a.date, a.status, a.checkInAt ?? "", String(a.riskScore)]
-        .map((v) => `"${v.replace(/"/g, '""')}"`)
-        .join(",");
-    });
-    const csv = "\ufeff" + [header.join(","), ...lines].join("\r\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `hris-absensi-${month}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(
+      `hris-absensi-${month}.csv`,
+      ["EmployeeID", "Nama", "Tanggal", "Status", "CheckIn", "RiskScore"],
+      recs.map((a) => {
+        const emp = data.employees.find((e) => e.id === a.employeeId);
+        return [a.employeeId, emp?.name ?? "", a.date, a.status, a.checkInAt ?? "", String(a.riskScore)];
+      }),
+    );
   }
 
   function exportCuti() {
-    const header = ["EmployeeID", "Nama", "Jenis", "TanggalMulai", "TanggalAkhir", "Hari", "Alasan", "Status"];
-    const lines = data.leaveRequests.filter((r) => r.startDate.startsWith(month)).map((r) => {
-      const emp = data.employees.find((e) => e.id === r.employeeId);
-      const type = data.leaveTypes.find((t) => t.id === r.typeId);
-      return [r.employeeId, emp?.name ?? "", type?.name ?? r.typeId, r.startDate, r.endDate, String(r.days), r.reason, r.status]
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
-    });
-    downloadCsv(header, lines, `hris-cuti-${month}.csv`);
+    downloadCsv(
+      `hris-cuti-${month}.csv`,
+      ["EmployeeID", "Nama", "Jenis", "TanggalMulai", "TanggalAkhir", "Hari", "Alasan", "Status"],
+      data.leaveRequests.filter((r) => r.startDate.startsWith(month)).map((r) => {
+        const emp = data.employees.find((e) => e.id === r.employeeId);
+        const type = data.leaveTypes.find((t) => t.id === r.typeId);
+        return [r.employeeId, emp?.name ?? "", type?.name ?? r.typeId, r.startDate, r.endDate, String(r.days), r.reason, r.status];
+      }),
+    );
   }
 
   function exportLembur() {
-    const header = ["EmployeeID", "Nama", "Tanggal", "JamMulai", "JamAkhir", "Durasi", "Alasan", "Status"];
-    const lines = data.overtimeRequests.filter((r) => r.date.startsWith(month)).map((r) => {
-      const emp = data.employees.find((e) => e.id === r.employeeId);
-      return [r.employeeId, emp?.name ?? "", r.date, r.start, r.end, String(r.hours), r.reason, r.status]
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
-    });
-    downloadCsv(header, lines, `hris-lembur-${month}.csv`);
+    downloadCsv(
+      `hris-lembur-${month}.csv`,
+      ["EmployeeID", "Nama", "Tanggal", "JamMulai", "JamAkhir", "Durasi", "Alasan", "Status"],
+      data.overtimeRequests.filter((r) => r.date.startsWith(month)).map((r) => {
+        const emp = data.employees.find((e) => e.id === r.employeeId);
+        return [r.employeeId, emp?.name ?? "", r.date, r.start, r.end, String(r.hours), r.reason, r.status];
+      }),
+    );
   }
 
   function exportReimbursement() {
-    const header = ["EmployeeID", "Nama", "Kategori", "Jumlah", "Keterangan", "Status"];
-    const lines = data.reimbursements.filter((r) => r.submittedAt?.startsWith(month)).map((r) => {
-      const emp = data.employees.find((e) => e.id === r.employeeId);
-      return [r.employeeId, emp?.name ?? "", r.category, String(r.amount), r.description, r.status]
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
-    });
-    downloadCsv(header, lines, `hris-reimbursement-${month}.csv`);
-  }
-
-  function downloadCsv(header: string[], lines: string[], filename: string) {
-    const csv = "\ufeff" + [header.join(","), ...lines].join("\r\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(
+      `hris-reimbursement-${month}.csv`,
+      ["EmployeeID", "Nama", "Kategori", "Jumlah", "Keterangan", "Status"],
+      data.reimbursements.filter((r) => r.submittedAt?.startsWith(month)).map((r) => {
+        const emp = data.employees.find((e) => e.id === r.employeeId);
+        return [r.employeeId, emp?.name ?? "", r.category, String(r.amount), r.description, r.status];
+      }),
+    );
   }
 
   return (

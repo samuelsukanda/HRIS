@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
 import L from "leaflet";
-import { Circle, MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import { Circle, MapContainer, Marker, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import { MapClickHandler, MapViewport } from "./location-map-shared";
 
 const markerIcon = L.divIcon({
   className: "hris-map-marker",
@@ -49,19 +49,4 @@ export default function LocationMapPicker({ latitude, longitude, radiusM, onChan
       <p className="border-t border-rule px-3 py-2 text-xs text-ink-soft">Klik peta atau geser pin untuk mengubah titik lokasi.</p>
     </div>
   );
-}
-
-function MapClickHandler({ onChange }: { onChange: (latitude: number, longitude: number) => void }) {
-  useMapEvents({ click: (event) => onChange(event.latlng.lat, event.latlng.lng) });
-  return null;
-}
-
-function MapViewport({ position }: { position: [number, number] }) {
-  const map = useMap();
-
-  useEffect(() => {
-    map.setView(position);
-  }, [map, position]);
-
-  return null;
 }

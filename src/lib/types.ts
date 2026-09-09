@@ -240,7 +240,6 @@ export interface HrisData {
 
 // ── Phase 3-4 modules ──────────────────────────────────────────────
 
-export type ApprovalLevel = "none" | "manager" | "hr";
 
 export interface ApprovalEntry {
   level: "manager" | "hr";

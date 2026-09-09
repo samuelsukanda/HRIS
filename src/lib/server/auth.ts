@@ -39,4 +39,4 @@ export function readSessionToken(token: string | undefined): { userId: string } 
   }
 }
 
-export const cookieOptions = `Path=/; HttpOnly; SameSite=Lax; Max-Age=${MAX_AGE_S}`;
+export const cookieOptions = `Path=/; HttpOnly; SameSite=Lax; Max-Age=${MAX_AGE_S}${process.env.NODE_ENV === "production" ? "; Secure" : ""}`;

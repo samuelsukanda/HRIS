@@ -25,8 +25,8 @@ export default function AdminAttendance() {
       .filter((a) => statusFilter === "all" || a.status === statusFilter)
       .filter((a) => {
         if (!q.trim()) return true;
-        const emp = data.employees.find((e) => e.id === a.employeeId)!;
-        const hay = `${emp.name} ${emp.id} ${a.rejectionReason ?? ""}`.toLowerCase();
+        const emp = data.employees.find((e) => e.id === a.employeeId);
+        const hay = `${emp?.name ?? ""} ${a.employeeId} ${a.rejectionReason ?? ""}`.toLowerCase();
         return hay.includes(q.toLowerCase());
       })
       .sort((a, b) => b.riskScore - a.riskScore);
@@ -101,24 +101,25 @@ export default function AdminAttendance() {
             </thead>
             <tbody>
               {paged.map((a) => {
-                const emp = data.employees.find((e) => e.id === a.employeeId)!;
+                const emp = data.employees.find((e) => e.id === a.employeeId);
+                const loc = emp ? data.workLocations.find((w) => w.id === emp.workLocationId) : undefined;
                 const snap = a.checkInSnap;
                 return (
                   <Row
                     key={a.id}
                     att={a}
-                    empName={emp.name}
-                    empNo={emp.id}
+                    empName={emp?.name ?? a.employeeId}
+                    empNo={a.employeeId}
                     onToggle={() => setExpanded(expanded === a.id ? null : a.id)}
                     open={expanded === a.id}
                     onCorrect={(c) =>
-                      setCorrectionTarget({ attId: a.id, corrId: c.id, name: emp.name })
+                      setCorrectionTarget({ attId: a.id, corrId: c.id, name: emp?.name ?? a.employeeId })
                     }
                   >
-                    {snap && (
+                    {snap && loc && (
                       <tr className="bg-paper">
                         <td colSpan={9} className="border-b border-rule px-4 pb-6">
-                          <DetailPanel att={a} location={data.workLocations.find((w) => w.id === emp.workLocationId)!} />
+                          <DetailPanel att={a} location={loc} />
                         </td>
                       </tr>
                     )}

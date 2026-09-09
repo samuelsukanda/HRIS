@@ -37,12 +37,6 @@ export async function detectDescriptor(
   return { descriptor: Array.from(res.descriptor), detection: res.detection };
 }
 
-export async function detectFaceOnly(input: HTMLVideoElement): Promise<FaceDetection | null> {
-  const api = await loadFaceApi();
-  const res = await api.detectSingleFace(input, detectorOptions());
-  return res ?? null;
-}
-
 export interface EyeAspect {
   ear: number;
 }

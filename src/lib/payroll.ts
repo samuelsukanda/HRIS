@@ -44,13 +44,14 @@ export function overtimePay(hours: number, baseSalary: number, allowance: number
 }
 
 function annualTax(annualNetto: number): number {
-  // PTKP tunggal (TK/0): 54.000.000
+  // PTKP tunggal (TK/0): 54.000.000 — tarif progresif UU PPh 17: 5/15/25/30/35%
   const pkp = Math.max(0, annualNetto - 54_000_000);
   const brackets: [number, number][] = [
-    [60_000_000, 0.05],
-    [190_000_000, 0.15], // 60–250 jt
-    [250_000_000, 0.25], // 250–500 jt
-    [Infinity, 0.3],
+    [60_000_000, 0.05],      // s.d. 60 jt
+    [250_000_000, 0.15],     // 60–250 jt
+    [500_000_000, 0.25],     // 250–500 jt
+    [5_000_000_000, 0.3],    // 500 jt–5 M
+    [Infinity, 0.35],        // > 5 M
   ];
   let remaining = pkp;
   let prevCap = 0;
@@ -99,6 +100,6 @@ export function computePayslip(input: PayrollInput): PayrollBreakdown {
     bpjsHealth,
     bpjsJht,
     tax,
-    net: gross - bpjsHealth - bpjsJht - tax,
+    net: Math.max(0, gross - bpjsHealth - bpjsJht - tax),
   };
 }

@@ -11,6 +11,9 @@ export async function POST(req: Request) {
   if (!body.typeId || !body.startDate || !body.endDate || !body.reason?.trim()) {
     return Response.json({ ok: false, error: "Lengkapi formulir." }, { status: 400 });
   }
+  if (body.endDate < body.startDate) {
+    return Response.json({ ok: false, error: "Tanggal selesai sebelum tanggal mulai." }, { status: 400 });
+  }
 
   // hitung hari kalender inklusif
   let days = 1;

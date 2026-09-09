@@ -1,6 +1,6 @@
 import { pool } from "@/db/client";
 import { getSessionUser } from "@/lib/server/session";
-import { nextId, writeAudit } from "@/lib/server/state";
+import { writeAudit } from "@/lib/server/state";
 import type { Correction } from "@/lib/types";
 
 /** PATCH /api/attendance/[id]
@@ -49,14 +49,16 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (body.action === "decide") {
     const corr = corrections.find((c) => c.id === body.correctionId);
     if (!corr) return Response.json({ ok: false, error: "Koreksi tidak ada." }, { status: 404 });
+    const approverR = await pool.query(`SELECT name FROM employees WHERE id = $1`, [user.employee_id]);
+    const approverName = approverR.rows[0]?.name ?? user.employee_id;
     corr.status = body.approve ? "approved" : "rejected";
-    corr.decidedBy = rec.emp_name;
+    corr.decidedBy = approverName;
     if (body.approve && corr.afterCheckIn) {
       await pool.query(`UPDATE attendance SET check_in_at = $1 WHERE id = $2`, [new Date(corr.afterCheckIn), id]);
     }
     await pool.query(`UPDATE attendance SET corrections = $1 WHERE id = $2`, [JSON.stringify(corrections), id]);
     await writeAudit({
-      actorId: user.id, actorName: rec.emp_name,
+      actorId: user.id, actorName: approverName,
       action: body.approve ? "Correction approved" : "Correction rejected",
       targetType: "attendance", targetId: id,
       detail: `${corr.id}: ${corr.reason}`,
@@ -70,14 +72,15 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     if (body.checkInAt) await pool.query(`UPDATE attendance SET check_in_at = $1 WHERE id = $2`, [new Date(body.checkInAt), id]);
     if (body.checkOutAt) await pool.query(`UPDATE attendance SET check_out_at = $1 WHERE id = $2`, [new Date(body.checkOutAt), id]);
     const after = `in ${body.checkInAt ?? rec.check_in_at ?? "-"} / out ${body.checkOutAt ?? rec.check_out_at ?? "-"}`;
+    const editorR = await pool.query(`SELECT name FROM employees WHERE id = $1`, [user.employee_id]);
+    const editorName = editorR.rows[0]?.name ?? user.employee_id;
     await writeAudit({
-      actorId: user.id, actorName: rec.emp_name, action: "Attendance time corrected",
+      actorId: user.id, actorName: editorName, action: "Attendance time corrected",
       targetType: "attendance", targetId: id, detail: `Koreksi manual oleh ${user.email}`,
       before, after, at: new Date().toISOString(),
     });
     return Response.json({ ok: true });
   }
 
-  void nextId; // reserved
   return Response.json({ ok: false, error: "Aksi tidak dikenal." }, { status: 400 });
 }

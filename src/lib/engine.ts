@@ -121,10 +121,6 @@ export function computeRisk(input: RiskInput): RiskVerdict {
   return { score, level, factors };
 }
 
-export function riskToReview(score: number): boolean {
-  return score >= 60;
-}
-
 // ── Pipeline validasi (PRD §57) ──────────────────────────────────────
 export interface PipelineInput {
   authenticated: boolean;
@@ -200,10 +196,7 @@ export function leaveBalance(
   return { allocation: allocationDays, used, pending, remaining: allocationDays - used - pending };
 }
 
-// ── Lembur ───────────────────────────────────────────────────────────
-export function overtimeAmount(hours: number, hourlyRate: number): number {
-  return Math.round(hours * hourlyRate);
-}
+// ── Lembur: rumus resmi di payroll.overtimePay (1/173, 1.5×/2×) ──
 
 /** Jarak euclidean antar descriptor wajah 128-dim. Match bila < 0.5. */
 export function descriptorDistance(a: readonly number[], b: readonly number[]): number {

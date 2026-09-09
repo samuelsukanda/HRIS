@@ -9,6 +9,11 @@ export async function POST(req: Request) {
   const body = await req.json();
   const { jobPostingId, name, email, phone } = body as { jobPostingId: string; name: string; email: string; phone: string };
   if (!jobPostingId || !name || !email || !phone) return Response.json({ ok: false, error: "Field wajib kosong." }, { status: 400 });
+  if (!["hr_admin", "hr_manager", "super_admin"].includes(user.role)) {
+    return Response.json({ ok: false, error: "Hanya HR." }, { status: 403 });
+  }
+  const jobR = await pool.query(`SELECT id FROM job_postings WHERE id=$1`, [jobPostingId]);
+  if (jobR.rows.length === 0) return Response.json({ ok: false, error: "Lowongan tidak ditemukan." }, { status: 404 });
 
   const id = await nextId("candidates", "CND");
   await pool.query(

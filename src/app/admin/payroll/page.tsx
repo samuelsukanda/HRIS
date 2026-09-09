@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Download, LockSimpleOpen, Play } from "@phosphor-icons/react";
 import { Btn, EmptyState, Input, PageHead, Stamp } from "@/components/ui";
-import { fmtRupiah } from "@/lib/format";
+import { downloadCsv, fmtRupiah } from "@/lib/format";
 import type { PayrollBreakdown } from "@/lib/payroll";
 
 interface RunSummary {
@@ -95,19 +95,15 @@ export default function AdminPayroll() {
 
   function exportCsv() {
     if (!detail) return;
-    const head = ["ID", "Nama", "Dept", "Terjadwal", "Hadir", "Alpha", "Bruto", "BPJS Kes", "BPJS JHT", "PPH21", "Net"];
-    const rows = detail.slips.map((s) => [
-      s.employeeId, s.name, s.dept ?? "-", s.breakdown.scheduledDays, s.breakdown.attendedDays,
-      s.breakdown.alphaDays, s.breakdown.gross, s.breakdown.bpjsHealth, s.breakdown.bpjsJht,
-      s.breakdown.tax, s.breakdown.net,
-    ]);
-    const csv = [head, ...rows].map((r) => r.map((c) => `"${String(c).replaceAll('"', '""')}"`).join(";")).join("\n");
-    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `payroll-${detail.run.period}.csv`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    downloadCsv(
+      `payroll-${detail.run.period}.csv`,
+      ["ID", "Nama", "Dept", "Terjadwal", "Hadir", "Alpha", "Bruto", "BPJS Kes", "BPJS JHT", "PPH21", "Net"],
+      detail.slips.map((s) => [
+        s.employeeId, s.name, s.dept ?? "-", s.breakdown.scheduledDays, s.breakdown.attendedDays,
+        s.breakdown.alphaDays, s.breakdown.gross, s.breakdown.bpjsHealth, s.breakdown.bpjsJht,
+        s.breakdown.tax, s.breakdown.net,
+      ]),
+    );
   }
 
   const totals = detail?.slips.reduce(

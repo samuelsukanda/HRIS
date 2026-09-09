@@ -1,11 +1,12 @@
 import { cookies } from "next/headers";
 import { pool } from "@/db/client";
-import { COOKIE_NAME, cookieOptions, createSessionToken } from "./auth";
+import { COOKIE_NAME, createSessionToken, readSessionToken } from "./auth";
 
 export async function setSessionCookie(userId: string) {
   const jar = await cookies();
   jar.set(COOKIE_NAME, createSessionToken(userId), {
     httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 7,
@@ -30,7 +31,6 @@ export async function getSessionUser(): Promise<SessionUserRow | null> {
   const parts = token.split(".");
   if (parts.length !== 2) return null;
   // verifikasi ringan tanpa impor berat — gunakan verify dari auth
-  const { readSessionToken } = await import("./auth");
   const parsed = readSessionToken(token);
   if (!parsed) return null;
   const r = await pool.query(

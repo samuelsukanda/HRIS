@@ -1,8 +1,8 @@
 "use client";
 
-import { Circle, CircleMarker, MapContainer, TileLayer, useMap } from "react-leaflet";
-import { useEffect } from "react";
+import { Circle, CircleMarker, MapContainer, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import { MapViewport } from "./location-map-shared";
 
 export type CheckinPoint = { latitude: number; longitude: number; inside: boolean };
 
@@ -34,12 +34,4 @@ export default function LocationMiniMap({
       </p>
     </div>
   );
-}
-
-function MapViewport({ position }: { position: [number, number] }) {
-  const map = useMap();
-  useEffect(() => {
-    map.setView(position);
-  }, [map, position]);
-  return null;
 }

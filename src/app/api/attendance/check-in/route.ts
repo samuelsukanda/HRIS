@@ -42,7 +42,6 @@ export async function POST(req: Request) {
   if (dup.rows[0]?.check_in_at) {
     return Response.json({ ok: false, error: "Anda sudah melakukan check-in hari ini.", code: "duplicate" }, { status: 409 });
   }
-
   // ── Kebijakan WFH dari server (bukan klaim client) ──
   const setR = await pool.query(`SELECT key, value FROM settings WHERE key IN ('wfh_gps','wfh_face','wfh_liveness')`);
   const policy = Object.fromEntries(setR.rows.map((x: { key: string; value: string }) => [x.key, x.value]));
@@ -177,10 +176,10 @@ export async function POST(req: Request) {
     stages: pipeline.stages,
   };
 
-  await pool.query(
+  const ins = await pool.query(
     `INSERT INTO attendance (id,employee_id,date,check_in_at,check_in_snap,status,risk_score,verification_status,rejection_reason,corrections)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'[]'::jsonb)
-     ON CONFLICT (id) DO NOTHING`,
+     ON CONFLICT (id) DO NOTHING RETURNING id`,
     [
       existingId, emp.id, date, now,
       JSON.stringify(snap),
@@ -190,6 +189,9 @@ export async function POST(req: Request) {
       criticalFail ? criticalFail.detail : null,
     ],
   );
+  if (ins.rows.length === 0) {
+    return Response.json({ ok: false, error: "Anda sudah melakukan check-in hari ini.", code: "duplicate" }, { status: 409 });
+  }
 
   const actorName = emp.name;
   await writeAudit({

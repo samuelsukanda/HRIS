@@ -20,23 +20,6 @@ export async function confirmDelete(label: string): Promise<boolean> {
   return r.isConfirmed;
 }
 
-export async function confirmAction(title: string, text?: string, confirmText = "Ya, lanjut"): Promise<boolean> {
-  const r = await Swal.fire({
-    title,
-    text,
-    icon: "question",
-    showCancelButton: true,
-    confirmButtonText: confirmText,
-    cancelButtonText: "Batal",
-    confirmButtonColor: "#2b4a6f",
-    cancelButtonColor: "#6b7280",
-    background: "#f6f5f0",
-    color: "#1c1917",
-    customClass: { popup: "rounded-md border border-rule", confirmButton: "rounded px-4 py-2 text-sm font-semibold", cancelButton: "rounded px-4 py-2 text-sm font-semibold" },
-  });
-  return r.isConfirmed;
-}
-
 export function toastOk(msg: string) {
   void Swal.fire({ toast: true, position: "top-end", icon: "success", title: msg, showConfirmButton: false, timer: 2200, background: "#f6f5f0", color: "#1c1917" });
 }

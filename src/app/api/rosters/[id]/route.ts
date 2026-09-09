@@ -31,8 +31,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (!HR_ROLES.includes(user.role)) return Response.json({ ok: false }, { status: 403 });
   const { id } = await params;
   const p = parseId(id);
-  if (p) await pool.query(`DELETE FROM roster WHERE employee_id=$1 AND date=$2`, [p.eid, p.date]);
-  else await pool.query(`DELETE FROM roster WHERE employee_id=$1`, [id]);
+  if (!p) return Response.json({ ok: false, error: "ID roster tidak valid." }, { status: 400 });
+  await pool.query(`DELETE FROM roster WHERE employee_id=$1 AND date=$2`, [p.eid, p.date]);
   const empR = await pool.query(`SELECT name FROM employees WHERE id=$1`, [user.employee_id]);
   await writeAudit({ actorId: user.id, actorName: empR.rows[0]?.name ?? user.employee_id, action: "Roster deleted", targetType: "roster", targetId: id, detail: p?.eid ?? id, at: new Date().toISOString() });
   return Response.json({ ok: true });

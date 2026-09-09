@@ -8,9 +8,7 @@ const SESSION_COOKIE = "hris_session";
  * Verifikasi penuh tetap dilakukan per-API di server (src/lib/server/session.ts).
  */
 export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  if (!request.cookies.has(SESSION_COOKIE) && (pathname.startsWith("/admin") || pathname.startsWith("/app"))) {
+  if (!request.cookies.has(SESSION_COOKIE)) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     url.search = "";

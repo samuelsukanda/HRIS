@@ -26,7 +26,8 @@ export default function EmployeeLeave() {
 
   function submit() {
     setFormError(null);
-    const type = state.data.leaveTypes.find((t) => t.id === typeId)!;
+    const type = state.data.leaveTypes.find((t) => t.id === typeId);
+    if (!type) return setFormError("Jenis cuti tidak tersedia.");
     if (!start || !end) return setFormError("Tanggal mulai dan selesai wajib diisi.");
     if (end < start) return setFormError("Tanggal selesai tidak boleh sebelum tanggal mulai.");
     const days = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 86_400_000) + 1;
@@ -142,11 +143,11 @@ export default function EmployeeLeave() {
         ) : (
           <ul className="divide-y divide-ledger/60 border border-rule bg-card px-4">
             {myRequests.map((r) => {
-              const type = state.data.leaveTypes.find((t) => t.id === r.typeId)!;
+              const type = state.data.leaveTypes.find((t) => t.id === r.typeId);
               return (
                 <li key={r.id} className="py-3">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold">{type.name}</p>
+                    <p className="text-sm font-semibold">{type?.name ?? "Cuti"}</p>
                     <StatusStamp status={r.status} />
                   </div>
                   <p className="tnum mt-0.5 text-xs text-ink-soft">

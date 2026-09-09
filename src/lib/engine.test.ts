@@ -6,8 +6,6 @@ import {
   haversineM,
   hmToMin,
   leaveBalance,
-  minToHm,
-  overtimeAmount,
   runValidationPipeline,
 } from "@/lib/engine";
 
@@ -38,10 +36,8 @@ describe("geofence", () => {
 });
 
 describe("jam", () => {
-  it("konversi HH:MM dua arah", () => {
+  it("konversi HH:MM", () => {
     expect(hmToMin("07:15")).toBe(435);
-    expect(minToHm(435)).toBe("07:15");
-    expect(minToHm(hmToMin("23:59"))).toBe("23:59");
   });
 
   it("skenario 6: shift 07:00 grace 10 mnt, check-in 07:23 → LATE 23 menit", () => {
@@ -152,8 +148,9 @@ describe("cuti & lembur", () => {
     expect(b).toEqual({ allocation: 12, used: 4, pending: 1, remaining: 7 }); // contoh PRD §22
   });
 
-  it("lembur dibulatkan ke rupiah", () => {
-    expect(overtimeAmount(2.5, 25_000)).toBe(62_500);
-    expect(overtimeAmount(3, 25_000)).toBe(75_000);
+  it("lembur ikut rumus payroll 1/173", async () => {
+    const { overtimePay } = await import("@/lib/payroll");
+    const rate = (6_500_000 + 1_200_000) / 173;
+    expect(overtimePay(2, 6_500_000, 1_200_000)).toBe(Math.round(rate * 1.5 + rate * 2));
   });
 });

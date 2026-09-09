@@ -2,6 +2,7 @@ import { pool } from "@/db/client";
 import { getSessionUser } from "@/lib/server/session";
 export async function GET(req:Request){
   const u=await getSessionUser(); if(!u) return Response.json({ok:false},{status:401});
+  if (u.role === "employee") return Response.json({ok:false,error:"Hanya atasan/admin."},{status:403});
   const {searchParams}=new URL(req.url);
   const q=searchParams.get("q")??"";
   const from=searchParams.get("from");

@@ -242,28 +242,3 @@ export function Toast() {
     </div>
   );
 }
-
-export function SignaturePad({ onSave }: { onSave: (dataUrl: string) => void }) {
-  // ponytail: canvas 300x120, simpan sebagai dataURL — cukup untuk demo e-signature
-  const ref = React.useRef<HTMLCanvasElement>(null);
-  const drawing = React.useRef(false);
-  function pos(e: React.MouseEvent | React.TouchEvent){
-    const c=ref.current!; const r=c.getBoundingClientRect();
-    const t=(e as React.TouchEvent).touches?.[0];
-    const x=t ? t.clientX-r.left : (e as React.MouseEvent).clientX-r.left;
-    const y=t ? t.clientY-r.top : (e as React.MouseEvent).clientY-r.top;
-    return {x,y};
-  }
-  function start(e:React.MouseEvent|React.TouchEvent){ drawing.current=true; const {x,y}=pos(e); const ctx=ref.current!.getContext("2d")!; ctx.beginPath(); ctx.moveTo(x,y); }
-  function move(e:React.MouseEvent|React.TouchEvent){ if(!drawing.current) return; const {x,y}=pos(e); const ctx=ref.current!.getContext("2d")!; ctx.lineTo(x,y); ctx.strokeStyle="#0f172a"; ctx.lineWidth=1.7; ctx.lineCap="round"; ctx.stroke(); }
-  function end(){ drawing.current=false; }
-  return (
-    <div className="space-y-2">
-      <canvas ref={ref} width={300} height={120} className="w-full touch-none rounded border border-rule bg-paper" onMouseDown={start} onMouseMove={move} onMouseUp={end} onTouchStart={start} onTouchMove={move} onTouchEnd={end} />
-      <div className="flex gap-2">
-        <Btn variant="secondary" size="sm" onClick={()=> { const c=ref.current!; c.getContext("2d")!.clearRect(0,0,c.width,c.height); }}>Hapus</Btn>
-        <Btn variant="official" size="sm" onClick={()=> { const c=ref.current!; onSave(c.toDataURL("image/png")); }}>Simpan Tanda Tangan</Btn>
-      </div>
-    </div>
-  );
-}

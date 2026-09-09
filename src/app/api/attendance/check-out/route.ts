@@ -16,6 +16,7 @@ interface CheckOutBody {
   livenessPassed: boolean;
   deviceId: string;
   deviceName: string;
+  wfh?: boolean;
 }
 
 export async function POST(req: Request) {
@@ -46,10 +47,14 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, error: "Sudah check-out.", code: "duplicate" }, { status: 409 });
   }
 
-  const geo = checkGeofence({ latitude: body.latitude, longitude: body.longitude }, {
-    latitude: rec.lat, longitude: rec.lng, radiusM: rec.radius_m,
-  });
-  // Check-out di luar radius juga diblok — kehadiran penuh harus tervalidasi
+  // WFH ikut sesi check-in: bila check-in WFH (distanceM<0), geofence dilewati
+  const isWfh = body.wfh === true || (rec.check_in_snap && (rec.check_in_snap as { distanceM?: number }).distanceM === -1);
+  const geo = isWfh
+    ? { pass: true, distanceM: -1, maxRadiusM: rec.radius_m }
+    : checkGeofence({ latitude: body.latitude, longitude: body.longitude }, {
+        latitude: rec.lat, longitude: rec.lng, radiusM: rec.radius_m,
+      });
+  // Check-out di luar radius juga diblok — kehadiran penuh harus tervalidasi (kecuali WFH)
   if (!geo.pass) {
     return Response.json({
       ok: false,
