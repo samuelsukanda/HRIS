@@ -91,7 +91,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { state } = useHris();
   const me = currentUser(state);
   const router = useRouter();
-  const { dispatch, logout } = useHris();
+  const { logout } = useHris();
   const [cmdOpen, setCmdOpen] = useState(false);
   const [cmdQ, setCmdQ] = useState("");
   // ponytail: Cmd+K global search — filter karyawan/cuti/lembur in-memory
@@ -189,6 +189,14 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const { state } = useHris();
+  const router = useRouter();
+
+  // jaring pengaman: sesi hilang (logout/kick nonaktifkan) → selalu kembali ke halaman masuk
+  useEffect(() => {
+    if (!state.session) router.replace("/");
+  }, [state.session, router]);
+
   return (
     <div className="min-h-[100dvh] lg:pl-64">
       {/* Sidebar desktop */}

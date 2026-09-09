@@ -57,6 +57,8 @@ export default function EmployeeProfile() {
   // agar tombol "Daftar Ulang" benar-benar membuka kamera
   const showCamera = regPhase === "camera" || regPhase === "processing" || regPhase === "denied";
   // perangkat dikenal dari riwayat snapshot absensi (deviceId + nama + terakhir terlihat)
+  // nama model HP spesifik = baris data demo seed, bukan login beneran
+  const DEMO_DEVICE_NAMES = ["iPhone 13", "Samsung Galaxy S22", "OPPO Reno 8", "Xiaomi Redmi Note 12", "Xiaomi Redmi Note 9 (baru)"];
   const knownDevices = (() => {
     const map = new Map<string, { name: string; last: string }>();
     for (const a of state.data.attendance.filter((x) => x.employeeId === employee.id)) {
@@ -256,17 +258,23 @@ export default function EmployeeProfile() {
               Belum ada perangkat tercatat. Perangkat{thisDeviceId ? ` ini (${thisDeviceId})` : ""} akan tercatat otomatis saat Anda pertama kali absen.
             </li>
           ) : (
-            knownDevices.map((d) => (
-              <li key={d.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                <span className="min-w-0">
-                  <span className="block truncate font-medium">{d.name}</span>
-                  <span className="tnum block text-xs text-ink-faint">{d.id}</span>
-                </span>
-                <span className="tnum shrink-0 text-xs text-ink-faint">
-                  {d.id === thisDeviceId ? "perangkat ini · " : ""}{d.last ? new Date(d.last).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : deviceDate}
-                </span>
-              </li>
-            ))
+            knownDevices.map((d) => {
+              const isDemo = DEMO_DEVICE_NAMES.includes(d.name);
+              return (
+                <li key={d.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">
+                      {d.name}
+                      {isDemo && <span className="ml-2 rounded bg-ink/5 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-ink-faint">demo</span>}
+                    </span>
+                    <span className="tnum block text-xs text-ink-faint">{d.id}</span>
+                  </span>
+                  <span className="tnum shrink-0 text-right text-xs text-ink-faint">
+                    {d.id === thisDeviceId ? "perangkat ini" : `terakhir ${d.last ? new Date(d.last).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : deviceDate}`}
+                  </span>
+                </li>
+              );
+            })
           )}
           <li className="py-2.5 text-xs leading-relaxed text-ink-faint">
             Web HRIS memang bisa dibuka dari perangkat mana saja — daftar ini mencatat

@@ -3,3 +3,357 @@
 > next dev -H 0.0.0.0 --experimental-https --experimental-https-key ./certs/key.pem --experimental-https-cert ./certs/cert.pem --webpack
 
 ⚠ Self-signed certificates are currently an experimental feature, use with caution.
+▲ Next.js 16.3.3 (webpack)
+- Local:         https://localhost:3000
+- Network:       https://0.0.0.0:3000
+- Environments: .env
+✓ Ready in 560ms
+⚠ Warning: Next.js ignored package-lock.json in C:\Users\Admin because it is outside the current Git repository (C:\Users\Admin\Herd\hris).
+ To use this directory, set `outputFileTracingRoot` in your Next.js config.
+
+✓ Running next.config.ts took 49ms
+
+ GET /api/bootstrap 200 in 4.1s (next.js: 2.2s, application-code: 1920ms)
+ GET /api/bootstrap 200 in 28ms (next.js: 4ms, application-code: 24ms)
+○ Compiling / ...
+ GET / 200 in 6.7s (next.js: 6.4s, application-code: 264ms)
+ GET /api/state 200 in 934ms (next.js: 773ms, application-code: 162ms)
+ GET /app 200 in 1356ms (next.js: 1169ms, proxy.ts: 122ms, application-code: 65ms)
+ GET /app 200 in 34ms (next.js: 4ms, proxy.ts: 8ms, application-code: 22ms)
+⚠ ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+[browser] ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+ GET /app/profil 200 in 1151ms (next.js: 1108ms, proxy.ts: 6ms, application-code: 37ms)
+○ Compiling /app/profil ...
+⚠ ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+⚠ ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+⨯ error: invalid input syntax for type json
+    at async PATCH (src\app\api\face\route.ts:26:3)
+  24 |   }
+  25 |   const encrypted = encryptDescriptor(descriptor);
+> 26 |   await pool.query(`UPDATE employees SET face_registered=true, face_descriptor=$1 WHERE id=$2`, [
+     |   ^
+  27 |     encrypted, user.employee_id,
+  28 |   ]);
+  29 |   await writeAudit({ {
+  length: 246,
+  severity: 'ERROR',
+  code: '22P02',
+  detail: 'Token "8ef5c7e2d4c174a48eb8de983e5cb24b" is invalid.',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: 'JSON data, line 1: 8ef5c7e2d4c174a48eb8de983e5cb24b...\n' +
+    "unnamed portal parameter $1 = '...'",
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'jsonfuncs.c',
+  line: '661',
+  routine: 'json_errsave_error'
+}
+ PATCH /api/face 500 in 1534ms (next.js: 1281ms, application-code: 253ms)
+[browser] ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+ GET /api/state 200 in 122ms (next.js: 5ms, application-code: 117ms)
+⚠ ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+[browser] ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+ GET /app/profil 200 in 170ms (next.js: 100ms, proxy.ts: 21ms, application-code: 49ms)
+⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /app/profil 200 in 292ms (next.js: 4ms, proxy.ts: 5ms, application-code: 283ms)
+[browser] ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+ GET /api/state 200 in 114ms (next.js: 4ms, application-code: 109ms)
+[browser] ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+⚠ ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+[browser] ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+ GET /app/profil 200 in 140ms (next.js: 87ms, proxy.ts: 11ms, application-code: 42ms)
+ GET /app/profil 200 in 180ms (next.js: 3ms, proxy.ts: 6ms, application-code: 171ms)
+[browser] ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+ GET /api/state 200 in 108ms (next.js: 4ms, application-code: 105ms)
+[browser] ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+⚠ ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+[browser] ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+ GET /app/profil 200 in 111ms (next.js: 73ms, proxy.ts: 5ms, application-code: 33ms)
+⚠ ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+[browser] ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+ GET /app/profil 200 in 41ms (next.js: 7ms, proxy.ts: 6ms, application-code: 28ms)
+[browser] ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+⚠ ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+[browser] ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+ GET /app/profil 200 in 118ms (next.js: 76ms, proxy.ts: 6ms, application-code: 36ms)
+⚠ ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+[browser] ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+ GET /app/profil 200 in 66ms (next.js: 9ms, proxy.ts: 8ms, application-code: 50ms)
+⚠ ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+⚠ ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+[browser] ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+ GET /app/profil 200 in 118ms (next.js: 65ms, proxy.ts: 8ms, application-code: 45ms)
+ PATCH /api/face 200 in 1607ms (next.js: 1346ms, application-code: 261ms)
+⚠ ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+⚠ ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+[browser] ./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+./node_modules/@vladmandic/face-api/dist/face-api.esm.js
+./src/lib/face.ts
+./src/app/app/profil/page.tsx
+ GET /api/state 200 in 816ms (next.js: 611ms, application-code: 205ms)
+[?25h

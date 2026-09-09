@@ -23,8 +23,9 @@ export async function PATCH(req: Request) {
     return Response.json({ ok: false, error: "Descriptor wajah tidak valid (128 dimensi)." }, { status: 400 });
   }
   const encrypted = encryptDescriptor(descriptor);
+  // kolom JSONB: string harus di-quote sebagai JSON valid
   await pool.query(`UPDATE employees SET face_registered=true, face_descriptor=$1 WHERE id=$2`, [
-    encrypted, user.employee_id,
+    JSON.stringify(encrypted), user.employee_id,
   ]);
   await writeAudit({
     actorId: user.id, actorName: user.name,

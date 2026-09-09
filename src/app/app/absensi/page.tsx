@@ -21,17 +21,29 @@ import { detectDescriptor, detectEar, loadFaceApi } from "@/lib/face";
 import { ApiError, currentUser, rosterShiftFor, todayISO, useHris } from "@/lib/store";
 
 function deviceId(): string {
-  // ponytail: deviceId sederhana per-session; device binding penuh butuh fingerprinting vendor
+  // ID stabil per browser (localStorage) agar daftar perangkat bermakna;
+  // ponytail: fingerprinting vendor penuh butuh lib tambahan
   try {
     const k = "hris-device-id";
-    let id = sessionStorage.getItem(k);
+    let id = localStorage.getItem(k);
     if (!id) {
       id = "DEV-" + Math.floor(1000 + Math.random() * 9000);
-      sessionStorage.setItem(k, id);
+      localStorage.setItem(k, id);
     }
     return id;
   } catch {
     return "DEV-0000";
+  }
+}
+
+function deviceName(): string {
+  try {
+    const ua = navigator.userAgent;
+    const browser = /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : /Firefox\//.test(ua) ? "Firefox" : "Browser";
+    const os = /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Windows/.test(ua) ? "Windows" : /Macintosh/.test(ua) ? "macOS" : /Linux/.test(ua) ? "Linux" : "Lainnya";
+    return `${browser} · ${os}`;
+  } catch {
+    return "Perangkat";
   }
 }
 
@@ -282,7 +294,7 @@ export default function AttendancePage() {
         livenessScore: 0.95,
         livenessPassed: true,
         deviceId: deviceId(),
-        deviceName: navigator.userAgent.includes("Mobile") ? "Perangkat Mobile" : "Desktop Browser",
+        deviceName: deviceName(),
         wfh: isWfh,
       };
 

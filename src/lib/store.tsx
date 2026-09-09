@@ -791,10 +791,11 @@ export function HrisProvider({ children }: { children: React.ReactNode }) {
             const sj = await s.json().catch(() => ({})) as { code?: string };
             if (sj.code === "disabled") {
               kickedRef.current = true;
-              await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
-              await loadAnonymous();
+              // navigasi dulu selama UI masih valid, lalu bersihkan sesi — hindari frame blank di rute terlindungi
+              void fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
               router.push("/");
               void alertAccountDisabled();
+              await loadAnonymous();
               return false;
             }
           } catch { /* abaikan, fallback anonim */ }

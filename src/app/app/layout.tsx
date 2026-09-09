@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import {
   Bell,
   CalendarBlank,
@@ -25,9 +26,14 @@ const NAV: { href: string; label: string; icon: Icon }[] = [
 export default function EmployeeLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { state, dispatch, logout } = useHris();
+  const { state, logout } = useHris();
   const me = currentUser(state);
   const unreadCount = me ? state.data.notifications.filter((n) => n.userId === me.user.id && !n.read).length : 0;
+
+  // jaring pengaman: sesi hilang (logout/kick nonaktifkan) → selalu kembali ke halaman masuk
+  useEffect(() => {
+    if (!state.session) router.replace("/");
+  }, [state.session, router]);
 
   return (
     <div className="mx-auto flex min-h-[100dvh] max-w-lg flex-col border-x border-rule bg-paper print:max-w-none print:border-x-0 print:bg-white">
