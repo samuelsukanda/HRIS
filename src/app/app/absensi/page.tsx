@@ -117,6 +117,9 @@ export default function AttendancePage() {
   }
 
   async function startCamera(): Promise<void> {
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      throw new Error("insecure-context");
+    }
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
       audio: false,
@@ -188,9 +191,15 @@ export default function AttendancePage() {
       await runStep(3);
       try {
         await startCamera();
-      } catch {
+      } catch (err) {
         setPhase("error");
-        setError({
+        setError(err instanceof Error && err.message === "insecure-context" ? {
+          title: "Koneksi tidak aman (HTTP).",
+          lines: [
+            "Kamera diblokir browser karena dibuka via IP HTTP.",
+            "Buka lewat HTTPS (atau localhost), lalu coba lagi.",
+          ],
+        } : {
           title: "Kamera tidak dapat diakses.",
           lines: [
             "Berikan izin kamera pada browser Anda.",

@@ -56,6 +56,16 @@ export default function AdminAset() {
     [data.assets, data.assetAssignments, data.employees, q],
   );
   const pagedAssets = assetList.slice((page - 1) * LIMIT, page * LIMIT);
+  const pendingReturns = useMemo(() =>
+    data.assetAssignments
+      .filter((aa) => !aa.returnedAt && aa.returnRequestedAt)
+      .map((aa) => ({
+        ...aa,
+        asset: data.assets.find((a) => a.id === aa.assetId),
+        assignee: data.employees.find((e) => e.id === aa.employeeId),
+      })),
+    [data.assetAssignments, data.assets, data.employees],
+  );
 
   function resetForm() {
     setName(""); setCategory("laptop"); setBrand(""); setModel(""); setSerialNumber("");
@@ -123,7 +133,7 @@ export default function AdminAset() {
 
   function doReturn(assignmentId: string) {
     dispatch({ type: "RETURN_ASSET", assignmentId });
-    toastOk("Aset dikembalikan");
+    toastOk("Pengembalian dikonfirmasi");
   }
 
   const pendingRequests = data.assetRequests.filter((r) => r.status === "pending");
@@ -161,6 +171,25 @@ export default function AdminAset() {
                 </li>
               );
             })}
+          </ul>
+        </section>
+      )}
+      {pendingReturns.length > 0 && (
+        <section className="mb-6 border border-rule bg-card">
+          <header className="flex items-baseline justify-between border-b border-rule px-5 py-3.5">
+            <h2 className="font-semibold">Pengembalian Menunggu Konfirmasi</h2>
+            <span className="tnum text-xs text-ink-faint">{pendingReturns.length} pending</span>
+          </header>
+          <ul className="divide-y divide-ledger/50">
+            {pendingReturns.map((a) => (
+              <li key={a.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">{a.assignee?.name ?? a.employeeId} <span className="font-normal text-ink-faint">· {a.asset?.name ?? a.assetId}</span></p>
+                  <p className="tnum text-xs text-ink-soft">Serial: {a.asset?.serialNumber ?? "—"}</p>
+                </div>
+                <Btn variant="official" size="sm" onClick={() => doReturn(a.id)}>Konfirmasi Kembali</Btn>
+              </li>
+            ))}
           </ul>
         </section>
       )}

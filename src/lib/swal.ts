@@ -28,6 +28,20 @@ export function toastErr(msg: string) {
   void Swal.fire({ toast: true, position: "top-end", icon: "error", title: msg, showConfirmButton: false, timer: 2600, background: "#f6f5f0", color: "#1c1917" });
 }
 
+// Akun dinonaktifkan HR — dipakai saat percobaan login maupun saat sesi diakhiri paksa
+export function alertAccountDisabled() {
+  return Swal.fire({
+    icon: "error",
+    title: "Akun Dinonaktifkan",
+    text: "Akun Anda telah dinonaktifkan oleh HR dan tidak dapat digunakan untuk masuk ke sistem. Hubungi HR untuk informasi lebih lanjut.",
+    confirmButtonText: "Mengerti",
+    confirmButtonColor: "#c03a2c",
+    background: "#f6f5f0",
+    color: "#1c1917",
+    customClass: { popup: "rounded-md border border-rule" },
+  });
+}
+
 // Form modal generik — returns values object or null if cancelled
 export async function formModal<T extends Record<string, string>>(title: string, fields: { key: keyof T & string; label: string; value: string; type?: string }[], focusKey?: string): Promise<T | null> {
   const html = fields

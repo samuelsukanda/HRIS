@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type {
   ApprovalEntry,
   Asset,
@@ -24,6 +25,7 @@ import type {
   WorkLocation,
 } from "./types";
 import { seedData } from "./data";
+import { alertAccountDisabled } from "./swal";
 
 export interface SessionUser {
   userId: string;
@@ -66,7 +68,6 @@ type Action =
   | { type: "CREATE_EMPLOYEE"; employee: Employee }
   | { type: "UPDATE_EMPLOYEE"; id: string; data: Partial<Employee> }
   | { type: "DELETE_EMPLOYEE"; id: string }
-  | { type: "UPDATE_PROFILE"; employeeId: string; data: Partial<Employee> }
   | { type: "CREATE_SHIFT"; shift: Shift }
   | { type: "UPDATE_SHIFT"; id: string; data: Partial<Shift> }
   | { type: "DELETE_SHIFT"; id: string }
@@ -480,8 +481,6 @@ function reducer(state: State, action: Action): State {
       return { ...state, data: { ...state.data, employees: state.data.employees.map((e) => (e.id === action.id ? { ...e, ...action.data } : e)) } };
     case "DELETE_EMPLOYEE":
       return { ...state, data: { ...state.data, employees: state.data.employees.map((e) => (e.id === action.id ? { ...e, status: "inactive" as const } : e)) } };
-    case "UPDATE_PROFILE":
-      return { ...state, data: { ...state.data, employees: state.data.employees.map((e) => (e.id === action.employeeId ? { ...e, ...action.data } : e)) } };
     case "CREATE_SHIFT":
       return { ...state, data: { ...state.data, shifts: [...state.data.shifts, action.shift] } };
     case "UPDATE_SHIFT":
@@ -653,8 +652,6 @@ async function syncAction(a: Action): Promise<boolean> {
       return (await postJSON(`/api/employees/${a.id}`, a.data, "PATCH")).r.ok;
     case "DELETE_EMPLOYEE":
       return (await postJSON(`/api/employees/${a.id}`, {}, "DELETE")).r.ok;
-    case "UPDATE_PROFILE":
-      return (await postJSON(`/api/employees/${a.employeeId}`, a.data, "PATCH")).r.ok;
     case "CREATE_SHIFT":
       return (await postJSON("/api/shifts", a.shift)).r.ok;
     case "UPDATE_SHIFT":
@@ -734,6 +731,9 @@ export function HrisProvider({ children }: { children: React.ReactNode }) {
   const [state, rawDispatch] = useReducer(reducer, undefined, (): State => ({ data: seedData(), session: null }));
   const [ready, setReady] = useState(false);
   const bootstrapped = useRef(false);
+  const router = useRouter();
+  const hadSessionRef = useRef(false);
+  const kickedRef = useRef(false);
 
   const loadAnonymous = useCallback(async () => {
     try {
@@ -761,10 +761,44 @@ export function HrisProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const showToast = useCallback((message: string, type: "success" | "error" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast((curr) => (curr?.message === message ? null : curr));
+    }, 4000);
+  }, []);
+  const hideToast = useCallback(() => setToast(null), []);
+
+  useEffect(() => {
+    hadSessionRef.current = !!state.session;
+    if (state.session) kickedRef.current = false;
+  }, [state.session]);
+
+  const logout = useCallback(async () => {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+    await loadAnonymous();
+  }, [loadAnonymous]);
+
   const refresh = useCallback(async (): Promise<boolean> => {
     try {
       const r = await fetch("/api/state");
       if (!r.ok) {
+        // sesi tadinya ada tapi state gagal → cek apakah akun dinonaktifkan
+        if (hadSessionRef.current && !kickedRef.current) {
+          try {
+            const s = await fetch("/api/auth/status");
+            const sj = await s.json().catch(() => ({})) as { code?: string };
+            if (sj.code === "disabled") {
+              kickedRef.current = true;
+              await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+              await loadAnonymous();
+              router.push("/");
+              void alertAccountDisabled();
+              return false;
+            }
+          } catch { /* abaikan, fallback anonim */ }
+        }
         await loadAnonymous();
         return false;
       }
@@ -774,7 +808,7 @@ export function HrisProvider({ children }: { children: React.ReactNode }) {
     } catch {
       return false;
     }
-  }, [loadAnonymous]);
+  }, [loadAnonymous, router]);
 
   useEffect(() => {
     if (bootstrapped.current) return;
@@ -788,21 +822,12 @@ export function HrisProvider({ children }: { children: React.ReactNode }) {
       await refresh();
       setReady(true);
     })();
-    // ponytail: polling ringan 60s saat tab terlihat — notifikasi tetap segar tanpa realtime infra
+    // polling 15s saat tab terlihat — deteksi penonaktifkan akun terasa langsung & notifikasi tetap segar tanpa realtime infra
     const t = setInterval(() => {
       if (document.visibilityState === "visible") void refresh();
-    }, 60000);
+    }, 15000);
     return () => clearInterval(t);
   }, [refresh]);
-
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
-  const showToast = useCallback((message: string, type: "success" | "error" = "success") => {
-    setToast({ message, type });
-    setTimeout(() => {
-      setToast((curr) => (curr?.message === message ? null : curr));
-    }, 4000);
-  }, []);
-  const hideToast = useCallback(() => setToast(null), []);
 
   const dispatch = useCallback<React.Dispatch<Action>>(
     (a) => {
@@ -821,18 +846,18 @@ export function HrisProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     async (email: string, password: string): Promise<string | null> => {
-      const { r, j } = await postJSON("/api/auth/login", { email, password });
-      if (!r.ok) return (j.error as string) ?? "Login gagal.";
-      await refresh();
-      return null;
+      try {
+        const { r, j } = await postJSON("/api/auth/login", { email, password });
+        if (!r.ok) return (j.error as string) ?? "Login gagal.";
+        await refresh();
+        return null;
+      } catch (e) {
+        // TypeError = fetch gagal (jaringan/server); Error lain membawa pesan dari API (mis. akun dinonaktifkan)
+        return e instanceof TypeError ? "Tidak dapat menghubungi server. Coba lagi." : e instanceof Error ? e.message : "Login gagal.";
+      }
     },
     [refresh],
   );
-
-  const logout = useCallback(async () => {
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
-    await loadAnonymous();
-  }, [loadAnonymous]);
 
   const submitCheckIn = useCallback(async (payload: CheckInPayload): Promise<AttendanceRecord> => {
     const { r, j } = await postJSON("/api/attendance/check-in", payload);

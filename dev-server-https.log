@@ -1,0 +1,5 @@
+
+> hris@0.1.0 dev:lan
+> next dev -H 0.0.0.0 --experimental-https --experimental-https-key ./certs/key.pem --experimental-https-cert ./certs/cert.pem --webpack
+
+⚠ Self-signed certificates are currently an experimental feature, use with caution.

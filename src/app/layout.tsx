@@ -40,9 +40,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="id"
+      suppressHydrationWarning
       className={`${libreFranklin.variable} ${splineMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full">
+      <body className="min-h-full" suppressHydrationWarning>
         <div dangerouslySetInnerHTML={{ __html: CONTRACT_COMMENT }} aria-hidden />
         <HrisProvider>
           {children}

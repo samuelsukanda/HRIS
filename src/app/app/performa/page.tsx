@@ -9,7 +9,7 @@ export default function EmployeePerforma(){
   return <>
     <h1 className="mb-1 text-xl font-bold tracking-tight">Performa</h1>
     <p className="mb-4 text-sm text-ink-soft">Rekap penilaian kinerja Anda.</p>
-    {my.length===0 ? <EmptyState icon={Star} title="Belum ada review" body="Penilaian dari atasan akan muncul di sini setelah difinalisasi." /> : (
+    {my.length===0 ?       <EmptyState icon={Star} title="Belum Ada Review" body="Penilaian kinerja Anda akan ditampilkan setelah proses review selesai." /> : (
       <div className="space-y-3">
         {my.map(r=> (
           <section key={r.id} className="border border-rule bg-card p-4">

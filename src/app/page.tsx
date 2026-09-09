@@ -2,9 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Fingerprint, GlobeSimple, ShieldCheck } from "@phosphor-icons/react";
+import { GlobeSimple, ShieldCheck } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { currentUser, useHris } from "@/lib/store";
+import { alertAccountDisabled } from "@/lib/swal";
 
 const DEMO_ACCOUNTS = [
   { email: "samuel.hartono@hrissmart.id", name: "Samuel Hartono", role: "HR Manager", desc: "Dashboard HR penuh, review absensi & risiko fraud, kelola karyawan, approval cuti/lembur." },
@@ -32,9 +33,11 @@ export default function LoginPage() {
   async function doLogin(em: string, pw: string) {
     setBusy(true);
     setError(null);
-    const err = await login(em, pw);
+    const err = await login(em, pw).catch(() => "Tidak dapat menghubungi server. Coba lagi.");
     setBusy(false);
-    if (err) setError(err);
+    if (!err) return;
+    setError(err);
+    if (err.toLowerCase().includes("dinonaktifkan")) void alertAccountDisabled();
   }
 
   return (

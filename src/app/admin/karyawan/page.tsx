@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MagnifyingGlass, SealCheck, WarningCircle, Trash, Pencil } from "@phosphor-icons/react";
 import { Avatar, Btn, EmptyState, Field, IconBtn, Input, Modal, PageHead, Pager, Select, Stamp } from "@/components/ui";
 import { fmtDateShortID, parseLocalISO } from "@/lib/format";
@@ -35,6 +35,12 @@ export default function AdminEmployees() {
   const [baseSalary, setBaseSalary] = useState(10_000_000);
   const [allowance, setAllowance] = useState(2_000_000);
   const [joinDate, setJoinDate] = useState(new Date().toISOString().slice(0, 10));
+  const [address, setAddress] = useState("");
+  const [bankName, setBankName] = useState("BCA");
+  const [bankAccount, setBankAccount] = useState("");
+  const [emergencyName, setEmergencyName] = useState("");
+  const [emergencyRelation, setEmergencyRelation] = useState("");
+  const [emergencyPhone, setEmergencyPhone] = useState("");
 
   const rows = useMemo(
     () =>
@@ -59,16 +65,18 @@ export default function AdminEmployees() {
     setPositionId(data.positions[0]?.id ?? ""); setWorkLocationId(data.workLocations[0]?.id ?? "");
     setEmploymentType("probation"); setBaseSalary(10_000_000); setAllowance(2_000_000);
     setJoinDate(new Date().toISOString().slice(0, 10));
+    setAddress(""); setBankName("BCA"); setBankAccount("");
+    setEmergencyName(""); setEmergencyRelation(""); setEmergencyPhone("");
   }
 
   function handleAdd() {
     if (!name || !email) return;
     const newEmp: Employee = {
       id: `EMP-${String(data.employees.length + 100).padStart(3, "0")}`,
-      nik, name, gender: "L", birthPlace: "Jakarta", birthDate: "1990-01-01", address: "",
+      nik, name, gender: "L", birthPlace: "Jakarta", birthDate: "1990-01-01", address,
       phone, email, joinDate, departmentId, positionId, branchId, workLocationId,
-      employmentType, status: "active", bankName: "BCA", bankAccount: "",
-      emergencyContact: { name: "", relation: "", phone: "" }, faceRegistered: false,
+      employmentType, status: "active", bankName, bankAccount,
+      emergencyContact: { name: emergencyName, relation: emergencyRelation, phone: emergencyPhone }, faceRegistered: false,
       baseSalary, allowance,
     };
     dispatch({ type: "CREATE_EMPLOYEE", employee: newEmp });
@@ -91,6 +99,12 @@ export default function AdminEmployees() {
     setBaseSalary(e.baseSalary || 0);
     setAllowance(e.allowance || 0);
     setJoinDate(e.joinDate);
+    setAddress(e.address || "");
+    setBankName(e.bankName || "");
+    setBankAccount(e.bankAccount || "");
+    setEmergencyName(e.emergencyContact?.name || "");
+    setEmergencyRelation(e.emergencyContact?.relation || "");
+    setEmergencyPhone(e.emergencyContact?.phone || "");
     setShowEditForm(true);
   }
 
@@ -102,6 +116,8 @@ export default function AdminEmployees() {
       data: {
         name, nik, email, phone, branchId, departmentId, positionId, workLocationId,
         employmentType, baseSalary, allowance, joinDate,
+        address, bankName, bankAccount,
+        emergencyContact: { name: emergencyName, relation: emergencyRelation, phone: emergencyPhone },
       },
     });
     setShowEditForm(false);
@@ -234,6 +250,9 @@ export default function AdminEmployees() {
           <Field label="Telepon">
             <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
           </Field>
+          <Field label="Alamat">
+            <Input value={address} onChange={(e) => setAddress(e.target.value)} />
+          </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Cabang">
               <Select value={branchId} onChange={(e) => setBranchId(e.target.value)}>
@@ -279,6 +298,43 @@ export default function AdminEmployees() {
               <Input type="number" value={allowance} onChange={(e) => setAllowance(Number(e.target.value))} />
             </Field>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Bank">
+              <Select value={bankName} onChange={(e) => setBankName(e.target.value)}>
+                <option value="">— Pilih Bank —</option>
+                <option value="BCA">BCA</option>
+                <option value="Mandiri">Mandiri</option>
+                <option value="BRI">BRI</option>
+                <option value="BNI">BNI</option>
+                <option value="CIMB">CIMB Niaga</option>
+                <option value="BTN">BTN</option>
+                <option value="Danamon">Danamon</option>
+              </Select>
+            </Field>
+            <Field label="No. Rekening">
+              <Input value={bankAccount} onChange={(e) => setBankAccount(e.target.value)} />
+            </Field>
+          </div>
+          <hr className="border-rule" />
+          <p className="text-xs font-semibold text-ink-soft">Kontak Darurat</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Nama">
+              <Input value={emergencyName} onChange={(e) => setEmergencyName(e.target.value)} />
+            </Field>
+            <Field label="Hubungan">
+              <Select value={emergencyRelation} onChange={(e) => setEmergencyRelation(e.target.value)}>
+                <option value="">— Pilih —</option>
+                <option value="Suami">Suami</option>
+                <option value="Istri">Istri</option>
+                <option value="Orang Tua">Orang Tua</option>
+                <option value="Saudara">Saudara</option>
+                <option value="Lainnya">Lainnya</option>
+              </Select>
+            </Field>
+          </div>
+          <Field label="No. HP">
+            <Input value={emergencyPhone} onChange={(e) => setEmergencyPhone(e.target.value)} />
+          </Field>
           {showEditForm && <AccountSection employeeId={selected!} />}
           <Btn variant="official" onClick={showEditForm ? handleEdit : handleAdd} disabled={!name || !email} className="w-full">
             {showEditForm ? "Simpan Perubahan" : "Simpan Karyawan"}
@@ -294,6 +350,14 @@ function AccountSection({ employeeId }: { employeeId: string }) {
   const account = state.data.users.find((u) => u.employeeId === employeeId);
   const [role, setRole] = useState(account?.role ?? "employee");
   const [busy, setBusy] = useState(false);
+  const [loginActive, setLoginActive] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!account) return;
+    void fetch(`/api/users/${account.id}`)
+      .then((r) => r.json())
+      .then((j) => { if (typeof j.user?.active === "boolean") setLoginActive(j.user.active); })
+      .catch(() => undefined);
+  }, [account?.id]);
   if (!account) return null;
   async function save(patch: Record<string, unknown>, msg: string) {
     setBusy(true);
@@ -301,23 +365,51 @@ function AccountSection({ employeeId }: { employeeId: string }) {
     const j = await r.json().catch(() => ({}));
     setBusy(false);
     showToast(j.ok ? msg : (j.error ?? "Gagal."), j.ok ? "success" : "error");
-    if (j.ok) location.reload();
+    if (j.ok) {
+      if (typeof (patch as { active?: unknown }).active === "boolean") {
+        setLoginActive((patch as { active: boolean }).active);
+      } else {
+        location.reload();
+      }
+    }
   }
   return (
-    <div className="border border-dashed border-rule bg-paper p-3">
-      <p className="mb-2 text-xs font-semibold tracking-wide text-ink-soft uppercase">Akun Login</p>
-      <div className="flex flex-wrap items-center gap-2">
-        <Select value={role} onChange={(e) => setRole(e.target.value as never)} aria-label="Role akun" className="!w-auto px-2 py-1.5 text-xs">
-          <option value="employee">employee</option>
-          <option value="manager">manager</option>
-          <option value="hr_admin">hr_admin</option>
-          <option value="hr_manager">hr_manager</option>
-          <option value="finance">finance</option>
-          <option value="super_admin">super_admin</option>
-        </Select>
-        <Btn variant="secondary" size="sm" disabled={busy || role === account.role} onClick={() => void save({ role }, "Role diperbarui")}>Simpan Role</Btn>
-        <Btn variant="danger" size="sm" disabled={busy} onClick={() => void save({ active: false }, "Login dinonaktifkan")}>Nonaktifkan Login</Btn>
-        <Btn variant="official" size="sm" disabled={busy} onClick={() => void save({ active: true }, "Login diaktifkan")}>Aktifkan</Btn>
+    <div className="border border-rule bg-paper p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="font-mono text-[11px] tracking-widest text-ink-faint uppercase">Akun Login</p>
+        {loginActive !== null && (
+          <Stamp kind={loginActive ? "approved" : "rejected"}>
+            {loginActive ? <><SealCheck size={11} weight="bold" /> Aktif</> : "Nonaktif"}
+          </Stamp>
+        )}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="min-w-0">
+          <p className="mb-1 text-xs font-semibold tracking-wide text-ink-soft uppercase">Role</p>
+          <div className="flex items-center gap-2">
+            <Select value={role} onChange={(e) => setRole(e.target.value as never)} aria-label="Role akun" className="min-w-0 flex-1 py-1.5 text-xs">
+              <option value="employee">Employee</option>
+              <option value="manager">Manager</option>
+              <option value="hr_admin">HR Admin</option>
+              <option value="hr_manager">HR Manager</option>
+              <option value="finance">Finance</option>
+              <option value="super_admin">Super Admin</option>
+            </Select>
+            <Btn variant="secondary" size="sm" disabled={busy || role === account.role} onClick={() => void save({ role }, "Role diperbarui")}>Simpan</Btn>
+          </div>
+        </div>
+        <div className="min-w-0">
+          <p className="mb-1 text-xs font-semibold tracking-wide text-ink-soft uppercase">Akses Login</p>
+          {loginActive === false ? (
+            <Btn variant="official" size="sm" disabled={busy} onClick={() => void save({ active: true }, "Login diaktifkan")} className="w-full">
+              Aktifkan Login
+            </Btn>
+          ) : (
+            <Btn variant="danger" size="sm" disabled={busy || loginActive === null} onClick={() => void save({ active: false }, "Login dinonaktifkan")} className="w-full">
+              Nonaktifkan Login
+            </Btn>
+          )}
+        </div>
       </div>
     </div>
   );

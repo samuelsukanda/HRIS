@@ -35,7 +35,7 @@ export async function getSessionUser(): Promise<SessionUserRow | null> {
   if (!parsed) return null;
   const r = await pool.query(
     `SELECT u.id, u.employee_id, u.email, u.role, e.name
-     FROM users u JOIN employees e ON e.id = u.employee_id WHERE u.id = $1`,
+     FROM users u JOIN employees e ON e.id = u.employee_id WHERE u.id = $1 AND u.active = true`,
     [parsed.userId],
   );
   return r.rows[0] ?? null;
