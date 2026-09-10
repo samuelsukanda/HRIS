@@ -164,8 +164,7 @@ function AccountActions({ employeeId, account }: { employeeId: string; account?:
     const j = await r.json().catch(() => ({}));
     setBusy(false);
     if (j.ok) {
-      void showTempPassword(j.email ?? "", j.tempPassword);
-      toastOk("Akun login dibuat");
+      void showTempPassword(j.email ?? "", j.tempPassword).then(() => toastOk("Akun login dibuat"));
       void refresh();
     } else {
       toastErr(j.error ?? "Gagal membuat akun.");
@@ -189,8 +188,7 @@ function AccountActions({ employeeId, account }: { employeeId: string; account?:
     const j = await r.json().catch(() => ({}));
     setBusy(false);
     if (j.ok) {
-      void showTempPassword(account!.email, j.tempPassword);
-      toastOk("Password direset");
+      void showTempPassword(account!.email, j.tempPassword).then(() => toastOk("Password direset"));
     } else {
       toastErr(j.error ?? "Gagal reset password.");
     }

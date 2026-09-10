@@ -38,7 +38,7 @@ export default function AdminSchedule() {
       { key: "name", label: "Nama shift", value: s.name },
       { key: "start", label: "Jam mulai (HH:MM)", value: s.start },
       { key: "end", label: "Jam selesai (HH:MM)", value: s.end },
-      { key: "grace", label: "Grace (menit)", value: String(s.graceMinutes), type: "number" },
+      { key: "grace", label: "Toleransi absensi (menit)", value: String(s.graceMinutes), type: "number" },
     ], "name");
     if (!v || !v.name.trim()) return;
     dispatch({ type: "UPDATE_SHIFT", id: s.id, data: { name: v.name.trim(), start: v.start || s.start, end: v.end || s.end, graceMinutes: Number(v.grace) || s.graceMinutes } });
@@ -86,7 +86,7 @@ export default function AdminSchedule() {
             <p className="tnum mt-1 font-mono text-lg">
               {s.start}–{s.end}
             </p>
-            <p className="mt-1 text-xs text-ink-faint">Grace period {s.graceMinutes} menit</p>
+            <p className="mt-1 text-xs text-ink-faint">Toleransi absensi {s.graceMinutes} menit</p>
             <div className="mt-3 flex items-center justify-end gap-1 border-t border-ledger/40 pt-2.5">
               <IconBtn label={`Edit ${s.name}`} icon={Pencil} onClick={() => void editShift(s)} />
               <IconBtn label={`Hapus ${s.name}`} icon={Trash} onClick={() => void deleteShift(s)} className="hover:text-stamp" />
@@ -274,7 +274,7 @@ function ShiftManager({ open, onClose }: { open: boolean; onClose: () => void })
         <div className="grid grid-cols-3 gap-3">
           <label className="block text-xs font-semibold tracking-wide text-ink-soft uppercase">Mulai<input type="time" value={form.start} onChange={e=> setForm({...form,start:e.target.value})} className="mt-2 w-full border border-rule bg-paper px-3 py-2 text-sm" /></label>
           <label className="block text-xs font-semibold tracking-wide text-ink-soft uppercase">Selesai<input type="time" value={form.end} onChange={e=> setForm({...form,end:e.target.value})} className="mt-2 w-full border border-rule bg-paper px-3 py-2 text-sm" /></label>
-          <label className="block text-xs font-semibold tracking-wide text-ink-soft uppercase">Grace<input type="number" value={form.graceMinutes} onChange={e=> setForm({...form,graceMinutes:Number(e.target.value)})} className="mt-2 w-full border border-rule bg-paper px-3 py-2 text-sm" /></label>
+          <label className="block text-xs font-semibold tracking-wide text-ink-soft uppercase">Toleransi absensi<input type="number" value={form.graceMinutes} onChange={e=> setForm({...form,graceMinutes:Number(e.target.value)})} className="mt-2 w-full border border-rule bg-paper px-3 py-2 text-sm" /></label>
         </div>
         <div className="flex gap-2 border-t border-ledger/40 pt-4">
           <Btn onClick={()=> { if(!form.name.trim()) return; const id=`S-${form.name.toUpperCase().replace(/\s+/g,"")}-${Date.now()}`; dispatch({type:"CREATE_SHIFT", shift:{ id, name:form.name.trim(), start:form.start, end:form.end, graceMinutes:form.graceMinutes, crossesMidnight: form.end < form.start }}); onClose(); setForm({ name:"", start:"09:00", end:"17:00", graceMinutes:15 }); toastOk("Shift ditambahkan"); }}>Simpan</Btn>

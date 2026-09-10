@@ -161,7 +161,7 @@ export function runValidationPipeline(input: PipelineInput): PipelineResult {
           : "Lokasi tidak tersedia");
   push(4, "Deteksi Wajah", input.faceDetected, input.faceDetected ? "Wajah terdeteksi" : "Wajah tidak terdeteksi");
   push(5, "Liveness", input.livenessPassed, input.livenessPassed ? "Orang asli terkonfirmasi" : "Presentation attack terdeteksi");
-  push(6, "Verifikasi Wajah 1:1", input.faceMatch ?? input.faceScore >= 0.85,
+  push(6, "Verifikasi Wajah", input.faceMatch ?? input.faceScore >= 0.85,
     input.faceDetail ?? `Similarity ${Math.round(input.faceScore * 100)}% (threshold 85%)`);
   push(7, "Jadwal & Aturan", input.hasScheduleToday && input.withinCheckInWindow,
     !input.hasScheduleToday

@@ -276,9 +276,10 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_at TIMESTAMPTZ NOT NULL
 );
 INSERT INTO settings (key, value, updated_at) VALUES
-  ('wfh_gps', 'TIDAK DIWAJIBKAN', NOW()),
+  ('wfh_gps', 'TIDAK WAJIB', NOW()),
   ('wfh_face', 'WAJIB', NOW()),
-  ('wfh_liveness', 'WAJIB', NOW())
+  ('wfh_liveness', 'WAJIB', NOW()),
+  ('checkin_window', '60', NOW())
 ON CONFLICT (key) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS asset_requests (

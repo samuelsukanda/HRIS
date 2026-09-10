@@ -104,7 +104,7 @@ export async function POST(req: Request) {
       { stage: 3, name: "GPS & Geofence", pass: true, detail: `Jarak ${geo.distanceM} m dari radius ${rec.radius_m} m` },
       { stage: 4, name: "Deteksi Wajah", pass: true, detail: "Wajah terdeteksi" },
       { stage: 5, name: "Liveness", pass: !!body.livenessPassed, detail: body.livenessPassed ? "Orang asli terkonfirmasi" : "Presentation attack terdeteksi" },
-      { stage: 6, name: "Verifikasi Wajah 1:1", pass: faceMatch, detail: `Jarak wajah ${faceDistance.toFixed(2)} (threshold 0,50)` },
+      { stage: 6, name: "Verifikasi Wajah", pass: faceMatch, detail: faceMatch ? "Wajah cocok dengan data terdaftar" : `Wajah tidak sesuai dengan data yang terdaftar. Tingkat kemiripan ${Math.round((1 - faceDistance) * 100)}%, minimal 50%.` },
       { stage: 7, name: "Jadwal & Aturan", pass: !earlyLeave, detail: earlyLeave ? "Pulang lebih awal >1 jam" : "Dalam batas jam kerja" },
     ],
   };

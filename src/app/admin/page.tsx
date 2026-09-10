@@ -97,7 +97,7 @@ export default function AdminDashboard() {
         {/* Tabel kehadiran hari ini — janji FIRST VIEWPORT */}
         <motion.section variants={{ hidden:{ opacity:0, y:12 }, visible:{ opacity:1, y:0, transition:{ delay:0.1, type:"spring", stiffness:100, damping:20 }}}} className="rounded-[1.5rem] border border-slate-200/60 bg-white shadow-[0_20px_40px_-20px_rgba(0,0,0,0.08)]">
           <header className="flex items-baseline justify-between border-b border-rule px-5 py-3.5">
-            <h2 className="font-semibold">Rekaman Hari Ini</h2>
+            <h2 className="font-semibold">Absensi Hari Ini</h2>
             <Link href="/admin/absensi" className="text-xs font-medium text-official underline underline-offset-2 hover:text-official-deep">
               review lengkap →
             </Link>

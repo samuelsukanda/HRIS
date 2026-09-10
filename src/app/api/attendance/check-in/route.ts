@@ -49,10 +49,12 @@ export async function POST(req: Request) {
     }
   }
   // ── Kebijakan WFH dari server (bukan klaim client) ──
-  const setR = await pool.query(`SELECT key, value FROM settings WHERE key IN ('wfh_gps','wfh_face','wfh_liveness')`);
+  const setR = await pool.query(`SELECT key, value FROM settings WHERE key IN ('wfh_gps','wfh_face','wfh_liveness','checkin_window')`);
   const policy = Object.fromEntries(setR.rows.map((x: { key: string; value: string }) => [x.key, x.value]));
   const wfhFaceRequired = (policy.wfh_face ?? "WAJIB") === "WAJIB";
   const wfhLiveRequired = (policy.wfh_liveness ?? "WAJIB") === "WAJIB";
+  // window check-in (menit) dari Master Data, default 60 bila belum diset
+  const windowMin = Math.min(720, Math.max(5, Number(policy.checkin_window) || 60));
   const isWfh = (body as CheckInBody & { wfh?: boolean }).wfh === true;
 
   // ── 03 Geofence — hard gate di server (dilewati untuk WFH) ──
@@ -96,10 +98,10 @@ export async function POST(req: Request) {
     if (s.rows[0]) shift = { start: s.rows[0].start_time, graceMinutes: s.rows[0].grace_minutes };
   }
   const nowMin = now.getHours() * 60 + now.getMinutes();
-  const withinWindow = shift ? Math.abs(nowMin - (+shift.start.slice(0, 2) * 60 + +shift.start.slice(3))) <= 60 : false;
+  const withinWindow = shift ? Math.abs(nowMin - (+shift.start.slice(0, 2) * 60 + +shift.start.slice(3))) <= windowMin : false;
 
   // ── Verifikasi wajah 1:1 — descriptor live vs template terdaftar (server-side) ──
-  // WFH ikut policy server: bila TIDAK DIWAJIBKAN, tahap dilewati (tetap tercatat di snapshot)
+  // WFH ikut policy server: bila TIDAK WAJIB, tahap dilewati (tetap tercatat di snapshot)
   const stored = emp.face_descriptor ? decryptDescriptor(emp.face_descriptor as any) : null;
   if (!stored && (wfhFaceRequired || !isWfh)) {
     return Response.json({
@@ -135,7 +137,13 @@ export async function POST(req: Request) {
     livenessPassed: livenessOk,
     faceScore: faceMatch ? 0.95 : 0.6,
     faceMatch: faceMatch || (isWfh && !wfhFaceRequired),
-    faceDetail: hasDescriptor ? `Jarak wajah ${faceDistance.toFixed(2)} (threshold 0,50)` : "Verifikasi wajah dilewati (policy WFH)",
+    faceDetail: hasDescriptor
+      ? faceMatch
+        ? "Wajah cocok dengan data terdaftar"
+        : isWfh && !wfhFaceRequired
+          ? "Verifikasi wajah dilewati (policy WFH)"
+          : `Wajah tidak sesuai dengan data yang terdaftar. Tingkat kemiripan ${Math.round((1 - faceDistance) * 100)}%, minimal 50%.`
+      : "Verifikasi wajah dilewati (policy WFH)",
     hasScheduleToday: !!shift,
     withinCheckInWindow: withinWindow,
   });

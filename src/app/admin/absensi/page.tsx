@@ -287,7 +287,7 @@ function DetailPanel({ att, location }: { att: AttendanceRecord; location: WorkL
           <Meta k="Device ID" v={snap.deviceId} mono />
           <Meta k="IP" v={snap.ip} mono />
           <Meta k="Akurasi GPS" v={`±${snap.accuracyM} m`} mono />
-          <Meta k="Mock Location" v={snap.mockLocation ? "TRUE — ditolak" : "FALSE"} mono />
+          <Meta k="Fake GPS" v={snap.mockLocation ? "Yes" : "No"} mono />
           <Meta k="Liveness" v={`${Math.round(snap.livenessScore * 100)}%`} mono />
         </dl>
       </aside>

@@ -570,6 +570,6 @@ export function seedData(): HrisData {
     notifications,
     shiftSwaps: [],
     assetRequests: [],
-    settings: { wfh_gps: "TIDAK DIWAJIBKAN", wfh_face: "WAJIB", wfh_liveness: "WAJIB" },
+    settings: { wfh_gps: "TIDAK WAJIB", wfh_face: "WAJIB", wfh_liveness: "WAJIB", checkin_window: "60" },
   };
 }

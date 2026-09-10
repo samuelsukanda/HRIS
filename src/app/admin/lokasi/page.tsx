@@ -109,7 +109,7 @@ function PolicyRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-const WFH_DEFAULTS = { gps: "TIDAK DIWAJIBKAN", face: "WAJIB", liveness: "WAJIB" };
+const WFH_DEFAULTS = { gps: "TIDAK WAJIB", face: "WAJIB", liveness: "WAJIB" };
 
 function WfhPolicy() {
   const { state } = useHris();
@@ -138,7 +138,7 @@ function WfhPolicy() {
 
   async function edit() {
     const Swal = (await import("sweetalert2")).default;
-    const opts = ["WAJIB", "OPSIONAL", "TIDAK DIWAJIBKAN"];
+    const opts = ["WAJIB", "OPSIONAL", "TIDAK WAJIB"];
     const sel = (id: string, val: string) => `<select id="${id}" style="margin-top:4px;width:100%;border:1px solid #d6d3cb;padding:8px;border-radius:4px;font-size:14px">${opts.map((o) => `<option ${o === val ? "selected" : ""}>${o}</option>`).join("")}</select>`;
     const { value } = await Swal.fire({
       title: "Edit Kebijakan WFH",
@@ -177,7 +177,7 @@ function WfhPolicy() {
         <PolicyRow label="Liveness / PAD" value={policy.liveness} />
       </div>
       <footer className="border-t border-rule bg-paper px-5 py-3 text-xs leading-relaxed text-ink-soft">
-        Rekaman WFH tetap melalui pipeline face &amp; liveness penuh tanpa validasi geofence.
+        Absensi WFH tetap melalui pipeline face &amp; liveness penuh tanpa validasi geofence.
         Lokasi tidak direkam saat WFH.
       </footer>
     </section>

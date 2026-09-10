@@ -364,8 +364,7 @@ function AccountSection({ employeeId }: { employeeId: string }) {
     const j = await r.json().catch(() => ({}));
     setBusy(false);
     if (j.ok) {
-      void showTempPassword(j.email ?? "", j.tempPassword);
-      toastOk("Akun login dibuat");
+      void showTempPassword(j.email ?? "", j.tempPassword).then(() => toastOk("Akun login dibuat"));
       void refresh();
     } else {
       toastErr(j.error ?? "Gagal membuat akun.");
@@ -533,7 +532,7 @@ function EmployeeDetail({ emp }: { emp: Employee }) {
         <section>
           <h3 className="mb-2 font-mono text-[11px] tracking-widest text-ink-faint uppercase">Riwayat Kehadiran — 14 Hari</h3>
           {history.length === 0 ? (
-            <p className="text-sm text-ink-soft">Belum ada rekaman.</p>
+            <p className="text-sm text-ink-soft">Belum ada absen.</p>
           ) : (
             <ul className="divide-y divide-ledger/60 border border-rule bg-card px-4">
               {history.map((a) => (

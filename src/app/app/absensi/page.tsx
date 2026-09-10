@@ -14,7 +14,7 @@ import {
   UserFocus,
   WarningCircle,
 } from "@phosphor-icons/react";
-import { Btn, Stamp } from "@/components/ui";
+import { Btn, EmptyState, Stamp } from "@/components/ui";
 import { checkGeofence, passiveLiveness } from "@/lib/engine";
 import { fmtClockFromDate } from "@/lib/format";
 import { detectDescriptor, loadFaceApi, sampleLivenessFrames } from "@/lib/face";
@@ -52,7 +52,7 @@ const STEP_NAMES = [
   "Izin & Akuisisi GPS",
   "Validasi Geofence",
   "Deteksi Wajah",
-  "Verifikasi Wajah 1:1",
+  "Verifikasi Wajah",
   "Jadwal & Penyimpanan",
 ];
 
@@ -430,8 +430,8 @@ export default function AttendancePage() {
         <section className="border border-stamp/40 bg-card p-5">
           <p className="font-semibold">Wajah belum terdaftar</p>
           <p className="mt-1 text-sm leading-relaxed text-ink-soft">
-            Sebelum bisa melakukan {verb.toLowerCase()}, daftarkan wajah Anda lewat halaman Profil.
-            Pendaftaran memakai kamera depan dan memakan waktu ±20 detik.
+            Sebelum melakukan {verb.toLowerCase()}, pastikan wajah Anda sudah terdaftar di halaman Profil.
+            Gunakan kamera depan dan ikuti proses pendaftaran selama sekitar 20 detik.
           </p>
           <Btn className="mt-4" onClick={() => router.push("/app/profil")}>
             Buka Profil
@@ -442,11 +442,11 @@ export default function AttendancePage() {
 
     if (!shift && !attToday) {
       return (
-        <section className="border border-dashed border-rule bg-card p-6 text-center">
-          <CalendarOff />
-          <p className="mt-2 font-semibold">Tidak ada jadwal hari ini</p>
-          <p className="mt-1 text-sm text-ink-soft">Nikmati hari libur Anda. Tombol absensi aktif pada hari kerja.</p>
-        </section>
+        <EmptyState
+          icon={CalendarX}
+          title="Belum Ada Jadwal Hari Ini"
+          body="Tidak ada jadwal kerja untuk hari ini. Fitur absensi akan aktif pada jadwal kerja berikutnya."
+        />
       );
     }
 
@@ -499,20 +499,20 @@ export default function AttendancePage() {
         </div>
         <div className="px-5 py-5">
           <p className="text-sm leading-relaxed text-ink-soft">
-            Proses ini akan mengambil <b className="text-ink">lokasi Anda satu kali</b>, membuka{" "}
-            <b className="text-ink">kamera depan</b> untuk mendeteksi wajah, lalu mencocokkan wajah
-            dengan template terenkripsi Anda. Semua tahap berjalan lokal di perangkat ini.
+            Absensi akan mengambil <b className="text-ink">lokasi satu kali</b> dan menggunakan{" "}
+            <b className="text-ink">kamera depan</b> untuk verifikasi wajah. Data diproses sesuai
+            kebijakan privasi dan setiap aktivitas absensi tercatat dalam audit log.
           </p>
           <ul className="tnum mt-4 space-y-1 text-xs text-ink-faint">
-            <li>· Lokasi hanya direkam saat absensi onsite — tanpa tracking pasif.</li>
-            <li>· Template wajah tidak dapat dibalik menjadi foto.</li>
-            <li>· Rekaman masuk ke audit log permanen.</li>
+            <li>· Lokasi hanya diambil saat absensi onsite.</li>
+            <li>· Tidak ada pelacakan lokasi secara pasif.</li>
+            <li>· Data verifikasi wajah tersimpan secara terenkripsi.</li>
           </ul>
           <div className="mt-4 flex items-center justify-between gap-3 border border-dashed border-rule bg-paper px-3 py-2.5">
             <div>
               <p className="text-sm font-semibold">Mode WFH</p>
               <p className="text-xs text-ink-soft">
-                GPS {wfhPolicy.wfh_gps ?? "TIDAK DIWAJIBKAN"} · Face {wfhPolicy.wfh_face ?? "WAJIB"} · Liveness {wfhPolicy.wfh_liveness ?? "WAJIB"}
+                GPS {wfhPolicy.wfh_gps ?? "TIDAK WAJIB"} · Face {wfhPolicy.wfh_face ?? "WAJIB"} · Liveness {wfhPolicy.wfh_liveness ?? "WAJIB"}
               </p>
             </div>
             <button
@@ -546,7 +546,7 @@ export default function AttendancePage() {
           {snap ? fmtClockFromDate(new Date(snap.at)) : "—"}
         </p>
         <p className="mt-1 text-sm text-ink-soft">
-          {rec?.status === "late" ? "Tercatat TERLAMBAT — sesuai aturan grace period." : "Status: Present"}
+          {rec?.status === "late" ? "Tercatat TERLAMBAT — sesuai aturan toleransi absensi." : "Status: Present"}
         </p>
 
         <ul className="mt-6 space-y-1 text-left">
@@ -576,10 +576,6 @@ export default function AttendancePage() {
       </section>
     );
   }
-}
-
-function CalendarOff() {
-  return <CalendarX size={26} weight="light" className="text-ink-faint" aria-hidden />;
 }
 
 function ScanCorners() {

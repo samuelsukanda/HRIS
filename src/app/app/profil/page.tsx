@@ -235,8 +235,8 @@ export default function EmployeeProfile() {
           ) : (
             <>
               <p className="text-sm leading-relaxed text-ink-soft">
-                Wajah Anda belum terdaftar, sehingga tombol absensi terkunci. Pendaftaran memakai
-                kamera depan ±20 detik.
+                Daftarkan wajah Anda untuk mengaktifkan verifikasi wajah pada proses absensi.
+                Pendaftaran menggunakan kamera depan dan membutuhkan waktu sekitar 20 detik.
               </p>
               <Btn icon={Camera} className="mt-3" onClick={openCamera}>
                 Daftarkan Wajah

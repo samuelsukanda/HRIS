@@ -21,16 +21,17 @@ export default function EmployeeSchedule() {
     date: d,
     shift: me ? rosterShiftFor(state.data, me.employee.id, d) : null,
   })), [days, me, state.data]);
+  const windowMin = Number(state.data.settings.checkin_window) || 60;
   const mySwaps = me ? state.data.shiftSwaps.filter((s) => s.employeeId === me.employee.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)) : [];
   if (!me) return null;
 
   return (
     <>
       <h1 className="mb-1 text-xl font-bold tracking-tight">Jadwal Saya</h1>
-      <p className="mb-4 text-sm text-ink-soft">Roster minggu ini menurut buku jadwal departemen Anda.</p>
+      <p className="mb-4 text-sm text-ink-soft">Lihat jadwal kerja dan shift Anda untuk minggu ini.</p>
 
       {rows.every((r) => !r.shift) ? (
-        <EmptyState icon={CalendarBlank} title="Minggu kosong" body="Belum ada roster untuk minggu ini. Hubungi supervisor bila ini tidak sesuai." />
+        <EmptyState icon={CalendarBlank} title="Belum Ada Jadwal" body="Belum ada jadwal kerja atau shift yang tersedia untuk minggu ini. Hubungi supervisor jika jadwal Anda seharusnya sudah tersedia." />
       ) : (
         <ol className="space-y-2">
           {rows.map(({ date, shift }) => {
@@ -54,8 +55,7 @@ export default function EmployeeSchedule() {
                         {shift.start}–{shift.end}
                       </p>
                       <p className="text-xs text-ink-soft">
-                        {shift.name} · grace {shift.graceMinutes} mnt
-                        {shift.crossesMidnight ? " · lintas tengah malam" : ""}
+                        {shift.name} · toleransi {shift.graceMinutes} mnt
                       </p>
                     </>
                   ) : (
@@ -63,8 +63,12 @@ export default function EmployeeSchedule() {
                   )}
                 </div>
                 <button onClick={async () => {
-                  const v = await formModal<{ target: string; reason: string }>(`Tukar shift ${date}`, [
-                    { key: "target", label: "Shift tujuan (kosongkan = Off)", value: shift?.id ?? "" },
+                  const shiftOptions = [
+                    { value: "", label: "Off" },
+                    ...state.data.shifts.map((s) => ({ value: s.id, label: `${s.name} (${s.start}–${s.end})` })),
+                  ];
+                  const v = await formModal<{ target: string; reason: string }>(`Tukar Shift ${fmtDateID(date).replace(/^\w+, /, "")}`, [
+                    { key: "target", label: "Shift tujuan", value: shift?.id ?? "", options: shiftOptions },
                     { key: "reason", label: "Alasan", value: "" },
                   ]);
                   if (!v) return;
@@ -84,7 +88,7 @@ export default function EmployeeSchedule() {
       )}
 
       <p className="mt-5 px-1 text-xs leading-relaxed text-ink-faint">
-        Window check-in dibuka ±60 menit dari jam mulai shift. Di luar window, ajukan koreksi
+        Window check-in dibuka ±{windowMin} menit dari jam mulai shift. Di luar window, ajukan koreksi
         di bawah.
       </p>
       {mySwaps.length > 0 && (

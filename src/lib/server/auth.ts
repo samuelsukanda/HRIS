@@ -4,8 +4,24 @@ const SECRET = process.env.SESSION_SECRET ?? "dev-secret";
 export const COOKIE_NAME = "hris_session";
 const MAX_AGE_S = 60 * 60 * 24 * 7; // 7 hari
 
+// Password sementara yang mudah dibaca & dikomunikasikan: KataKata99!
+const PASSWORD_WORDS_A = [
+  "Kopi", "Teh", "Bulan", "Laut", "Gunung", "Panda", "Nasi", "Bunga", "Sungai", "Mangga",
+  "Kelapa", "Sawah", "Pelangi", "Kucing", "Rimba", "Tebu", "Padi", "Awan", "Burung", "Bambu",
+] as const;
+const PASSWORD_WORDS_B = [
+  "Biru", "Hijau", "Merah", "Kuning", "Ungu", "Putih", "Ceria", "Santai", "Manis", "Segar",
+  "Terang", "Senja", "Pagi", "Damai", "Embun", "Angin", "Hujan", "Bintang", "Lembah", "Mango",
+] as const;
+
+function pick<T>(list: readonly T[]): T {
+  return list[randomBytes(1)[0] % list.length];
+}
+
 export function randomPassword(): string {
-  return randomBytes(5).toString("hex") + "A1!";
+  const digits = String((randomBytes(1)[0] % 90) + 10);
+  const special = pick(["!", "@", "#", "$", "%"] as const);
+  return `${pick(PASSWORD_WORDS_A)}${pick(PASSWORD_WORDS_B)}${digits}${special}`;
 }
 
 export function hashPassword(password: string): string {

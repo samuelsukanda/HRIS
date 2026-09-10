@@ -20,7 +20,7 @@ function saved(msg: string) {
 
 export default function MasterPage(){
   const {state, showToast}=useHris();
-  const [tab,setTab]=useState<"branch"|"dept"|"pos"|"leave">("branch");
+  const [tab,setTab]=useState<"branch"|"dept"|"pos"|"leave"|"window">("branch");
   const [name,setName]=useState(""); const [city,setCity]=useState(""); const [branchId,setBranchId]=useState(state.data.branches[0]?.id??""); const [title,setTitle]=useState(""); const [level,setLevel]=useState("staff"); const [days,setDays]=useState(12);
   async function createBranch(){ if(!name.trim()||!city.trim()) return; const r=await fetch("/api/branches",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:name.trim(),city:city.trim()})}); const j=await r.json() as {ok:boolean;error?:string}; if(j.ok){ saved("Cabang ditambahkan"); } else showToast(j.error??"Gagal","error"); }
   async function createDept(){ if(!name.trim()) return; const r=await fetch("/api/departments",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:name.trim(),branch_id:branchId})}); const j=await r.json() as {ok:boolean;error?:string}; if(j.ok){ saved("Departemen ditambahkan"); } else showToast(j.error??"Gagal","error"); }
@@ -32,18 +32,21 @@ export default function MasterPage(){
     { key:"dept", label:"Departemen" },
     { key:"pos", label:"Jabatan" },
     { key:"leave", label:"Jenis Cuti" },
+    { key:"window", label:"Window Check-in" },
   ] as const;
   const [mq, setMq] = useState("");
   const mqNeedle = mq.trim().toLowerCase();
   const matchMq = (s: string) => !mqNeedle || s.toLowerCase().includes(mqNeedle);
   return <>
-    <PageHead title="Master Data" sub="Kelola data cabang, departemen, jabatan, dan jenis cuti." />
+    <PageHead title="Master Data" sub="Kelola data cabang, departemen, jabatan, jenis cuti, dan window check-in." />
     <div className="mb-4 flex gap-2">
       {tabs.map(t=> <button key={t.key} onClick={()=> { setTab(t.key); setMq(""); }} className={`min-h-9 px-3 py-1.5 text-xs font-semibold border ${tab===t.key?"bg-ink text-white":"bg-card"}`}>{t.label}</button>)}
     </div>
-    <div className="mb-4 max-w-md">
-      <input value={mq} onChange={(e) => setMq(e.target.value)} placeholder="Cari di tab ini…" aria-label="Cari master data" className="min-h-9 w-full border border-rule bg-card px-3 py-1.5 text-sm outline-none placeholder:text-ink-faint focus:border-official" />
-    </div>
+    {tab !== "window" && (
+      <div className="mb-4 max-w-md">
+        <input value={mq} onChange={(e) => setMq(e.target.value)} placeholder="Cari di tab ini…" aria-label="Cari master data" className="min-h-9 w-full border border-rule bg-card px-3 py-1.5 text-sm outline-none placeholder:text-ink-faint focus:border-official" />
+      </div>
+    )}
     {tab==="branch" && (
       <section className="border border-rule bg-card p-4">
         <div className="mb-4 flex flex-wrap gap-2 border-b border-ledger/40 pb-4">
@@ -84,5 +87,42 @@ export default function MasterPage(){
         <ul className="divide-y divide-ledger/40 text-sm">{state.data.leaveTypes.filter((t) => matchMq(t.name)).map(t=> <li key={t.id} className="py-2 flex items-center justify-between gap-2"><span className="font-medium">{t.name} <span className="tnum font-normal text-ink-faint">— {t.allocationDays} hari</span></span><span className="flex gap-1"><IconBtn label={`Edit ${t.name}`} icon={Pencil} onClick={async()=>{ const v=await formModal<{name:string;days:string}>("Edit Jenis Cuti",[{key:"name",label:"Nama",value:t.name},{key:"days",label:"Alokasi (hari)",value:String(t.allocationDays),type:"number"}]); if(!v||!v.name.trim()) return; if(await patch(`/api/leave-types/${t.id}`,{name:v.name.trim(),allocation_days:Number(v.days)})) saved("Jenis cuti disimpan"); }} /><IconBtn label={`Hapus ${t.name}`} icon={Trash} className="hover:text-stamp" onClick={async()=>{ if(await confirmDelete(t.name) && await del(`/api/leave-types/${t.id}`)) saved("Jenis cuti dihapus"); }} /></span></li>)}</ul>
       </section>
     )}
+    {tab==="window" && (
+      <WindowTab />
+    )}
   </>
+}
+
+function WindowTab() {
+  const { state, showToast } = useHris();
+  const current = Number(state.data.settings.checkin_window) || 60;
+  const [minutes, setMinutes] = useState(current);
+  const [busy, setBusy] = useState(false);
+  async function save() {
+    if (!Number.isInteger(minutes) || minutes < 5 || minutes > 720) {
+      showToast("Window 5–720 menit.", "error");
+      return;
+    }
+    setBusy(true);
+    const r = await fetch("/api/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ checkin_window: String(minutes) }) });
+    const j = await r.json().catch(() => ({})) as { ok: boolean; error?: string };
+    setBusy(false);
+    if (j.ok) saved("Window check-in disimpan");
+    else showToast(j.error ?? "Gagal.", "error");
+  }
+  return (
+    <section className="border border-rule bg-card p-4">
+      <h3 className="font-semibold">Window Check-in</h3>
+      <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+        Toleransi menit sebelum/sesudah jam mulai shift. Saat ini: <b className="tnum text-ink">±{current} menit</b>. Berlaku untuk check-in berikutnya.
+      </p>
+      <div className="mt-4 flex flex-wrap items-end gap-2">
+        <label className="text-xs font-semibold tracking-wide text-ink-soft uppercase">
+          Menit
+          <input type="number" min={5} max={720} value={minutes} onChange={(e) => setMinutes(Number(e.target.value))} className="tnum mt-1 block min-h-9 w-32 border border-rule bg-paper px-2 py-1 text-sm" />
+        </label>
+        <Btn size="sm" onClick={() => void save()} disabled={busy || minutes === current}>Simpan</Btn>
+      </div>
+    </section>
+  );
 }
