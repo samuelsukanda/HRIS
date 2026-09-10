@@ -42,6 +42,23 @@ export function alertAccountDisabled() {
   });
 }
 
+// Dialog password sementara — hanya ditampilkan sekali setelah buat akun / reset password
+export function showTempPassword(email: string, password: string) {
+  return Swal.fire({
+    icon: "success",
+    title: "Password Sementara",
+    html:
+      `<p style="font-size:13px;margin-bottom:10px">Email login: <strong>${email.replace(/</g, "&lt;")}</strong></p>` +
+      `<p style="font-family:ui-monospace,monospace;font-size:18px;letter-spacing:1px;background:#fff;border:1px solid #d6d3cb;border-radius:4px;padding:10px;user-select:all">${password}</p>` +
+      `<p style="font-size:12px;color:#57534e;margin-top:10px">Password hanya ditampilkan sekali — salin dan berikan ke karyawan. Karyawan disarankan menggantinya setelah login pertama.</p>`,
+    confirmButtonText: "Tutup",
+    confirmButtonColor: "#2b4a6f",
+    background: "#f6f5f0",
+    color: "#1c1917",
+    customClass: { popup: "rounded-md border border-rule" },
+  });
+}
+
 // Form modal generik — returns values object or null if cancelled
 export async function formModal<T extends Record<string, string>>(title: string, fields: { key: keyof T & string; label: string; value: string; type?: string }[], focusKey?: string): Promise<T | null> {
   const html = fields

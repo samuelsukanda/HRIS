@@ -20,6 +20,7 @@ import {
   SignOut,
   SquaresFour,
   Ticket,
+  UserList,
   UsersThree,
   X,
 } from "@phosphor-icons/react";
@@ -31,12 +32,15 @@ interface NavItem {
   href: string;
   label: string;
   icon: Icon;
+  hrOnly?: boolean;
 }
 interface NavGroup {
   title: string;
   items: NavItem[];
   disabled?: { label: string; note: string }[];
 }
+
+const HR_NAV_ROLES = ["hr_manager", "hr_admin", "super_admin"];
 
 const GROUPS: NavGroup[] = [
   {
@@ -47,6 +51,7 @@ const GROUPS: NavGroup[] = [
     title: "Organisasi",
     items: [
       { href: "/admin/karyawan", label: "Karyawan", icon: UsersThree },
+      { href: "/admin/akun", label: "Kelola Akun", icon: UserList, hrOnly: true },
       { href: "/admin/lokasi", label: "Lokasi Kerja", icon: MapPin },
       { href: "/admin/master", label: "Master Data", icon: SquaresFour },
     ],
@@ -139,7 +144,7 @@ function SidebarContent({ onNavigate, onClose }: { onNavigate?: () => void; onCl
               {g.title}
             </p>
             <ul className="space-y-0.5">
-              {g.items.map((item) => {
+              {g.items.filter((item) => !item.hrOnly || (me && HR_NAV_ROLES.includes(me.user.role))).map((item) => {
                 const active =
                   item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
                 const IconCmp = item.icon;

@@ -82,6 +82,8 @@ export default function AttendancePage() {
   const wfhPolicy = state.data.settings;
   const [isWfh, setIsWfh] = useState(false);
   const [testMode, setTestMode] = useState(false);
+  // mode test: paksa alur check-in ulang tanpa harus check-out dulu
+  const [forceIn, setForceIn] = useState(false);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- baca flag sekali saat mount
   useEffect(() => {
     void fetch("/api/attendance/test-mode")
@@ -89,7 +91,7 @@ export default function AttendancePage() {
       .then((j) => setTestMode(!!(j as { testMode?: boolean }).testMode))
       .catch(() => undefined);
   }, []);
-  const mode: "in" | "out" = attToday?.checkInAt && !attToday?.checkOutAt ? "out" : "in";
+  const mode: "in" | "out" = forceIn || !attToday?.checkInAt || attToday?.checkOutAt ? "in" : "out";
   const verb = mode === "in" ? "Check In" : "Check Out";
 
   const stopCamera = useCallback(() => {
@@ -304,6 +306,7 @@ export default function AttendancePage() {
         const res = await submitCheckOut(payload);
         const dist = res.snap.faceDistance ?? 0.04;
         score = Math.max(0, Math.min(100, Math.round((1 - dist) * 100)));
+        setForceIn(false);
       }
       setFaceScoreShown(score);
       setPhase("success");
@@ -336,6 +339,23 @@ export default function AttendancePage() {
         {shift ? `${shift.name} · ${shift.start}–${shift.end}` : "Hari libur"} ·{" "}
         {location.name.split("—")[0]?.trim()} ({location.radiusM} m)
       </p>
+
+      {testMode && attToday?.checkInAt && !forceIn && phase === "intro" && (
+        <button
+          onClick={() => setForceIn(true)}
+          className="btn-press mb-4 w-full cursor-pointer rounded-[4px] border border-dashed border-stamp/50 bg-stamp/5 px-4 py-2.5 text-sm font-semibold text-stamp-deep hover:bg-stamp/10"
+        >
+          Ulangi Check In (Tes)
+        </button>
+      )}
+      {testMode && forceIn && phase === "intro" && (
+        <button
+          onClick={() => setForceIn(false)}
+          className="mb-4 cursor-pointer text-xs text-ink-faint underline underline-offset-2 hover:text-ink"
+        >
+          Kembali ke alur normal
+        </button>
+      )}
 
       {phase === "intro" && <Intro />}
       {phase === "running" && (
@@ -431,17 +451,25 @@ export default function AttendancePage() {
     }
 
     if (mode === "in" && attToday?.checkInAt) {
-      // Sudah check-in tapi state belum sinkron (mis. refresh) → tampilkan ringkas
+      // Sudah check-in tapi state belum sinkron (mis. refresh) → tampilkan ringkas.
+      // Kecuali mode test paksa ulang: tampilkan juga tombol mulai agar bisa check-in lagi.
       return (
-        <section className="border border-rule bg-card p-5">
-          <div className="flex items-center justify-between">
-            <p className="font-semibold">Sudah check-in</p>
-            <Stamp kind={attToday.status === "late" ? "rejected" : "approved"}>{attToday.status}</Stamp>
-          </div>
-          <p className="tnum mt-2 text-sm text-ink-soft">
-            Tercatat {fmtClockFromDate(new Date(attToday.checkInAt))} · risk {attToday.riskScore}/100
-          </p>
-        </section>
+        <>
+          <section className="border border-rule bg-card p-5">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold">Sudah check-in</p>
+              <Stamp kind={attToday.status === "late" ? "rejected" : "approved"}>{attToday.status}</Stamp>
+            </div>
+            <p className="tnum mt-2 text-sm text-ink-soft">
+              Tercatat {fmtClockFromDate(new Date(attToday.checkInAt))} · risk {attToday.riskScore}/100
+            </p>
+          </section>
+          {testMode && forceIn && (
+            <div className="mt-4">
+              <StartCard />
+            </div>
+          )}
+        </>
       );
     }
 
@@ -456,6 +484,10 @@ export default function AttendancePage() {
       );
     }
 
+    return <StartCard />;
+  }
+
+  function StartCard() {
     return (
       <section className="border border-rule bg-card">
         <div className="grid grid-cols-7 divide-x divide-ledger/60 border-b border-rule text-center">

@@ -4,6 +4,10 @@ const SECRET = process.env.SESSION_SECRET ?? "dev-secret";
 export const COOKIE_NAME = "hris_session";
 const MAX_AGE_S = 60 * 60 * 24 * 7; // 7 hari
 
+export function randomPassword(): string {
+  return randomBytes(5).toString("hex") + "A1!";
+}
+
 export function hashPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");
   return `${salt}:${scryptSync(password, salt, 64).toString("hex")}`;

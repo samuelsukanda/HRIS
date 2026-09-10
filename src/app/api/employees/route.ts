@@ -1,13 +1,9 @@
 import { pool } from "@/db/client";
 import { nextId, writeAudit } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
-import { hashPassword } from "@/lib/server/auth";
+import { hashPassword, randomPassword } from "@/lib/server/auth";
 
 const HR_ROLES = ["hr_manager", "hr_admin", "super_admin"];
-
-function randomPassword() {
-  return Math.random().toString(36).slice(-8) + "A1!";
-}
 
 async function resolveFk(table: string, id: unknown, fallbackCol = "id"): Promise<string | null> {
   if (typeof id === "string" && id.trim()) {

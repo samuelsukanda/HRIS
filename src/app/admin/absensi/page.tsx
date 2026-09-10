@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import { Avatar, Btn, EmptyState, Input, Modal, PageHead, Pager, Select, StatusStamp, Stamp } from "@/components/ui";
+import AttendanceGeofenceMap from "@/components/attendance-geofence-map-dynamic";
 import { fmtClockFromDate, toLocalISO } from "@/lib/format";
 import { currentUser, useHris } from "@/lib/store";
 import type { AttendanceRecord, WorkLocation } from "@/lib/types";
@@ -227,17 +228,22 @@ function DetailPanel({ att, location }: { att: AttendanceRecord; location: WorkL
           Pipeline Validasi — Check In {fmtClockFromDate(new Date(snap.at))}
         </h3>
         <ol className="space-y-1">
-          {snap.stages.map((s) => (
-            <li key={s.stage} className={`flex items-start gap-3 rounded-[4px] px-2.5 py-1.5 ${s.pass ? "" : "bg-stamp/5"}`}>
-              <span className="tnum mt-0.5 text-xs text-ink-faint">{String(s.stage).padStart(2, "0")}</span>
-              <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${s.pass ? "bg-official" : "bg-stamp"}`} aria-hidden />
-              <span className="min-w-0">
-                <span className="text-sm font-semibold">{s.name}</span>
-                <span className="ml-2 text-sm text-ink-soft">{s.detail}</span>
-              </span>
-              {!s.pass && <Stamp kind="rejected">Gagal</Stamp>}
-            </li>
-          ))}
+          {snap.stages.map((s) => {
+            // tahap 02-Perangkat gagal = perangkat baru (non-kritis, sembuh sendiri
+            // setelah 1x absen) — tampilkan peringatan kuning, bukan Gagal merah
+            const isNewDevice = s.stage === 2 && !s.pass;
+            return (
+              <li key={s.stage} className={`flex items-start gap-3 rounded-[4px] px-2.5 py-1.5 ${s.pass ? "" : isNewDevice ? "bg-yellow-500/5" : "bg-stamp/5"}`}>
+                <span className="tnum mt-0.5 text-xs text-ink-faint">{String(s.stage).padStart(2, "0")}</span>
+                <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${s.pass ? "bg-official" : isNewDevice ? "bg-yellow-500" : "bg-stamp"}`} aria-hidden />
+                <span className="min-w-0">
+                  <span className="text-sm font-semibold">{s.name}</span>
+                  <span className="ml-2 text-sm text-ink-soft">{s.detail}</span>
+                </span>
+                {!s.pass && (isNewDevice ? <Stamp kind="pending">Baru</Stamp> : <Stamp kind="rejected">Gagal</Stamp>)}
+              </li>
+            );
+          })}
         </ol>
 
         {att.corrections.length > 0 && (
@@ -263,9 +269,19 @@ function DetailPanel({ att, location }: { att: AttendanceRecord; location: WorkL
         )}
       </div>
 
-      {/* Plot geofence + metadata perangkat */}
+      {/* Peta geofence + metadata perangkat */}
       <aside className="space-y-3">
-        <GeofencePlot snap={snap} location={location} />
+        <AttendanceGeofenceMap
+          latitude={location.latitude}
+          longitude={location.longitude}
+          radiusM={location.radiusM}
+          name={location.name}
+          checkIn={
+            snap.distanceM >= 0
+              ? { latitude: snap.latitude, longitude: snap.longitude, distanceM: snap.distanceM }
+              : undefined
+          }
+        />
         <dl className="space-y-1.5 border border-rule bg-paper p-3 text-xs">
           <Meta k="Perangkat" v={snap.deviceName} mono />
           <Meta k="Device ID" v={snap.deviceId} mono />
@@ -285,46 +301,5 @@ function Meta({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
       <dt className="text-ink-faint">{k}</dt>
       <dd className={`${mono ? "tnum" : ""} truncate text-right text-ink`}>{v}</dd>
     </div>
-  );
-}
-
-/** Plot skematik posisi check-in terhadap radius geofence — geometri SVG murni */
-function GeofencePlot({ snap, location }: { snap: NonNullable<AttendanceRecord["checkInSnap"]>; location: WorkLocation }) {
-  const size = 240;
-  const c = size / 2;
-  const maxR = 100;
-  const radiusPx = Math.min(maxR, (location.radiusM / Math.max(location.radiusM, snap.distanceM)) * maxR * 0.8);
-  const distPx = Math.min(maxR, (snap.distanceM / Math.max(location.radiusM, snap.distanceM)) * maxR * 0.8);
-  // Arah dari delta koordinat
-  const dx = snap.longitude - location.longitude;
-  const dy = snap.latitude - location.latitude;
-  const angle = Math.atan2(dy, dx);
-  const px = c + Math.cos(angle) * distPx;
-  const py = c - Math.sin(angle) * distPx;
-
-  return (
-    <figure className="border border-rule bg-card p-3">
-      <svg viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Plot posisi check-in terhadap radius lokasi kerja" className="mx-auto block">
-        <circle cx={c} cy={c} r={radiusPx} fill="#2b4a6f08" stroke="#c4ceda" strokeWidth="1.5" strokeDasharray="4 3" />
-        <line x1={c} y1={c} x2={px} y2={py} stroke="#dbd9d0" strokeWidth="1" />
-        <g>
-          <rect x={c - 7} y={c - 7} width={14} height={14} fill="#2b4a6f" rx="1" />
-          <path d={`M${c} ${c - 3} l0 6 M${c - 3} ${c} l6 0`} stroke="#fff" strokeWidth="1.4" />
-        </g>
-        {snap.distanceM >= 0 && (
-          <g>
-            <circle cx={px} cy={py} r={5.5} fill={snap.distanceM <= location.radiusM ? "#2b4a6f" : "#c03a2c"} stroke="#fcfbf7" strokeWidth="2" />
-          </g>
-        )}
-        <text x={c} y={size - 6} textAnchor="middle" fontSize="10" fill="#8a8f97" fontFamily="var(--font-spline-sans-mono)">
-          {location.name.split("—")[0]?.trim()}
-        </text>
-      </svg>
-      <figcaption className="tnum mt-2 text-center text-xs text-ink-soft">
-        {snap.distanceM < 0
-          ? "Mode WFH — validasi lokasi kantor tidak diterapkan"
-          : `Jarak ${snap.distanceM} m · radius ${location.radiusM} m`}
-      </figcaption>
-    </figure>
   );
 }

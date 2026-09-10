@@ -13,6 +13,7 @@ export interface User {
   employeeId: string;
   email: string;
   role: Role;
+  active?: boolean;
 }
 
 export interface WorkLocation {

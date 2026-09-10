@@ -25,7 +25,7 @@ import type {
   WorkLocation,
 } from "./types";
 import { seedData } from "./data";
-import { alertAccountDisabled } from "./swal";
+import { alertAccountDisabled, showTempPassword } from "./swal";
 
 export interface SessionUser {
   userId: string;
@@ -646,8 +646,11 @@ async function syncAction(a: Action): Promise<boolean> {
       return (await postJSON(`/api/announcements/${a.id}`, { ...(a.title && { title: a.title }), ...(a.body && { body: a.body }), ...(a.category && { category: a.category }), ...(a.date && { date: a.date }) }, "PATCH")).r.ok;
     case "DELETE_ANNOUNCEMENT":
       return (await postJSON(`/api/announcements/${a.id}`, {}, "DELETE")).r.ok;
-    case "CREATE_EMPLOYEE":
-      return (await postJSON("/api/employees", { name: a.employee.name, email: a.employee.email, phone: a.employee.phone, nik: a.employee.nik, role: "employee", departmentId: a.employee.departmentId, positionId: a.employee.positionId, branchId: a.employee.branchId, workLocationId: a.employee.workLocationId, employmentType: a.employee.employmentType, base_salary: a.employee.baseSalary, allowance: a.employee.allowance, join_date: a.employee.joinDate })).r.ok;
+    case "CREATE_EMPLOYEE": {
+      const { j } = await postJSON("/api/employees", { name: a.employee.name, email: a.employee.email, phone: a.employee.phone, nik: a.employee.nik, role: "employee", departmentId: a.employee.departmentId, positionId: a.employee.positionId, branchId: a.employee.branchId, workLocationId: a.employee.workLocationId, employmentType: a.employee.employmentType, base_salary: a.employee.baseSalary, allowance: a.employee.allowance, join_date: a.employee.joinDate });
+      if (typeof j.tempPassword === "string") void showTempPassword(a.employee.email, j.tempPassword);
+      return true;
+    }
     case "UPDATE_EMPLOYEE":
       return (await postJSON(`/api/employees/${a.id}`, a.data, "PATCH")).r.ok;
     case "DELETE_EMPLOYEE":

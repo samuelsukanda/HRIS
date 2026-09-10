@@ -5,7 +5,7 @@ import { MagnifyingGlass, SealCheck, WarningCircle, Trash, Pencil } from "@phosp
 import { Avatar, Btn, EmptyState, Field, IconBtn, Input, Modal, PageHead, Pager, Select, Stamp } from "@/components/ui";
 import { fmtDateShortID, parseLocalISO } from "@/lib/format";
 import { useHris } from "@/lib/store";
-import { confirmDelete, toastErr, toastOk } from "@/lib/swal";
+import { confirmDelete, showTempPassword, toastErr, toastOk } from "@/lib/swal";
 import type { Employee } from "@/lib/types";
 
 type EmploymentStatus = "probation" | "permanent" | "contract" | "intern" | "resigned";
@@ -358,7 +358,48 @@ function AccountSection({ employeeId }: { employeeId: string }) {
       .then((j) => { if (typeof j.user?.active === "boolean") setLoginActive(j.user.active); })
       .catch(() => undefined);
   }, [account?.id]);
-  if (!account) return null;
+  async function createAccount() {
+    setBusy(true);
+    const r = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ employeeId, role }) });
+    const j = await r.json().catch(() => ({}));
+    setBusy(false);
+    if (j.ok) {
+      void showTempPassword(j.email ?? "", j.tempPassword);
+      toastOk("Akun login dibuat");
+      void refresh();
+    } else {
+      toastErr(j.error ?? "Gagal membuat akun.");
+    }
+  }
+  if (!account) {
+    return (
+      <div className="border border-rule bg-paper p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="font-mono text-[11px] tracking-widest text-ink-faint uppercase">Akun Login</p>
+          <Stamp kind="pending">Belum ada akun</Stamp>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="min-w-0">
+            <p className="mb-1 text-xs font-semibold tracking-wide text-ink-soft uppercase">Role</p>
+            <Select value={role} onChange={(e) => setRole(e.target.value as never)} aria-label="Role akun baru" className="min-w-0 py-1.5 text-xs">
+              <option value="employee">Employee</option>
+              <option value="manager">Manager</option>
+              <option value="hr_admin">HR Admin</option>
+              <option value="hr_manager">HR Manager</option>
+              <option value="finance">Finance</option>
+              <option value="super_admin">Super Admin</option>
+            </Select>
+          </div>
+          <div className="min-w-0">
+            <p className="mb-1 text-xs font-semibold tracking-wide text-ink-soft uppercase">Akses Login</p>
+            <Btn variant="official" size="sm" disabled={busy} onClick={() => void createAccount()} className="w-full">
+              Buat Akun
+            </Btn>
+          </div>
+        </div>
+      </div>
+    );
+  }
   async function save(patch: Record<string, unknown>, msg: string) {
     setBusy(true);
     const r = await fetch(`/api/users/${account!.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });

@@ -94,7 +94,7 @@ export async function loadHrisData(): Promise<HrisData> {
   }));
 
   const users: User[] = usersR.rows.map((r) => ({
-    id: r.id, employeeId: r.employee_id, email: r.email, role: r.role as Role,
+    id: r.id, employeeId: r.employee_id, email: r.email, role: r.role as Role, active: r.active ?? true,
   }));
 
   const attendance: AttendanceRecord[] = attendanceR.rows.map((r) => ({

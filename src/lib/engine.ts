@@ -150,7 +150,7 @@ export function runValidationPipeline(input: PipelineInput): PipelineResult {
     stages.push({ stage: n, name, pass, detail });
 
   push(1, "Autentikasi", input.authenticated, input.authenticated ? "Sesi aktif & perangkat terikat" : "Sesi tidak valid");
-  push(2, "Perangkat", input.deviceTrusted, input.deviceTrusted ? "Perangkat terdaftar" : "Perangkat tidak terdaftar");
+  push(2, "Perangkat", input.deviceTrusted, input.deviceTrusted ? "Perangkat terdaftar" : "Perangkat baru — otomatis dicatat");
   push(3, "GPS & Geofence", !!(input.gpsActive && input.geofence?.pass && !input.mockLocation),
     !input.gpsActive
       ? "GPS tidak aktif"
