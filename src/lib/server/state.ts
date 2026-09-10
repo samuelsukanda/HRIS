@@ -219,8 +219,9 @@ export function scopeForUser(data: HrisData, user: User | null): HrisData {
       .map((e) => (e.id === user.employeeId
         ? e
         : { ...e, nik: "", phone: "", email: "", address: "", baseSalary: undefined, allowance: undefined, bankName: "", bankAccount: "", emergencyContact: { name: "", relation: "", phone: "" }, faceRegistered: false })),
-    // roster & kandidat bukan konsumsi employee
-    roster: [],
+    // roster milik sendiri tetap dikirim — dibutuhkan deteksi shift di absensi & jadwal;
+    // roster karyawan lain dan kandidat bukan konsumsi employee
+    roster: own(data.roster),
     candidates: [],
     attendance: own(data.attendance),
     leaveRequests: own(data.leaveRequests),

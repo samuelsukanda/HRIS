@@ -57,3 +57,33 @@ export async function detectEar(input: HTMLVideoElement): Promise<number> {
   if (!res) return 0;
   return (earFromLandmarks(res.landmarks.positions, "left") + earFromLandmarks(res.landmarks.positions, "right")) / 2;
 }
+
+export interface LivenessFrame {
+  descriptor: number[];
+  box: { x: number; y: number; width: number; height: number };
+}
+
+/**
+ * Kumpulkan N frame wajah berurutan untuk variance check pasif.
+ * Berhenti lebih awal bila dibatalkan; kembalikan frame yang berhasil (bisa < N).
+ */
+export async function sampleLivenessFrames(
+  input: HTMLVideoElement,
+  count: number,
+  intervalMs: number,
+  isCancelled: () => boolean,
+  onTick?: (got: number) => void,
+): Promise<LivenessFrame[]> {
+  const frames: LivenessFrame[] = [];
+  while (frames.length < count) {
+    if (isCancelled()) break;
+    const det = await detectDescriptor(input);
+    if (det && det.detection.score > 0.5) {
+      const b = det.detection.box;
+      frames.push({ descriptor: det.descriptor, box: { x: b.x, y: b.y, width: b.width, height: b.height } });
+      onTick?.(frames.length);
+    }
+    if (frames.length < count) await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  return frames;
+}

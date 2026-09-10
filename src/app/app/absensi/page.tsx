@@ -15,9 +15,9 @@ import {
   WarningCircle,
 } from "@phosphor-icons/react";
 import { Btn, Stamp } from "@/components/ui";
-import { checkGeofence } from "@/lib/engine";
+import { checkGeofence, passiveLiveness } from "@/lib/engine";
 import { fmtClockFromDate } from "@/lib/format";
-import { detectDescriptor, detectEar, loadFaceApi } from "@/lib/face";
+import { detectDescriptor, loadFaceApi, sampleLivenessFrames } from "@/lib/face";
 import { ApiError, currentUser, rosterShiftFor, todayISO, useHris } from "@/lib/store";
 
 function deviceId(): string {
@@ -52,7 +52,6 @@ const STEP_NAMES = [
   "Izin & Akuisisi GPS",
   "Validasi Geofence",
   "Deteksi Wajah",
-  "Liveness Challenge",
   "Verifikasi Wajah 1:1",
   "Jadwal & Penyimpanan",
 ];
@@ -82,6 +81,14 @@ export default function AttendancePage() {
   const location = state.data.workLocations.find((w) => w.id === me?.employee.workLocationId);
   const wfhPolicy = state.data.settings;
   const [isWfh, setIsWfh] = useState(false);
+  const [testMode, setTestMode] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- baca flag sekali saat mount
+  useEffect(() => {
+    void fetch("/api/attendance/test-mode")
+      .then((r) => r.json())
+      .then((j) => setTestMode(!!(j as { testMode?: boolean }).testMode))
+      .catch(() => undefined);
+  }, []);
   const mode: "in" | "out" = attToday?.checkInAt && !attToday?.checkOutAt ? "out" : "in";
   const verb = mode === "in" ? "Check In" : "Check Out";
 
@@ -224,15 +231,16 @@ export default function AttendancePage() {
       const video = videoRef.current;
       if (!video) throw new Error("no-video");
       await loadFaceApi();
-      let descriptor: number[] | null = null;
-      for (let attempt = 0; attempt < 20 && !descriptor; attempt++) {
-        if (canceledRef.current) return;
-        setLivenessHint("Menghadapkan wajah ke kamera…");
-        const det = await detectDescriptor(video);
-        if (det && det.detection.score > 0.5) descriptor = det.descriptor;
-        await sleep(300);
-      }
-      if (!descriptor) {
+      // Liveness pasif: kumpulkan 5 frame ±2 detik, lalu ukur micro-variance.
+      // Wajah hidup selalu bergerak mikro; foto statis/frame beku → variansi ≈ 0.
+      setLivenessHint("Hadapkan wajah ke kamera, diam sejenak…");
+      const frames = await sampleLivenessFrames(
+        video, 5, 400,
+        () => canceledRef.current,
+        (got) => setLivenessHint(`Merekam keaktifan ${got}/5…`),
+      );
+      if (canceledRef.current) return;
+      if (frames.length < 3) {
         stopCamera();
         setPhase("error");
         setError({
@@ -244,38 +252,26 @@ export default function AttendancePage() {
         });
         return;
       }
-      setLivenessHint("Wajah terdeteksi");
-
-      // 05 — Liveness challenge: deteksi kedipan via Eye Aspect Ratio
-      await runStep(4);
-      setLivenessHint("Kedipkan mata perlahan…");
-      let blinked = false;
-      let baseline = await detectEar(video);
-      const blinkDeadline = Date.now() + 7000;
-      while (Date.now() < blinkDeadline && !blinked) {
-        if (canceledRef.current) return;
-        const ear = await detectEar(video);
-        if (ear > 0 && baseline > 0 && ear < baseline * 0.72) blinked = true;
-        else if (ear > baseline) baseline = ear;
-        await sleep(120);
-      }
-      if (!blinked) {
+      const descriptor = frames[0].descriptor;
+      const live = passiveLiveness(frames.map((f) => f.descriptor));
+      if (!live.passed) {
+        stopCamera();
         setPhase("error");
         setError({
-          title: "Deteksi keaktifan (liveness) gagal.",
-          lines: ["Mata berkedip tidak terdeteksi.", "Harap hadap kamera dengan jelas dan kedipkan mata saat diminta."],
+          title: "Keaktifan tidak terdeteksi.",
+          lines: [live.detail, "Pastikan ini wajah asli di depan kamera, bukan foto, lalu coba lagi."],
         });
         return;
       }
-      setLivenessHint("");
+      setLivenessHint("Wajah terdeteksi");
       stopCamera();
 
-      // 06–07 — Verifikasi 1:1 & verdict oleh server
-      await runStep(5);
+      // 05–06 — Verifikasi 1:1 & verdict oleh server
+      await runStep(4);
 
-      // 07 — Jadwal & aturan, lalu verdict server
-      await runStep(6);
-      if (!shift) {
+      // 06 — Jadwal & aturan, lalu verdict server (dilewati bila mode test)
+      await runStep(5);
+      if (!shift && !testMode) {
         setPhase("error");
         setError({
           title: "Tidak ada jadwal hari ini.",
@@ -291,8 +287,8 @@ export default function AttendancePage() {
         mockLocation: false,
         developerMode: false,
         descriptor,
-        livenessScore: 0.95,
-        livenessPassed: true,
+        livenessScore: live.score,
+        livenessPassed: live.passed,
         deviceId: deviceId(),
         deviceName: deviceName(),
         wfh: isWfh,
@@ -328,7 +324,14 @@ export default function AttendancePage() {
   // ── Render ─────────────────────────────────────────────────────────
   return (
     <>
-      <h1 className="mb-1 text-xl font-bold tracking-tight">{verb}</h1>
+      <h1 className="mb-1 flex items-center gap-2 text-xl font-bold tracking-tight">
+        {verb}
+        {testMode && (
+          <span className="rounded bg-stamp px-2 py-0.5 font-mono text-[10px] tracking-widest text-white uppercase">
+            Mode Test
+          </span>
+        )}
+      </h1>
       <p className="mb-4 text-sm text-ink-soft">
         {shift ? `${shift.name} · ${shift.start}–${shift.end}` : "Hari libur"} ·{" "}
         {location.name.split("—")[0]?.trim()} ({location.radiusM} m)
@@ -337,13 +340,13 @@ export default function AttendancePage() {
       {phase === "intro" && <Intro />}
       {phase === "running" && (
         <section aria-live="polite">
-          {(stepIdx ?? -1) >= 3 && (stepIdx ?? 0) <= 5 && (
+          {(stepIdx ?? -1) >= 3 && (stepIdx ?? 0) <= 4 && (
             <div className="relative mb-4 overflow-hidden border border-rule bg-card">
               <video ref={videoRef} muted playsInline className="aspect-[4/3] w-full scale-x-[-1] object-cover" />
               <div className="absolute inset-x-0 bottom-0 flex items-center gap-2 bg-ink/70 px-3 py-2 backdrop-blur-sm">
                 <Eye size={16} weight="duotone" className="shrink-0 text-white" />
                 <p className="text-xs font-medium text-white">{livenessHint}</p>
-                {stepIdx === 5 && faceScoreShown > 0 && (
+                {stepIdx === 4 && faceScoreShown > 0 && (
                   <p className="tnum ml-auto font-mono text-sm font-semibold text-white">
                     {faceScoreShown}%
                   </p>
@@ -465,7 +468,7 @@ export default function AttendancePage() {
         <div className="px-5 py-5">
           <p className="text-sm leading-relaxed text-ink-soft">
             Proses ini akan mengambil <b className="text-ink">lokasi Anda satu kali</b>, membuka{" "}
-            <b className="text-ink">kamera depan</b>, menjalankan liveness check, lalu mencocokkan wajah
+            <b className="text-ink">kamera depan</b> untuk mendeteksi wajah, lalu mencocokkan wajah
             dengan template terenkripsi Anda. Semua tahap berjalan lokal di perangkat ini.
           </p>
           <ul className="tnum mt-4 space-y-1 text-xs text-ink-faint">

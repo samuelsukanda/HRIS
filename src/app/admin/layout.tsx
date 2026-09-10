@@ -86,7 +86,7 @@ const GROUPS: NavGroup[] = [
   },
 ];
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarContent({ onNavigate, onClose }: { onNavigate?: () => void; onClose?: () => void }) {
   const pathname = usePathname();
   const { state } = useHris();
   const me = currentUser(state);
@@ -106,6 +106,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           <p className="font-mono text-[10px] tracking-widest text-ink-faint uppercase">Human Resource</p>
         </div>
         <button onClick={()=> setCmdOpen(true)} aria-label="Cari (Ctrl+K)" title="Cari (Ctrl+K)" className="btn-press inline-flex min-h-9 min-w-9 items-center justify-center rounded border border-rule bg-paper p-2 text-ink-soft hover:text-ink"><MagnifyingGlass size={16} weight="bold" /></button>
+        {onClose && (
+          <button onClick={onClose} aria-label="Tutup menu" className="btn-press inline-flex min-h-9 min-w-9 cursor-pointer items-center justify-center rounded-[4px] p-2 text-ink-soft hover:bg-black/5 hover:text-ink">
+            <X size={18} weight="bold" />
+          </button>
+        )}
       </div>
       {cmdOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-ink/30 p-4" onClick={()=> setCmdOpen(false)}>
@@ -209,14 +214,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="fixed inset-0 z-50 lg:hidden">
           <button aria-label="Tutup menu" className="absolute inset-0 bg-ink/40" onClick={() => setOpen(false)} />
           <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] shadow-xl">
-            <button
-              onClick={() => setOpen(false)}
-              aria-label="Tutup"
-              className="absolute top-4 right-3 z-10 cursor-pointer rounded-[4px] p-1 text-ink-soft hover:bg-black/5"
-            >
-              <X size={18} />
-            </button>
-            <SidebarContent onNavigate={() => setOpen(false)} />
+            <SidebarContent onNavigate={() => setOpen(false)} onClose={() => setOpen(false)} />
           </div>
         </div>
       )}

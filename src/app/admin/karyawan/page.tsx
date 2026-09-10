@@ -5,7 +5,7 @@ import { MagnifyingGlass, SealCheck, WarningCircle, Trash, Pencil } from "@phosp
 import { Avatar, Btn, EmptyState, Field, IconBtn, Input, Modal, PageHead, Pager, Select, Stamp } from "@/components/ui";
 import { fmtDateShortID, parseLocalISO } from "@/lib/format";
 import { useHris } from "@/lib/store";
-import { confirmDelete, toastOk } from "@/lib/swal";
+import { confirmDelete, toastErr, toastOk } from "@/lib/swal";
 import type { Employee } from "@/lib/types";
 
 type EmploymentStatus = "probation" | "permanent" | "contract" | "intern" | "resigned";
@@ -346,7 +346,7 @@ export default function AdminEmployees() {
 }
 
 function AccountSection({ employeeId }: { employeeId: string }) {
-  const { state, showToast } = useHris();
+  const { state, refresh } = useHris();
   const account = state.data.users.find((u) => u.employeeId === employeeId);
   const [role, setRole] = useState(account?.role ?? "employee");
   const [busy, setBusy] = useState(false);
@@ -364,13 +364,15 @@ function AccountSection({ employeeId }: { employeeId: string }) {
     const r = await fetch(`/api/users/${account!.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
     const j = await r.json().catch(() => ({}));
     setBusy(false);
-    showToast(j.ok ? msg : (j.error ?? "Gagal."), j.ok ? "success" : "error");
     if (j.ok) {
+      toastOk(msg);
       if (typeof (patch as { active?: unknown }).active === "boolean") {
         setLoginActive((patch as { active: boolean }).active);
       } else {
-        location.reload();
+        void refresh();
       }
+    } else {
+      toastErr(j.error ?? "Gagal.");
     }
   }
   return (

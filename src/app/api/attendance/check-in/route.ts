@@ -2,6 +2,7 @@ import { pool } from "@/db/client";
 import { checkGeofence, classifyCheckIn, computeRisk, descriptorDistance, runValidationPipeline, statusFromCheckIn } from "@/lib/engine";
 import { getSessionUser } from "@/lib/server/session";
 import { writeAudit } from "@/lib/server/state";
+import { ATTENDANCE_TEST_MODE } from "@/lib/server/test-mode";
 import { decryptDescriptor } from "@/lib/server/crypto";
 import { toLocalISO } from "@/lib/format";
 import type { AttendanceRecord, VerificationSnapshot } from "@/lib/types";
@@ -40,7 +41,12 @@ export async function POST(req: Request) {
   const existingId = `ATT-${date.replaceAll("-", "")}-${emp.id}`;
   const dup = await pool.query(`SELECT id, check_in_at FROM attendance WHERE id = $1`, [existingId]);
   if (dup.rows[0]?.check_in_at) {
-    return Response.json({ ok: false, error: "Anda sudah melakukan check-in hari ini.", code: "duplicate" }, { status: 409 });
+    // Mode test: hapus rekaman hari ini agar bisa absen berkali-kali
+    if (ATTENDANCE_TEST_MODE) {
+      await pool.query(`DELETE FROM attendance WHERE id = $1`, [existingId]);
+    } else {
+      return Response.json({ ok: false, error: "Anda sudah melakukan check-in hari ini.", code: "duplicate" }, { status: 409 });
+    }
   }
   // ── Kebijakan WFH dari server (bukan klaim client) ──
   const setR = await pool.query(`SELECT key, value FROM settings WHERE key IN ('wfh_gps','wfh_face','wfh_liveness')`);

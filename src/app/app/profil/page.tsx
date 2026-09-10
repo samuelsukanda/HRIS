@@ -148,7 +148,7 @@ export default function EmployeeProfile() {
         <Avatar name={employee.name} size={64} />
         <div className="min-w-0">
           <p className="truncate font-bold">{employee.name}</p>
-          <p className="tnum text-xs text-ink-faint">{employee.id} · NIK {employee.nik.slice(0, 8)}••••</p>
+              <p className="tnum text-xs text-ink-faint">{employee.id}</p>
           <p className="mt-1 text-xs text-ink-soft">
             {pos?.title} — {dept?.name}
           </p>
@@ -276,11 +276,6 @@ export default function EmployeeProfile() {
               );
             })
           )}
-          <li className="py-2.5 text-xs leading-relaxed text-ink-faint">
-            Web HRIS memang bisa dibuka dari perangkat mana saja — daftar ini mencatat
-            perangkat yang pernah dipakai absen. Absen dari perangkat baru menaikkan skor
-            risiko dan tercatat di audit log.
-          </li>
         </ul>
       </section>
 

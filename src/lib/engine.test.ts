@@ -3,9 +3,11 @@ import {
   checkGeofence,
   classifyCheckIn,
   computeRisk,
+  descriptorVariance,
   haversineM,
   hmToMin,
   leaveBalance,
+  passiveLiveness,
   runValidationPipeline,
 } from "@/lib/engine";
 
@@ -152,5 +154,34 @@ describe("cuti & lembur", () => {
     const { overtimePay } = await import("@/lib/payroll");
     const rate = (6_500_000 + 1_200_000) / 173;
     expect(overtimePay(2, 6_500_000, 1_200_000)).toBe(Math.round(rate * 1.5 + rate * 2));
+  });
+});
+
+describe("liveness pasif (micro-variance)", () => {
+  const base = Array.from({ length: 128 }, (_, i) => Math.sin(i) * 0.3);
+  const jitter = (amt: number, seed: number) =>
+    base.map((v, i) => v + Math.sin(i * 12.9898 + seed * 78.233) * amt);
+
+  it("frame identik → variansi 0, tidak lolos", () => {
+    const frames = [base, [...base], [...base]];
+    expect(descriptorVariance(frames)).toBe(0);
+    expect(passiveLiveness(frames).passed).toBe(false);
+  });
+
+  it("satu frame → tidak lolos (data kurang)", () => {
+    expect(passiveLiveness([base]).passed).toBe(false);
+  });
+
+  it("wajah hidup (jitter kecil) → lolos dengan skor > 0", () => {
+    const frames = [0, 1, 2, 3, 4].map((s) => jitter(0.02, s));
+    const r = passiveLiveness(frames);
+    expect(r.passed).toBe(true);
+    expect(r.score).toBeGreaterThan(0);
+    expect(r.score).toBeLessThanOrEqual(1);
+  });
+
+  it("gerakan besar → skor penuh", () => {
+    const frames = [0, 1, 2].map((s) => jitter(0.2, s));
+    expect(passiveLiveness(frames).score).toBe(1);
   });
 });

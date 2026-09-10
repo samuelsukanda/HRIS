@@ -207,3 +207,44 @@ export function descriptorDistance(a: readonly number[], b: readonly number[]): 
   }
   return Math.sqrt(sum);
 }
+
+// ── Liveness pasif: micro-variance antar frame ───────────────────────
+// Wajah hidup yang direkam kamera selalu bergetar mikro (tangan, napas,
+// ekspresi) sehingga descriptor antar-frame sedikit berbeda. Foto statis /
+// frame beku menghasilkan descriptor nyaris identik (jarak ≈ 0).
+// ponytail: PASS_FLOOR = 0.008 hasil kalibrasi akal-sehat, bukan riset lab —
+// naikkan bila replay-attack lolos, turunkan bila user diam ditolak.
+
+/** Batas bawah variansi descriptor agar lolos (foto statis ≈ 0). */
+export const LIVENESS_VARIANCE_FLOOR = 0.008;
+
+/** Rata-rata jarak euclidean antar descriptor berurutan. */
+export function descriptorVariance(descriptors: readonly (readonly number[])[]): number {
+  if (descriptors.length < 2) return 0;
+  let sum = 0;
+  for (let i = 1; i < descriptors.length; i++) {
+    sum += descriptorDistance(descriptors[i - 1], descriptors[i]);
+  }
+  return sum / (descriptors.length - 1);
+}
+
+export interface PassiveLiveness {
+  score: number; // 0–1, diskala dari variansi
+  passed: boolean;
+  detail: string;
+}
+
+/** Nilai liveness pasif dari N descriptor berurutan. */
+export function passiveLiveness(descriptors: readonly (readonly number[])[]): PassiveLiveness {
+  const variance = descriptorVariance(descriptors);
+  // skor 0–1: variansi 0.05+ dianggap gerakan hidup penuh
+  const score = Math.max(0, Math.min(1, variance / 0.05));
+  const passed = variance >= LIVENESS_VARIANCE_FLOOR;
+  return {
+    score: Math.round(score * 100) / 100,
+    passed,
+    detail: passed
+      ? `Gerakan hidup terdeteksi (variansi ${variance.toFixed(4)})`
+      : `Tidak ada gerakan terdeteksi (variansi ${variance.toFixed(4)} < ${LIVENESS_VARIANCE_FLOOR}) — pastikan wajah menghadap kamera dan sedikit bergerak`,
+  };
+}
