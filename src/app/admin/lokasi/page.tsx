@@ -187,8 +187,7 @@ function WfhPolicy() {
 function LocationCard({ loc }: { loc: WorkLocation }) {
   const { state, dispatch } = useHris();
   const [edit, setEdit] = useState(false);
-  const [form, setForm] = useState({ name: loc.name, latitude: loc.latitude, longitude: loc.longitude, radiusM: loc.radiusM });
-  const dirty = form.name !== loc.name || form.latitude !== loc.latitude || form.longitude !== loc.longitude || form.radiusM !== loc.radiusM;
+  const [form, setForm] = useState({ name: loc.name, branchId: loc.branchId, latitude: loc.latitude, longitude: loc.longitude, radiusM: loc.radiusM });
 
   // Titik contoh check-in hari ini untuk plot
   const { data } = state;
@@ -213,6 +212,9 @@ function LocationCard({ loc }: { loc: WorkLocation }) {
           {edit ? (
             <div className="space-y-2">
               <input value={form.name} onChange={e=> setForm({...form,name:e.target.value})} className="w-full border border-rule bg-paper px-2 py-1 text-sm font-semibold" />
+              <select value={form.branchId} onChange={e=> setForm({...form,branchId:e.target.value})} aria-label="Branch" className="w-full border border-rule bg-paper px-2 py-1 text-xs">
+                {state.data.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
               <p className="text-xs text-ink-soft">Geser pin pada peta di bawah untuk mengubah titik lokasi.</p>
             </div>
           ) : (
@@ -224,7 +226,7 @@ function LocationCard({ loc }: { loc: WorkLocation }) {
         </div>
         <div className="flex items-center gap-1">
           <Stamp kind="neutral"><MapPin size={11} weight="bold" /> Onsite</Stamp>
-          {!edit && <IconBtn label={`Edit ${loc.name}`} icon={Pencil} onClick={()=> { setForm({ name: loc.name, latitude: loc.latitude, longitude: loc.longitude, radiusM: loc.radiusM }); setEdit(true); }} />}
+          {!edit && <IconBtn label={`Edit ${loc.name}`} icon={Pencil} onClick={()=> { setForm({ name: loc.name, branchId: loc.branchId, latitude: loc.latitude, longitude: loc.longitude, radiusM: loc.radiusM }); setEdit(true); }} />}
           <IconBtn label={`Hapus ${loc.name}`} icon={Trash} onClick={async ()=> { if (await confirmDelete(loc.name)) { dispatch({ type:"DELETE_LOCATION", id:loc.id }); toastOk("Lokasi dihapus"); } }} className="hover:text-stamp" />
         </div>
       </header>
@@ -265,14 +267,14 @@ function LocationCard({ loc }: { loc: WorkLocation }) {
             />
           </label>
 
-          {edit && dirty && (
+          {edit && (
             <div className="mt-3 flex items-center gap-2">
               <Btn
                 disabled={!form.name.trim() || !validCoordinates(form.latitude, form.longitude) || form.radiusM <= 0}
                 onClick={() => {
                   const v = validCoordinates(form.latitude, form.longitude);
                   if (!v || form.radiusM < 1) { toastErr("Koordinat atau radius tidak valid"); return; }
-                  dispatch({ type: "UPDATE_LOCATION", id: loc.id, data: { name: form.name.trim(), latitude: form.latitude, longitude: form.longitude, radiusM: form.radiusM } });
+                  dispatch({ type: "UPDATE_LOCATION", id: loc.id, data: { name: form.name.trim(), branchId: form.branchId, latitude: form.latitude, longitude: form.longitude, radiusM: form.radiusM } });
                   toastOk("Lokasi diperbarui");
                   setEdit(false);
                 }}
@@ -280,7 +282,7 @@ function LocationCard({ loc }: { loc: WorkLocation }) {
               >
                 Simpan Perubahan
               </Btn>
-              <Btn variant="ghost" onClick={() => { setForm({ name: loc.name, latitude: loc.latitude, longitude: loc.longitude, radiusM: loc.radiusM }); setEdit(false); }} className="px-2 py-1.5 text-xs">
+              <Btn variant="ghost" onClick={() => { setForm({ name: loc.name, branchId: loc.branchId, latitude: loc.latitude, longitude: loc.longitude, radiusM: loc.radiusM }); setEdit(false); }} className="px-2 py-1.5 text-xs">
                 Batal
               </Btn>
             </div>

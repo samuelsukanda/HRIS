@@ -89,6 +89,7 @@ export async function loadHrisData(): Promise<HrisData> {
     bankName: r.bank_name, bankAccount: r.bank_account,
     emergencyContact: r.emergency_contact,
     faceRegistered: r.face_registered,
+    photoUrl: r.photo_url ?? undefined,
     baseSalary: r.base_salary ?? undefined,
     allowance: r.allowance ?? undefined,
   }));
@@ -238,8 +239,7 @@ export function scopeForUser(data: HrisData, user: User | null): HrisData {
 }
 
 export async function writeAudit(entry: Omit<AuditLogEntry, "id">) {
-  const n = await pool.query(`SELECT COUNT(*)::int AS c FROM audit_logs`);
-  const id = `LOG-${String(n.rows[0].c + 1).padStart(3, "0")}`;
+  const id = await nextId("audit_logs", "LOG");
   await pool.query(
     `INSERT INTO audit_logs (id,actor_id,actor_name,action,target_type,target_id,detail,"before","after",at)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,

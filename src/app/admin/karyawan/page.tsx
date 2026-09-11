@@ -41,6 +41,8 @@ export default function AdminEmployees() {
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyRelation, setEmergencyRelation] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [photoBusy, setPhotoBusy] = useState(false);
 
   const rows = useMemo(
     () =>
@@ -67,6 +69,7 @@ export default function AdminEmployees() {
     setJoinDate(new Date().toISOString().slice(0, 10));
     setAddress(""); setBankName("BCA"); setBankAccount("");
     setEmergencyName(""); setEmergencyRelation(""); setEmergencyPhone("");
+    setPhotoUrl("");
   }
 
   function handleAdd() {
@@ -105,6 +108,7 @@ export default function AdminEmployees() {
     setEmergencyName(e.emergencyContact?.name || "");
     setEmergencyRelation(e.emergencyContact?.relation || "");
     setEmergencyPhone(e.emergencyContact?.phone || "");
+    setPhotoUrl(e.photoUrl ?? "");
     setShowEditForm(true);
   }
 
@@ -118,12 +122,34 @@ export default function AdminEmployees() {
         employmentType, baseSalary, allowance, joinDate,
         address, bankName, bankAccount,
         emergencyContact: { name: emergencyName, relation: emergencyRelation, phone: emergencyPhone },
+        photoUrl,
       },
     });
     setShowEditForm(false);
     setSelected(null);
     resetForm();
     toastOk("Data karyawan disimpan");
+  }
+
+  async function handlePhotoUpload(file?: File) {
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toastErr("Ukuran foto maksimal 2 MB.");
+      return;
+    }
+    setPhotoBusy(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("kind", "photo");
+    try {
+      const r = await fetch("/api/uploads", { method: "POST", body: fd });
+      const j = await r.json() as { ok: boolean; url?: string; error?: string };
+      if (j.ok && j.url) setPhotoUrl(j.url);
+      else toastErr(j.error ?? "Upload foto gagal.");
+    } catch {
+      toastErr("Upload foto gagal. Coba lagi.");
+    }
+    setPhotoBusy(false);
   }
 
   async function handleDeactivate(id: string) {
@@ -196,7 +222,7 @@ export default function AdminEmployees() {
                   >
                     <td className="px-4 py-2.5 cursor-pointer" onClick={() => setSelected(e.id)}>
                       <div className="flex items-center gap-2.5">
-                        <Avatar name={e.name} size={30} />
+                        <Avatar name={e.name} size={30} src={e.photoUrl} />
                         <span>
                           <span className="block font-semibold text-official">{e.name}</span>
                           <span className="tnum block text-xs text-ink-faint">{e.id}</span>
@@ -238,6 +264,29 @@ export default function AdminEmployees() {
       {/* Add / Edit Form Modal */}
       <Modal open={showAddForm || showEditForm} onClose={() => { setShowAddForm(false); setShowEditForm(false); setSelected(null); }} title={showEditForm ? "Edit Karyawan" : "Karyawan Baru"}>
         <div className="space-y-3">
+          {showEditForm && (
+          <div className="flex items-center gap-4 border border-dashed border-rule bg-paper p-3">
+            <Avatar name={name || "Karyawan"} src={photoUrl || undefined} size={56} />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap gap-2">
+                <label className="btn-press inline-flex min-h-8 cursor-pointer items-center rounded-[4px] border border-rule bg-card px-3 py-1.5 text-xs font-semibold hover:border-ink-faint hover:text-official-deep">
+                  {photoBusy ? "Mengunggah…" : "Ganti Foto"}
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.webp"
+                    className="sr-only"
+                    disabled={photoBusy}
+                    onChange={(e) => void handlePhotoUpload(e.target.files?.[0])}
+                  />
+                </label>
+                {photoUrl && (
+                  <Btn variant="ghost" size="sm" onClick={() => setPhotoUrl("")}>Hapus Foto</Btn>
+                )}
+              </div>
+              <p className="mt-1.5 text-xs text-ink-faint">JPG/PNG/WEBP, maksimal 2 MB.</p>
+            </div>
+          </div>
+          )}
           <Field label="Nama Lengkap">
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </Field>
@@ -483,7 +532,7 @@ function EmployeeDetail({ emp }: { emp: Employee }) {
     <div className="grid gap-6 sm:grid-cols-[200px_1fr]">
       <aside className="space-y-4">
         <div className="flex flex-col items-center gap-3 border border-rule bg-paper p-5">
-          <Avatar name={emp.name} size={84} />
+          <Avatar name={emp.name} size={84} src={emp.photoUrl} />
           <p className="tnum text-center font-mono text-xs text-ink-faint">{emp.id}</p>
           {empStatusStamp(emp)}
         </div>

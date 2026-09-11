@@ -69,6 +69,7 @@ export interface Employee {
   bankAccount: string;
   emergencyContact: { name: string; relation: string; phone: string };
   faceRegistered: boolean;
+  photoUrl?: string;
   baseSalary?: number;
   allowance?: number;
 }

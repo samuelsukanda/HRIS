@@ -221,7 +221,7 @@ export default function AdminDashboard() {
               const emp = data.employees.find((e) => e.id === a.employeeId)!;
               return (
                 <li key={a.id} className="flex items-start gap-3 border border-rule bg-card p-4">
-                  <Avatar name={emp.name} />
+                  <Avatar name={emp.name} src={emp.photoUrl} />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                       <p className="font-semibold">{emp.name}</p>

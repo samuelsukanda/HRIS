@@ -140,7 +140,7 @@ export default function AdminCutiPage() {
                         className="h-4 w-4 accent-official"
                       />
                     )}
-                    <Avatar name={emp?.name ?? r.employeeId} />
+                    <Avatar name={emp?.name ?? r.employeeId} src={emp?.photoUrl} />
                     <div className="min-w-[200px] flex-1">
                       <div className="flex items-baseline gap-2">
                         <p className="font-semibold">{emp?.name ?? r.employeeId}</p>

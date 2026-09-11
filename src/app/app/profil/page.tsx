@@ -9,7 +9,7 @@ import {
   ShieldCheck,
 } from "@phosphor-icons/react";
 import { Avatar, Btn, Field, Input, Stamp } from "@/components/ui";
-import { toastOk } from "@/lib/swal";
+import { toastErr, toastOk } from "@/lib/swal";
 import { detectDescriptor, loadFaceApi } from "@/lib/face";
 import { fmtDateShortID } from "@/lib/format";
 import { currentUser, useHris } from "@/lib/store";
@@ -139,13 +139,50 @@ export default function EmployeeProfile() {
     }
   }
 
+  async function uploadPhoto(file?: File) {
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toastErr("Ukuran foto maksimal 2 MB.");
+      return;
+    }
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("kind", "photo");
+    try {
+      const r = await fetch("/api/uploads", { method: "POST", body: fd });
+      const j = await r.json() as { ok: boolean; url?: string; error?: string };
+      if (!j.ok || !j.url) {
+        toastErr(j.error ?? "Upload foto gagal.");
+        return;
+      }
+      dispatch({ type: "UPDATE_SELF_PHOTO", employeeId: employee.id, photoUrl: j.url });
+      toastOk("Foto profil diperbarui");
+    } catch {
+      toastErr("Upload foto gagal. Coba lagi.");
+    }
+  }
+
   return (
     <>
       <h1 className="mb-4 text-xl font-bold tracking-tight">Profil</h1>
 
       {/* Kartu identitas */}
       <section className="mb-5 flex items-center gap-4 border border-rule bg-card p-4">
-        <Avatar name={employee.name} size={64} />
+        <div className="relative shrink-0">
+          <Avatar name={employee.name} src={employee.photoUrl} size={64} />
+          <label
+            title="Ganti foto profil"
+            className="btn-press absolute -right-1.5 -bottom-1.5 cursor-pointer rounded-full border border-rule bg-card p-1.5 text-ink-soft hover:border-ink-faint hover:text-ink"
+          >
+            <Camera size={14} weight="bold" />
+            <input
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp"
+              className="sr-only"
+              onChange={(e) => void uploadPhoto(e.target.files?.[0])}
+            />
+          </label>
+        </div>
         <div className="min-w-0">
           <p className="truncate font-bold">{employee.name}</p>
               <p className="tnum text-xs text-ink-faint">{employee.id}</p>

@@ -100,14 +100,14 @@ export function IconBtn({
   );
 }
 
-export function Avatar({ name, size = 36 }: { name: string; size?: number }) {
+export function Avatar({ name, src, size = 36 }: { name: string; src?: string; size?: number }) {
   return (
     <span
       aria-hidden
-      className="inline-flex shrink-0 items-center justify-center border border-ledger bg-paper font-mono font-medium text-ink-soft"
+      className="inline-flex shrink-0 items-center justify-center overflow-hidden border border-ledger bg-paper font-mono font-medium text-ink-soft"
       style={{ width: size, height: size, fontSize: size * 0.34 }}
     >
-      {initials(name)}
+      {src ? <img src={src} alt="" className="h-full w-full object-cover" /> : initials(name)}
     </span>
   );
 }

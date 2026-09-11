@@ -72,7 +72,7 @@ export function showTempPassword(email: string, password: string) {
       `<p id="swal-temp-password" style="flex:1;font-family:ui-monospace,monospace;font-size:18px;letter-spacing:1px;background:#fff;border:1px solid #d6d3cb;border-radius:4px;padding:10px;user-select:all">${password}</p>` +
       `<button id="swal-copy-btn" type="button" title="Salin password" style="display:inline-flex;align-items:center;gap:6px;border:1px solid #d6d3cb;background:#fff;border-radius:4px;padding:0 12px;font-size:13px;font-weight:600;color:#1c1917;cursor:pointer">${COPY_ICON}<span>Salin</span></button>` +
       `</div>` +
-      `<p style="font-size:12px;color:#57534e;margin-top:10px">Password hanya ditampilkan sekali — salin dan berikan ke karyawan. Karyawan disarankan menggantinya setelah login pertama.</p>`,
+      `<p style="font-size:12px;color:#57534e;margin-top:10px"><strong>Password hanya ditampilkan sekali.</strong> Salin dan sampaikan kepada karyawan melalui saluran yang aman. Karyawan disarankan mengganti password setelah login pertama.</p>`,
     didOpen: () => {
       document.getElementById("swal-copy-btn")?.addEventListener("click", () => {
         const text = document.getElementById("swal-temp-password")?.textContent ?? "";

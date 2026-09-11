@@ -49,6 +49,7 @@ type Action =
   | { type: "DECIDE_OVERTIME"; id: string; approve: boolean; byName: string }
   | { type: "DECIDE_CORRECTION"; attendanceId: string; correctionId: string; approve: boolean; byName: string }
   | { type: "REGISTER_FACE"; employeeId: string; descriptor?: number[] }
+  | { type: "UPDATE_SELF_PHOTO"; employeeId: string; photoUrl: string | null }
   | { type: "SUBMIT_REIMBURSEMENT"; request: Reimbursement }
   | { type: "DECIDE_REIMBURSEMENT"; id: string; level: "manager" | "hr"; approve: boolean; byName: string }
   | { type: "APPLY_CANDIDATE"; candidate: Candidate }
@@ -268,6 +269,25 @@ function reducer(state: State, action: Action): State {
             targetType: "face_profile",
             targetId: action.employeeId,
             detail: "Template wajah terdaftar & terenkripsi",
+            at: new Date().toISOString(),
+          },
+        ),
+      };
+    case "UPDATE_SELF_PHOTO":
+      return {
+        ...state,
+        data: log(
+          {
+            ...state.data,
+            employees: state.data.employees.map((e) => (e.id === action.employeeId ? { ...e, photoUrl: action.photoUrl ?? undefined } : e)),
+          },
+          {
+            actorId: state.session?.userId ?? "-",
+            actorName: state.data.employees.find((e) => e.id === action.employeeId)?.name ?? "-",
+            action: action.photoUrl ? "Photo updated" : "Photo removed",
+            targetType: "employee",
+            targetId: action.employeeId,
+            detail: action.photoUrl ? "Foto profil diperbarui" : "Foto profil dihapus",
             at: new Date().toISOString(),
           },
         ),
@@ -620,6 +640,8 @@ async function syncAction(a: Action): Promise<boolean> {
           await postJSON("/api/face", a.descriptor ? { descriptor: a.descriptor } : {}, "PATCH")
         ).r.ok
       );
+    case "UPDATE_SELF_PHOTO":
+      return (await postJSON("/api/profile-photo", { photoUrl: a.photoUrl }, "PATCH")).r.ok;
     case "SUBMIT_REIMBURSEMENT":
       return (await postJSON("/api/reimbursements", { category: a.request.category, amount: a.request.amount, description: a.request.description })).r.ok;
     case "DECIDE_REIMBURSEMENT":

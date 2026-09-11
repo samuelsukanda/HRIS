@@ -90,7 +90,7 @@ export default function AdminAccounts() {
                   <tr key={e.id} className="border-b border-ledger/60 transition-colors last:border-b-0 hover:bg-black/[0.02]">
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2.5">
-                        <Avatar name={e.name} size={30} />
+                        <Avatar name={e.name} size={30} src={e.photoUrl} />
                         <span>
                           <span className="block font-semibold text-official">{e.name}</span>
                           <span className="tnum block text-xs text-ink-faint">{e.id}</span>

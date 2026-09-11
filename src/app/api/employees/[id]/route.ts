@@ -31,6 +31,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const bankAccount = body.bankAccount;
   const address = body.address;
   const emergencyContact = body.emergencyContact;
+  const photoUrl = typeof body.photoUrl === "string" && (body.photoUrl === "" || body.photoUrl.startsWith("/uploads/"))
+    ? body.photoUrl : undefined;
 
   await pool.query(
     `UPDATE employees SET
@@ -39,10 +41,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       work_location_id=COALESCE($8,work_location_id), employment_type=COALESCE($9,employment_type),
       base_salary=COALESCE($10,base_salary), allowance=COALESCE($11,allowance),
       join_date=COALESCE($12,join_date), status=COALESCE($13,status), bank_name=COALESCE($14,bank_name), bank_account=COALESCE($15,bank_account), address=COALESCE($16,address),
-      emergency_contact=COALESCE($17,emergency_contact)
-     WHERE id=$18`,
+      emergency_contact=COALESCE($17,emergency_contact),
+      photo_url=CASE WHEN $18::text = '' THEN NULL ELSE COALESCE($18::text, photo_url) END
+     WHERE id=$19`,
     [name ?? null, email ?? null, phone ?? null, nik ?? null, departmentId ?? null, positionId ?? null, branchId ?? null,
-     workLocationId ?? null, employmentType ?? null, base_salary ?? null, allowance ?? null, join_date ?? null, status ?? null, bankName ?? null, bankAccount ?? null, address ?? null, emergencyContact ?? null, id],
+     workLocationId ?? null, employmentType ?? null, base_salary ?? null, allowance ?? null, join_date ?? null, status ?? null, bankName ?? null, bankAccount ?? null, address ?? null, emergencyContact ?? null, photoUrl ?? null, id],
   );
 
   if (email) {

@@ -111,6 +111,7 @@ export default function AdminAttendance() {
                     att={a}
                     empName={emp?.name ?? a.employeeId}
                     empNo={a.employeeId}
+                    photo={emp?.photoUrl}
                     onToggle={() => setExpanded(expanded === a.id ? null : a.id)}
                     open={expanded === a.id}
                     onCorrect={(c) =>
@@ -160,6 +161,7 @@ function Row({
   att,
   empName,
   empNo,
+  photo,
   children,
   open,
   onToggle,
@@ -168,6 +170,7 @@ function Row({
   att: AttendanceRecord;
   empName: string;
   empNo: string;
+  photo?: string;
   children: React.ReactNode;
   open: boolean;
   onToggle: () => void;
@@ -180,7 +183,7 @@ function Row({
       <tr className={`border-b border-ledger/60 transition-colors hover:bg-black/[0.02] ${open ? "bg-paper" : ""}`}>
         <td className="px-4 py-2.5">
           <button onClick={onToggle} className="flex cursor-pointer items-center gap-2.5 text-left">
-            <Avatar name={empName} size={30} />
+            <Avatar name={empName} size={30} src={photo} />
             <span>
               <span className="block font-semibold">{empName}</span>
               <span className="tnum block text-xs text-ink-faint">{empNo}</span>

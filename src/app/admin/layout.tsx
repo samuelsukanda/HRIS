@@ -175,7 +175,7 @@ function SidebarContent({ onNavigate, onClose }: { onNavigate?: () => void; onCl
       <div className="border-t border-rule p-4">
         {me && (
           <div className="mb-3 flex items-center gap-2.5">
-            <Avatar name={me.employee.name} size={34} />
+            <Avatar name={me.employee.name} size={34} src={me.employee.photoUrl} />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">{me.employee.name}</p>
               <p className="font-mono text-[10px] tracking-wide text-ink-faint uppercase">{me.user.role.replace("_", " ")}</p>
