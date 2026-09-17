@@ -2,9 +2,7 @@ import { pool } from "@/db/client";
 import { getSessionUser } from "@/lib/server/session";
 import { writeAudit, writeNotification } from "@/lib/server/state";
 
-const ADMIN_ROLES = ["hr_admin", "hr_manager", "super_admin", "manager"];
-
-/** PATCH /api/overtime/[id] — setujui/tolak */
+/** PATCH /api/overtime/[id] — 2 tahap: SPV → Manager */
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser();
   if (!user) return Response.json({ ok: false }, { status: 401 });
@@ -12,7 +10,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const body = await req.json() as { approve?: boolean; cancel?: boolean };
 
   const r = await pool.query(
-    `SELECT o.*, e.name emp_name FROM overtime_requests o JOIN employees e ON e.id = o.employee_id WHERE o.id = $1`,
+    `SELECT o.*, e.name emp_name, e.spv_id, e.manager_id
+     FROM overtime_requests o JOIN employees e ON e.id = o.employee_id WHERE o.id = $1`,
     [id],
   );
   const ot = r.rows[0];
@@ -27,36 +26,36 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     return Response.json({ ok: true, status: "cancelled" });
   }
 
-  if (!ADMIN_ROLES.includes(user.role)) {
-    return Response.json({ ok: false, error: "Hanya atasan/admin." }, { status: 403 });
-  }
-  if (ot.status !== "pending") return Response.json({ ok: false, error: "Sudah diputuskan." }, { status: 409 });
+  if (body.approve === undefined) return Response.json({ ok: false, error: "Parameter tidak valid." }, { status: 400 });
 
   const approverR = await pool.query(`SELECT name FROM employees WHERE id = $1`, [user.employee_id]);
   const approverName = approverR.rows[0]?.name ?? user.employee_id;
 
-  const { approve } = body;
-  const status = approve ? "approved" : "rejected";
-  await pool.query(`UPDATE overtime_requests SET status=$1, decided_by=$2 WHERE id=$3`, [status, approverName, id]);
-  await writeAudit({
-    actorId: user.id, actorName: approverName,
-    action: approve ? "Approved overtime" : "Rejected overtime",
-    targetType: "overtime_request", targetId: id,
-    detail: `${ot.emp_name}: ${ot.date} ${ot.start_time}–${ot.end_time} (${ot.hours} jam)`,
-    before: "pending", after: status, at: new Date().toISOString(),
-  });
-
-  // Kirim notifikasi ke karyawan
-  const userR = await pool.query(`SELECT id FROM users WHERE employee_id = $1`, [ot.employee_id]);
-  if (userR.rows[0]) {
-    await writeNotification({
-      userId: userR.rows[0].id,
-      title: approve ? "Pengajuan Lembur Disetujui" : "Pengajuan Lembur Ditolak",
-      body: `Pengajuan lembur Anda tanggal ${ot.date} (${ot.hours} jam) telah ${approve ? 'disetujui' : 'ditolak'} oleh ${approverName}.`,
-      type: "info",
-      link: "/app",
-    });
+  // Tahap 1: SPV
+  if (ot.spv_id && user.employee_id === ot.spv_id) {
+    if (ot.status !== "pending") return Response.json({ ok: false, error: "Sudah diproses." }, { status: 409 });
+    const newStatus = body.approve ? "spv_approved" : "rejected";
+    await pool.query(`UPDATE overtime_requests SET status=$1, decided_by=$2 WHERE id=$3`, [newStatus, approverName, id]);
+    await writeAudit({ actorId: user.id, actorName: approverName, action: body.approve ? "SPV approved overtime" : "SPV rejected overtime", targetType: "overtime_request", targetId: id, detail: `${ot.emp_name}: ${ot.date} ${ot.start_time}–${ot.end_time} (${ot.hours} jam)`, before: "pending", after: newStatus, at: new Date().toISOString() });
+    const userR = await pool.query(`SELECT id FROM users WHERE employee_id = $1`, [ot.employee_id]);
+    if (userR.rows[0]) await writeNotification({ userId: userR.rows[0].id, title: body.approve ? "Lembur Disetujui SPV" : "Lembur Ditolak SPV", body: `Pengajuan lembur Anda ${ot.date} (${ot.hours} jam) telah ${body.approve ? 'disetujui' : 'ditolak'} oleh SPV.`, type: "info", link: "/app/lembur" });
+    if (body.approve && ot.manager_id) {
+      const mu = await pool.query(`SELECT id FROM users WHERE employee_id = $1`, [ot.manager_id]);
+      if (mu.rows[0]) await writeNotification({ userId: mu.rows[0].id, title: "Lembur Perlu Persetujuan Manager", body: `Pengajuan lembur ${ot.emp_name} ${ot.date} menunggu persetujuan Anda.`, type: "approval", link: "/admin/lembur" });
+    }
+    return Response.json({ ok: true, status: newStatus });
   }
 
-  return Response.json({ ok: true, status });
+  // Tahap 2: Manager (bisa dari pending jika tidak ada SPV, atau dari spv_approved)
+  if (ot.manager_id && user.employee_id === ot.manager_id) {
+    if (ot.status !== "spv_approved" && ot.status !== "pending") return Response.json({ ok: false, error: "Sudah diproses." }, { status: 409 });
+    const newStatus = body.approve ? "approved" : "rejected";
+    await pool.query(`UPDATE overtime_requests SET status=$1, decided_by=$2 WHERE id=$3`, [newStatus, approverName, id]);
+    await writeAudit({ actorId: user.id, actorName: approverName, action: body.approve ? "Manager approved overtime" : "Manager rejected overtime", targetType: "overtime_request", targetId: id, detail: `${ot.emp_name}: ${ot.date} ${ot.start_time}–${ot.end_time} (${ot.hours} jam)`, before: ot.status, after: newStatus, at: new Date().toISOString() });
+    const userR = await pool.query(`SELECT id FROM users WHERE employee_id = $1`, [ot.employee_id]);
+    if (userR.rows[0]) await writeNotification({ userId: userR.rows[0].id, title: body.approve ? "Lembur Disetujui" : "Lembur Ditolak Manager", body: `Pengajuan lembur Anda ${ot.date} (${ot.hours} jam) telah ${body.approve ? 'disetujui' : 'ditolak'} oleh Manager.`, type: "info", link: "/app/lembur" });
+    return Response.json({ ok: true, status: newStatus });
+  }
+
+  return Response.json({ ok: false, error: "Anda bukan atasan pengajuan ini." }, { status: 403 });
 }

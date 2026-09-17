@@ -28,6 +28,7 @@ export function StatusStamp({ status }: { status: string }) {
     early_leave: ["rejected", "Early Leave"],
     high: ["rejected", "High Risk"],
     pending: ["pending", "Pending"],
+    spv_approved: ["pending", "Menunggu Manager"],
     review: ["pending", "Review"],
     leave: ["neutral", "Leave"],
     sick: ["neutral", "Sick"],
@@ -36,6 +37,7 @@ export function StatusStamp({ status }: { status: string }) {
     business_trip: ["neutral", "Dinas"],
     low: ["approved", "Low Risk"],
     medium: ["pending", "Medium Risk"],
+    cancelled: ["neutral", "Dibatalkan"],
   };
   const [kind, label] = map[status] ?? (["neutral", status] as [StampKind, string]);
   return <Stamp kind={kind}>{label}</Stamp>;

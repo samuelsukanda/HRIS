@@ -16,6 +16,21 @@ export interface PayrollInput {
   overtimeHours: number;
 }
 
+/** Master data upah & potongan — nilai default mengikuti perilaku rumus. */
+export interface PayrollConfig {
+  otMode: "formula" | "flat";
+  otFlatRate: number;
+  alphaMode: "proportional" | "flat";
+  alphaFlatRate: number;
+}
+
+export const DEFAULT_PAYROLL_CONFIG: PayrollConfig = {
+  otMode: "formula",
+  otFlatRate: 0,
+  alphaMode: "proportional",
+  alphaFlatRate: 0,
+};
+
 export interface PayrollBreakdown {
   scheduledDays: number;
   attendedDays: number; // present + paid leave
@@ -34,9 +49,10 @@ export interface PayrollBreakdown {
   net: number;
 }
 
-/** Upah lembur: jam pertama 1,5×, jam berikutnya 2× dari upah per jam (1/173). */
-export function overtimePay(hours: number, baseSalary: number, allowance: number): number {
+/** Upah lembur: mode tarif flat, atau jam pertama 1,5× & berikutnya 2× dari upah per jam (1/173). */
+export function overtimePay(hours: number, baseSalary: number, allowance: number, cfg: PayrollConfig = DEFAULT_PAYROLL_CONFIG): number {
   if (hours <= 0) return 0;
+  if (cfg.otMode === "flat") return Math.round(hours * cfg.otFlatRate);
   const rate = (baseSalary + allowance) / 173;
   const first = Math.min(hours, 1) * rate * 1.5;
   const rest = Math.max(0, hours - 1) * rate * 2;
@@ -66,17 +82,27 @@ function annualTax(annualNetto: number): number {
   return tax;
 }
 
-export function computePayslip(input: PayrollInput): PayrollBreakdown {
+export function computePayslip(input: PayrollInput, cfg: PayrollConfig = DEFAULT_PAYROLL_CONFIG): PayrollBreakdown {
   const { baseSalary, allowance, scheduledDays, presentDays, paidLeaveDays, overtimeHours } = input;
   const workdays = Math.max(scheduledDays, presentDays); // guard pembagi nol
   const attendedDays = Math.min(presentDays + paidLeaveDays, workdays);
   const alphaDays = Math.max(0, workdays - attendedDays);
   const dailyRate = Math.round(baseSalary / Math.max(workdays, 1));
-  // clamp ≥ 0: pembulatan harian tak boleh membuat upah negatif saat alpha penuh
-  const basePaid = Math.max(0, baseSalary - Math.round(dailyRate * alphaDays));
-  const allowancePaid = Math.max(0, allowance - Math.round((allowance / Math.max(workdays, 1)) * alphaDays));
 
-  const otPay = overtimePay(overtimeHours, baseSalary, allowance);
+  let basePaid: number;
+  let allowancePaid: number;
+  if (cfg.alphaMode === "flat") {
+    // potongan flat per hari, di-clamp ≤ upah total agar tidak negatif; pokok dulu, sisanya tunjangan
+    const unpaid = Math.min(alphaDays * cfg.alphaFlatRate, baseSalary + allowance);
+    basePaid = Math.max(0, baseSalary - unpaid);
+    allowancePaid = Math.max(0, allowance - Math.max(0, unpaid - baseSalary));
+  } else {
+    // clamp ≥ 0: pembulatan harian tak boleh membuat upah negatif saat alpha penuh
+    basePaid = Math.max(0, baseSalary - Math.round(dailyRate * alphaDays));
+    allowancePaid = Math.max(0, allowance - Math.round((allowance / Math.max(workdays, 1)) * alphaDays));
+  }
+
+  const otPay = overtimePay(overtimeHours, baseSalary, allowance, cfg);
   const gross = basePaid + allowancePaid + otPay;
 
   // Biaya jabatan 5%, maks 500 rb/bulan
@@ -97,7 +123,7 @@ export function computePayslip(input: PayrollInput): PayrollBreakdown {
     allowancePaid,
     alphaDeduction: baseSalary - basePaid + (allowance - allowancePaid),
     overtimeHours,
-    overtimeRate: Math.round(((baseSalary + allowance) / 173) * 100) / 100,
+    overtimeRate: cfg.otMode === "flat" ? cfg.otFlatRate : Math.round(((baseSalary + allowance) / 173) * 100) / 100,
     overtimePay: otPay,
     gross,
     bpjsHealth,

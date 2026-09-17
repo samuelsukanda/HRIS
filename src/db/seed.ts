@@ -8,6 +8,7 @@ import type {
   AssetAssignment,
   AttendanceRecord,
   AuditLogEntry,
+  Bank,
   Branch,
   Candidate,
   Department,
@@ -39,7 +40,7 @@ async function main() {
     audit_logs, announcements, notifications, reimbursements, candidates, training_enrollments,
     asset_assignments, performance_reviews, assets, trainings, job_postings, shift_swaps, asset_requests,
     users, employees, shifts, work_locations, departments, positions,
-    branches, leave_types RESTART IDENTITY CASCADE`);
+    branches, leave_types, banks RESTART IDENTITY CASCADE`);
 
   for (const b of d.branches as Branch[])
     await q(`INSERT INTO branches (id,name,city) VALUES ($1,$2,$3)`, [b.id, b.name, b.city]);
@@ -49,6 +50,9 @@ async function main() {
 
   for (const p of d.positions as Position[])
     await q(`INSERT INTO positions (id,title,level) VALUES ($1,$2,$3)`, [p.id, p.title, p.level]);
+
+  for (const b of d.banks as Bank[])
+    await q(`INSERT INTO banks (id,name) VALUES ($1,$2)`, [b.id, b.name]);
 
   for (const w of d.workLocations as WorkLocation[])
     await q(
@@ -75,12 +79,12 @@ async function main() {
     const [base, allowance] = levelSalary[level] ?? levelSalary.staff;
     await q(
       `INSERT INTO employees (id,nik,name,gender,birth_place,birth_date,address,phone,email,join_date,
-        department_id,position_id,manager_id,branch_id,work_location_id,employment_type,status,
+        department_id,position_id,spv_id,manager_id,branch_id,work_location_id,employment_type,status,
         bank_name,bank_account,emergency_contact,face_registered,face_descriptor,base_salary,allowance)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)`,
       [
         e.id, e.nik, e.name, e.gender, e.birthPlace, e.birthDate, e.address, e.phone, e.email,
-        e.joinDate, e.departmentId, e.positionId, e.managerId ?? null, e.branchId, e.workLocationId,
+        e.joinDate, e.departmentId, e.positionId, e.spvId ?? null, e.managerId ?? null, e.branchId, e.workLocationId,
         e.employmentType, e.status, e.bankName, e.bankAccount, JSON.stringify(e.emergencyContact),
         e.faceRegistered, null, base, allowance,
       ],

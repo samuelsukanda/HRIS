@@ -12,6 +12,7 @@ export async function GET() {
     branches: d.branches,
     departments: d.departments,
     positions: d.positions,
+    banks: d.banks,
     workLocations: d.workLocations,
     shifts: d.shifts,
     leaveTypes: d.leaveTypes,

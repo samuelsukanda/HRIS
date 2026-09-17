@@ -11,14 +11,26 @@ export default function AdminLemburPage() {
   const { state, dispatch } = useHris();
   const { data } = state;
   const me = currentUser(state);
-  const canDecide = !!me && me.user.role !== "employee";
+  const myEmpId = me?.employee.id;
+
+  function isSpvFor(empId: string) {
+    if (!myEmpId) return false;
+    const emp = data.employees.find((e) => e.id === empId);
+    return emp?.spvId === myEmpId;
+  }
+
+  function isManagerFor(empId: string) {
+    if (!myEmpId) return false;
+    const emp = data.employees.find((e) => e.id === empId);
+    return emp?.managerId === myEmpId;
+  }
 
   const monthPrefix = todayISO().slice(0, 7);
   const approvedThisMonth = data.overtimeRequests.filter(
     (r) => r.status === "approved" && r.date.startsWith(monthPrefix),
   );
   const otHours = approvedThisMonth.reduce((s, r) => s + r.hours, 0);
-  const pending = data.overtimeRequests.filter((r) => r.status === "pending");
+  const pending = data.overtimeRequests.filter((r) => r.status === "pending" || r.status === "spv_approved");
 
   const nameOf = (id: string) => data.employees.find((e) => e.id === id)?.name ?? id;
   const [q, setQ] = useState("");
@@ -28,7 +40,7 @@ export default function AdminLemburPage() {
   const paged = filtered.slice((page - 1) * LIMIT, page * LIMIT);
 
   function decide(id: string, approve: boolean) {
-    if (!canDecide || !me) return;
+    if (!me) return;
     dispatch({ type: "DECIDE_OVERTIME", id, approve, byName: me.employee.name });
     toastOk(approve ? "Lembur disetujui" : "Lembur ditolak");
   }
@@ -109,7 +121,9 @@ export default function AdminLemburPage() {
                           <StatusStamp status={r.status} />
                         </td>
                         <td className="px-5 py-3">
-                          {r.status === "pending" && canDecide ? (
+                          {(r.status === "pending" && isSpvFor(r.employeeId)) ||
+                          (r.status === "pending" && isManagerFor(r.employeeId)) ||
+                          (r.status === "spv_approved" && isManagerFor(r.employeeId)) ? (
                             <div className="flex items-center justify-end gap-1.5">
                               <Btn variant="official" size="sm" icon={Check} onClick={() => decide(r.id, true)}>
                                 Setujui

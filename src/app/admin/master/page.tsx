@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Pencil, Trash } from "@phosphor-icons/react";
 import { useHris } from "@/lib/store";
 import { confirmDelete, formModal, toastOk } from "@/lib/swal";
+import { fmtRupiah } from "@/lib/format";
 import { Btn, IconBtn, PageHead } from "@/components/ui";
 
 async function patch(url: string, body: unknown) {
@@ -20,29 +21,32 @@ function saved(msg: string) {
 
 export default function MasterPage(){
   const {state, showToast}=useHris();
-  const [tab,setTab]=useState<"branch"|"dept"|"pos"|"leave"|"window">("branch");
+  const [tab,setTab]=useState<"branch"|"dept"|"pos"|"leave"|"bank"|"window"|"payroll">("branch");
   const [name,setName]=useState(""); const [city,setCity]=useState(""); const [branchId,setBranchId]=useState(state.data.branches[0]?.id??""); const [title,setTitle]=useState(""); const [level,setLevel]=useState("staff"); const [days,setDays]=useState(12);
   async function createBranch(){ if(!name.trim()||!city.trim()) return; const r=await fetch("/api/branches",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:name.trim(),city:city.trim()})}); const j=await r.json() as {ok:boolean;error?:string}; if(j.ok){ saved("Cabang ditambahkan"); } else showToast(j.error??"Gagal","error"); }
   async function createDept(){ if(!name.trim()) return; const r=await fetch("/api/departments",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:name.trim(),branch_id:branchId})}); const j=await r.json() as {ok:boolean;error?:string}; if(j.ok){ saved("Departemen ditambahkan"); } else showToast(j.error??"Gagal","error"); }
   async function createPos(){ if(!title.trim()) return; const r=await fetch("/api/positions",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({title:title.trim(),level})}); const j=await r.json() as {ok:boolean;error?:string}; if(j.ok){ saved("Jabatan ditambahkan"); } else showToast(j.error??"Gagal","error"); }
   async function createLeave(){ if(!name.trim()) return; const r=await fetch("/api/leave-types",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:name.trim(),allocation_days:days,paid:true,requires_attachment:false})}); const j=await r.json() as {ok:boolean;error?:string}; if(j.ok){ saved("Jenis cuti ditambahkan"); } else showToast(j.error??"Gagal","error"); }
+  async function createBank(){ if(!name.trim()) return; const r=await fetch("/api/banks",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:name.trim()})}); const j=await r.json() as {ok:boolean;error?:string}; if(j.ok){ saved("Bank ditambahkan"); } else showToast(j.error??"Gagal","error"); }
 
   const tabs = [
     { key:"branch", label:"Cabang" },
     { key:"dept", label:"Departemen" },
     { key:"pos", label:"Jabatan" },
     { key:"leave", label:"Jenis Cuti" },
+    { key:"bank", label:"Bank" },
     { key:"window", label:"Window Check-in" },
+    { key:"payroll", label:"Payroll" },
   ] as const;
   const [mq, setMq] = useState("");
   const mqNeedle = mq.trim().toLowerCase();
   const matchMq = (s: string) => !mqNeedle || s.toLowerCase().includes(mqNeedle);
   return <>
-    <PageHead title="Master Data" sub="Kelola data cabang, departemen, jabatan, jenis cuti, dan window check-in." />
+    <PageHead title="Master Data" sub="Kelola data cabang, departemen, jabatan, jenis cuti, bank, dan window check-in." />
     <div className="mb-4 flex gap-2">
       {tabs.map(t=> <button key={t.key} onClick={()=> { setTab(t.key); setMq(""); }} className={`min-h-9 px-3 py-1.5 text-xs font-semibold border ${tab===t.key?"bg-ink text-white":"bg-card"}`}>{t.label}</button>)}
     </div>
-    {tab !== "window" && (
+    {tab !== "window" && tab !== "payroll" && (
       <div className="mb-4 max-w-md">
         <input value={mq} onChange={(e) => setMq(e.target.value)} placeholder="Cari di tab ini…" aria-label="Cari master data" className="min-h-9 w-full border border-rule bg-card px-3 py-1.5 text-sm outline-none placeholder:text-ink-faint focus:border-official" />
       </div>
@@ -87,8 +91,20 @@ export default function MasterPage(){
         <ul className="divide-y divide-ledger/40 text-sm">{state.data.leaveTypes.filter((t) => matchMq(t.name)).map(t=> <li key={t.id} className="py-2 flex items-center justify-between gap-2"><span className="font-medium">{t.name} <span className="tnum font-normal text-ink-faint">— {t.allocationDays} hari</span></span><span className="flex gap-1"><IconBtn label={`Edit ${t.name}`} icon={Pencil} onClick={async()=>{ const v=await formModal<{name:string;days:string}>("Edit Jenis Cuti",[{key:"name",label:"Nama",value:t.name},{key:"days",label:"Alokasi (hari)",value:String(t.allocationDays),type:"number"}]); if(!v||!v.name.trim()) return; if(await patch(`/api/leave-types/${t.id}`,{name:v.name.trim(),allocation_days:Number(v.days)})) saved("Jenis cuti disimpan"); }} /><IconBtn label={`Hapus ${t.name}`} icon={Trash} className="hover:text-stamp" onClick={async()=>{ if(await confirmDelete(t.name) && await del(`/api/leave-types/${t.id}`)) saved("Jenis cuti dihapus"); }} /></span></li>)}</ul>
       </section>
     )}
+    {tab==="bank" && (
+      <section className="border border-rule bg-card p-4">
+        <div className="mb-4 flex flex-wrap gap-2 border-b border-ledger/40 pb-4">
+          <input value={name} onChange={e=> setName(e.target.value)} placeholder="Nama bank" aria-label="Nama bank" className="min-h-9 flex-1 min-w-40 border border-rule bg-paper px-2 py-1 text-sm" />
+          <Btn size="sm" onClick={createBank} disabled={!name.trim()}>+ Bank</Btn>
+        </div>
+        <ul className="divide-y divide-ledger/40 text-sm">{state.data.banks.filter((b) => matchMq(b.name)).map(b=> <li key={b.id} className="py-2 flex items-center justify-between gap-2"><span className="font-medium">{b.name}</span><span className="flex gap-1"><IconBtn label={`Edit ${b.name}`} icon={Pencil} onClick={async()=>{ const v=await formModal<{name:string}>("Edit Bank",[{key:"name",label:"Nama Bank",value:b.name}]); if(!v||!v.name.trim()) return; if(await patch(`/api/banks/${b.id}`,{name:v.name.trim()})) saved("Bank disimpan"); }} /><IconBtn label={`Hapus ${b.name}`} icon={Trash} className="hover:text-stamp" onClick={async()=>{ if(await confirmDelete(b.name) && await del(`/api/banks/${b.id}`)) saved("Bank dihapus"); }} /></span></li>)}</ul>
+      </section>
+    )}
     {tab==="window" && (
       <WindowTab />
+    )}
+    {tab==="payroll" && (
+      <PayrollTab />
     )}
   </>
 }
@@ -122,6 +138,78 @@ function WindowTab() {
           <input type="number" min={5} max={720} value={minutes} onChange={(e) => setMinutes(Number(e.target.value))} className="tnum mt-1 block min-h-9 w-32 border border-rule bg-paper px-2 py-1 text-sm" />
         </label>
         <Btn size="sm" onClick={() => void save()} disabled={busy || minutes === current}>Simpan</Btn>
+      </div>
+    </section>
+  );
+}
+
+function PayrollTab() {
+  const { state, showToast } = useHris();
+  const s = state.data.settings;
+  const curOtMode = s.ot_mode === "flat" ? "flat" : "formula";
+  const curAlphaMode = s.alpha_mode === "flat" ? "flat" : "proportional";
+  const curOtRate = Number(s.ot_flat_rate) || 0;
+  const curAlphaRate = Number(s.alpha_flat_rate) || 0;
+  const [otMode, setOtMode] = useState<"formula" | "flat">(curOtMode);
+  const [otRate, setOtRate] = useState(curOtRate);
+  const [alphaMode, setAlphaMode] = useState<"proportional" | "flat">(curAlphaMode);
+  const [alphaRate, setAlphaRate] = useState(curAlphaRate);
+  const [busy, setBusy] = useState(false);
+  const validRate = (n: number) => Number.isInteger(n) && n >= 0 && n <= 100_000_000;
+  const changed = otMode !== curOtMode || otRate !== curOtRate || alphaMode !== curAlphaMode || alphaRate !== curAlphaRate;
+
+  async function save() {
+    if (!validRate(otRate) || !validRate(alphaRate)) {
+      showToast("Tarif harus angka bulat 0–100.000.000.", "error");
+      return;
+    }
+    setBusy(true);
+    const r = await fetch("/api/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ot_mode: otMode, ot_flat_rate: String(otRate), alpha_mode: alphaMode, alpha_flat_rate: String(alphaRate) }) });
+    const j = await r.json().catch(() => ({})) as { ok: boolean; error?: string };
+    setBusy(false);
+    if (j.ok) saved("Master upah & potongan disimpan");
+    else showToast(j.error ?? "Gagal.", "error");
+  }
+
+  const inputCls = "tnum mt-1 block min-h-9 w-44 border border-rule bg-paper px-2 py-1 text-sm disabled:opacity-50";
+  return (
+    <section className="border border-rule bg-card p-4">
+      <h3 className="font-semibold">Upah Lembur & Potongan Alpha</h3>
+      <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+        Berlaku untuk perhitungan payroll berikutnya. Saat ini: lembur <b className="text-ink">{curOtMode === "flat" ? `tarif flat ${fmtRupiah(curOtRate)}/jam` : "rumus 1/173 (×1,5 / ×2)"}</b> · potongan alpha <b className="text-ink">{curAlphaMode === "flat" ? `flat ${fmtRupiah(curAlphaRate)}/hari` : "proporsional gaji/hari"}</b>.
+      </p>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div>
+          <p className="text-xs font-semibold tracking-wide text-ink-soft uppercase">Upah Lembur</p>
+          <label className="mt-1 block text-xs text-ink-soft">
+            Metode
+            <select value={otMode} onChange={(e) => setOtMode(e.target.value as "formula" | "flat")} className="mt-1 block min-h-9 w-44 border border-rule bg-paper px-2 py-1 text-sm">
+              <option value="formula">Rumus 1/173 (×1,5 / ×2)</option>
+              <option value="flat">Tarif flat per jam</option>
+            </select>
+          </label>
+          <label className="mt-2 block text-xs text-ink-soft">
+            Tarif per jam (Rp)
+            <input type="number" min={0} step={1000} value={otRate} onChange={(e) => setOtRate(Number(e.target.value))} disabled={otMode !== "flat"} className={inputCls} />
+          </label>
+        </div>
+        <div>
+          <p className="text-xs font-semibold tracking-wide text-ink-soft uppercase">Potongan Absen Tanpa Cuti</p>
+          <label className="mt-1 block text-xs text-ink-soft">
+            Metode
+            <select value={alphaMode} onChange={(e) => setAlphaMode(e.target.value as "proportional" | "flat")} className="mt-1 block min-h-9 w-44 border border-rule bg-paper px-2 py-1 text-sm">
+              <option value="proportional">Proporsional gaji/hari</option>
+              <option value="flat">Potongan flat per hari</option>
+            </select>
+          </label>
+          <label className="mt-2 block text-xs text-ink-soft">
+            Potongan per hari (Rp)
+            <input type="number" min={0} step={1000} value={alphaRate} onChange={(e) => setAlphaRate(Number(e.target.value))} disabled={alphaMode !== "flat"} className={inputCls} />
+          </label>
+        </div>
+      </div>
+      <div className="mt-4">
+        <Btn size="sm" onClick={() => void save()} disabled={busy || !changed}>Simpan</Btn>
       </div>
     </section>
   );

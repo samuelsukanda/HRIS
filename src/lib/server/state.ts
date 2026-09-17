@@ -7,6 +7,7 @@ import type {
   AssetRequest,
   AttendanceRecord,
   AuditLogEntry,
+  Bank,
   Branch,
   Candidate,
   Department,
@@ -46,7 +47,7 @@ function isoDate(v: Date | string | null): string {
 
 export async function loadHrisData(): Promise<HrisData> {
   const [
-    usersR, branchesR, departmentsR, positionsR, locationsR, employeesR, shiftsR,
+    usersR, branchesR, departmentsR, positionsR, banksR, locationsR, employeesR, shiftsR,
     rosterR, attendanceR, leaveTypesR, leaveReqR, otReqR, logsR, annsR,
     reimbR, jpR, candR, trainR, enrollR, assetR, assignR, revR, notifR,
     swapR, assetReqR, settingsR,
@@ -55,6 +56,7 @@ export async function loadHrisData(): Promise<HrisData> {
     pool.query(`SELECT * FROM branches ORDER BY id`),
     pool.query(`SELECT * FROM departments ORDER BY id`),
     pool.query(`SELECT * FROM positions ORDER BY id`),
+    pool.query(`SELECT * FROM banks ORDER BY name`),
     pool.query(`SELECT * FROM work_locations ORDER BY id`),
     pool.query(`SELECT * FROM employees ORDER BY id`),
     pool.query(`SELECT * FROM shifts ORDER BY id`),
@@ -83,7 +85,7 @@ export async function loadHrisData(): Promise<HrisData> {
     id: r.id, nik: r.nik, name: r.name, gender: r.gender,
     birthPlace: r.birth_place, birthDate: isoDate(r.birth_date),
     address: r.address, phone: r.phone, email: r.email, joinDate: isoDate(r.join_date),
-    departmentId: r.department_id, positionId: r.position_id, managerId: r.manager_id ?? undefined,
+    departmentId: r.department_id, positionId: r.position_id, spvId: r.spv_id ?? undefined, managerId: r.manager_id ?? undefined,
     branchId: r.branch_id, workLocationId: r.work_location_id,
     employmentType: r.employment_type, status: r.status,
     bankName: r.bank_name, bankAccount: r.bank_account,
@@ -111,6 +113,7 @@ export async function loadHrisData(): Promise<HrisData> {
     branches: branchesR.rows as Branch[],
     departments: departmentsR.rows.map((r): Department => ({ id: r.id, name: r.name, branchId: r.branch_id })),
     positions: positionsR.rows as Position[],
+    banks: banksR.rows as Bank[],
     workLocations: locationsR.rows.map((r): WorkLocation => ({
       id: r.id, name: r.name, branchId: r.branch_id,
       latitude: r.latitude, longitude: r.longitude, radiusM: r.radius_m,
@@ -253,7 +256,7 @@ export async function nextId(table: string, prefix: string): Promise<string> {
     "candidates", "trainings", "training_enrollments", "assets", "asset_assignments",
     "performance_reviews", "notifications", "announcements", "leave_requests",
     "overtime_requests", "reimbursements", "audit_logs",
-    "branches", "departments", "positions", "leave_types",
+    "branches", "departments", "positions", "leave_types", "banks",
     "shift_swaps", "asset_requests", "settings"
   ];
   if (!allowed.includes(table)) throw new Error("Invalid table name: " + table);

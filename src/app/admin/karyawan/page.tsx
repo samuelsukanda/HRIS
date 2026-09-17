@@ -11,7 +11,7 @@ import type { Employee } from "@/lib/types";
 type EmploymentStatus = "probation" | "permanent" | "contract" | "intern" | "resigned";
 
 export default function AdminEmployees() {
-  const { state, dispatch } = useHris();
+  const { state, dispatch, refresh } = useHris();
   const { data } = state;
   const [q, setQ] = useState("");
   const [branchFilter, setBranchFilter] = useState("all");
@@ -22,27 +22,30 @@ export default function AdminEmployees() {
   const [page, setPage] = useState(1);
   const LIMIT = 10;
 
-  // Form Fields — default dari data master pertama (bukan hardcode ID)
+  // Form Fields — default kosong, wajib diisi manual (divalidasi sebelum simpan)
   const [name, setName] = useState("");
   const [nik, setNik] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [branchId, setBranchId] = useState(data.branches[0]?.id ?? "");
-  const [departmentId, setDepartmentId] = useState(data.departments[0]?.id ?? "");
-  const [positionId, setPositionId] = useState(data.positions[0]?.id ?? "");
-  const [workLocationId, setWorkLocationId] = useState(data.workLocations[0]?.id ?? "");
-  const [employmentType, setEmploymentType] = useState<EmploymentStatus>("probation");
-  const [baseSalary, setBaseSalary] = useState(10_000_000);
-  const [allowance, setAllowance] = useState(2_000_000);
+  const [branchId, setBranchId] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
+  const [positionId, setPositionId] = useState("");
+  const [workLocationId, setWorkLocationId] = useState("");
+  const [employmentType, setEmploymentType] = useState<EmploymentStatus | "">("");
+  const [baseSalary, setBaseSalary] = useState(0);
+  const [allowance, setAllowance] = useState(0);
   const [joinDate, setJoinDate] = useState(new Date().toISOString().slice(0, 10));
   const [address, setAddress] = useState("");
-  const [bankName, setBankName] = useState("BCA");
+  const [bankName, setBankName] = useState("");
   const [bankAccount, setBankAccount] = useState("");
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyRelation, setEmergencyRelation] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [spvId, setSpvId] = useState("");
+  const [managerId, setManagerId] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const rows = useMemo(
     () =>
@@ -61,31 +64,57 @@ export default function AdminEmployees() {
   const emp = selected ? data.employees.find((e) => e.id === selected)! : null;
   const paged = rows.slice((page - 1) * LIMIT, page * LIMIT);
 
-  function resetForm() {
-    setName(""); setNik(""); setEmail(""); setPhone("");
-    setBranchId(data.branches[0]?.id ?? ""); setDepartmentId(data.departments[0]?.id ?? "");
-    setPositionId(data.positions[0]?.id ?? ""); setWorkLocationId(data.workLocations[0]?.id ?? "");
-    setEmploymentType("probation"); setBaseSalary(10_000_000); setAllowance(2_000_000);
-    setJoinDate(new Date().toISOString().slice(0, 10));
-    setAddress(""); setBankName("BCA"); setBankAccount("");
-    setEmergencyName(""); setEmergencyRelation(""); setEmergencyPhone("");
-    setPhotoUrl("");
+  // Wajib: nama, nik, email, telepon, alamat, cabang, departemen, posisi
+  const canSubmit = Boolean(
+    name.trim() && nik.trim() && email.trim() && phone.trim() && address.trim() &&
+    branchId && departmentId && positionId,
+  );
+
+  // Kandidat SPV/Manager: hanya karyawan aktif pada cabang yang dipilih
+  const branchStaff = useMemo(
+    () => data.employees.filter((e) => e.status === "active" && e.branchId === branchId),
+    [data.employees, branchId],
+  );
+
+  function changeBranch(v: string) {
+    setBranchId(v);
+    const inBranch = (id: string) => data.employees.some((x) => x.id === id && x.branchId === v);
+    setSpvId((p) => (inBranch(p) ? p : ""));
+    setManagerId((p) => (inBranch(p) ? p : ""));
   }
 
-  function handleAdd() {
-    if (!name || !email) return;
-    const newEmp: Employee = {
-      id: `EMP-${String(data.employees.length + 100).padStart(3, "0")}`,
-      nik, name, gender: "L", birthPlace: "Jakarta", birthDate: "1990-01-01", address,
-      phone, email, joinDate, departmentId, positionId, branchId, workLocationId,
-      employmentType, status: "active", bankName, bankAccount,
-      emergencyContact: { name: emergencyName, relation: emergencyRelation, phone: emergencyPhone }, faceRegistered: false,
-      baseSalary, allowance,
-    };
-    dispatch({ type: "CREATE_EMPLOYEE", employee: newEmp });
-    setShowAddForm(false);
-    resetForm();
-    toastOk("Karyawan ditambahkan");
+  function resetForm() {
+    setName(""); setNik(""); setEmail(""); setPhone("");
+    setBranchId(""); setDepartmentId("");
+    setPositionId(""); setWorkLocationId("");
+    setEmploymentType(""); setBaseSalary(0); setAllowance(0);
+    setJoinDate(new Date().toISOString().slice(0, 10));
+    setAddress(""); setBankName(""); setBankAccount("");
+    setEmergencyName(""); setEmergencyRelation(""); setEmergencyPhone("");
+    setPhotoUrl(""); setSpvId(""); setManagerId("");
+  }
+
+  async function handleAdd() {
+    if (!canSubmit) return;
+    const r = await fetch("/api/employees", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name, nik, email, phone, branchId, departmentId, positionId, workLocationId,
+        employmentType, baseSalary, allowance, joinDate, address, bankName, bankAccount,
+        emergencyContact: { name: emergencyName, relation: emergencyRelation, phone: emergencyPhone },
+        spvId: spvId || null, managerId: managerId || null,
+      }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (j.ok) {
+      setShowAddForm(false);
+      resetForm();
+      void refresh();
+      toastOk("Karyawan ditambahkan");
+    } else {
+      toastErr(j.error ?? "Gagal menambah karyawan.");
+    }
   }
 
   function startEdit(e: Employee) {
@@ -109,26 +138,35 @@ export default function AdminEmployees() {
     setEmergencyRelation(e.emergencyContact?.relation || "");
     setEmergencyPhone(e.emergencyContact?.phone || "");
     setPhotoUrl(e.photoUrl ?? "");
+    setSpvId(e.spvId ?? "");
+    setManagerId(e.managerId ?? "");
     setShowEditForm(true);
   }
 
-  function handleEdit() {
+  async function handleEdit() {
     if (!selected) return;
-    dispatch({
-      type: "UPDATE_EMPLOYEE",
-      id: selected,
-      data: {
+    setBusy(true);
+    const r = await fetch(`/api/employees/${selected}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         name, nik, email, phone, branchId, departmentId, positionId, workLocationId,
-        employmentType, baseSalary, allowance, joinDate,
-        address, bankName, bankAccount,
+        employmentType, baseSalary, allowance, joinDate, address, bankName, bankAccount,
         emergencyContact: { name: emergencyName, relation: emergencyRelation, phone: emergencyPhone },
-        photoUrl,
-      },
+        photoUrl, spvId: spvId || null, managerId: managerId || null,
+      }),
     });
-    setShowEditForm(false);
-    setSelected(null);
-    resetForm();
-    toastOk("Data karyawan disimpan");
+    const j = await r.json().catch(() => ({}));
+    setBusy(false);
+    if (j.ok) {
+      setShowEditForm(false);
+      setSelected(null);
+      resetForm();
+      void refresh();
+      toastOk("Data karyawan disimpan");
+    } else {
+      toastErr(j.error ?? "Gagal menyimpan.");
+    }
   }
 
   async function handlePhotoUpload(file?: File) {
@@ -205,7 +243,7 @@ export default function AdminEmployees() {
               <tr className="border-b border-rule text-left font-mono text-[11px] tracking-widest text-ink-faint uppercase">
                 <th className="px-4 py-2.5 font-medium">Nama</th>
                 <th className="px-3 py-2.5 font-medium">Departemen</th>
-                <th className="px-3 py-2.5 font-medium">Posisi</th>
+                <th className="px-3 py-2.5 font-medium">Jabatan</th>
                 <th className="px-3 py-2.5 font-medium">Lokasi Kerja</th>
                 <th className="px-3 py-2.5 font-medium">Wajah</th>
                 <th className="px-3 py-2.5 font-medium">Status</th>
@@ -287,48 +325,67 @@ export default function AdminEmployees() {
             </div>
           </div>
           )}
-          <Field label="Nama Lengkap">
+          <Field label="Nama Lengkap *">
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </Field>
-          <Field label="NIK (16 Digit)">
+          <Field label="NIK (16 Digit) *">
             <Input value={nik} onChange={(e) => setNik(e.target.value)} maxLength={16} />
           </Field>
-          <Field label="Email">
+          <Field label="Email *">
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={showEditForm} />
           </Field>
-          <Field label="Telepon">
+          <Field label="Telepon *">
             <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
           </Field>
-          <Field label="Alamat">
+          <Field label="Alamat *">
             <Input value={address} onChange={(e) => setAddress(e.target.value)} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Cabang">
-              <Select value={branchId} onChange={(e) => setBranchId(e.target.value)}>
+            <Field label="Cabang *">
+              <Select value={branchId} onChange={(e) => changeBranch(e.target.value)}>
+                <option value="">— Pilih Cabang —</option>
                 {data.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
               </Select>
             </Field>
-            <Field label="Departemen">
+            <Field label="Departemen *">
               <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
+                <option value="">— Pilih Departemen —</option>
                 {data.departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </Select>
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Posisi">
+            <Field label="Jabatan *">
               <Select value={positionId} onChange={(e) => setPositionId(e.target.value)}>
+                <option value="">— Pilih Jabatan —</option>
                 {data.positions.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
               </Select>
             </Field>
             <Field label="Lokasi Kerja">
               <Select value={workLocationId} onChange={(e) => setWorkLocationId(e.target.value)}>
+                <option value="">— Pilih Lokasi Kerja —</option>
                 {data.workLocations.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </Select>
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="SPV (Team Leader)">
+              <Select value={spvId} onChange={(e) => setSpvId(e.target.value)}>
+                <option value="">— Pilih SPV —</option>
+                {branchStaff.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+              </Select>
+            </Field>
+            <Field label="Manager (Kepala Dept)">
+              <Select value={managerId} onChange={(e) => setManagerId(e.target.value)}>
+                <option value="">— Pilih Manager —</option>
+                {branchStaff.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
               </Select>
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Tipe Kontrak">
               <Select value={employmentType} onChange={(e) => setEmploymentType(e.target.value as EmploymentStatus)}>
+                <option value="">— Pilih Tipe Kontrak —</option>
                 <option value="probation">Probation</option>
                 <option value="permanent">Permanen</option>
                 <option value="contract">Kontrak</option>
@@ -351,13 +408,7 @@ export default function AdminEmployees() {
             <Field label="Bank">
               <Select value={bankName} onChange={(e) => setBankName(e.target.value)}>
                 <option value="">— Pilih Bank —</option>
-                <option value="BCA">BCA</option>
-                <option value="Mandiri">Mandiri</option>
-                <option value="BRI">BRI</option>
-                <option value="BNI">BNI</option>
-                <option value="CIMB">CIMB Niaga</option>
-                <option value="BTN">BTN</option>
-                <option value="Danamon">Danamon</option>
+                {data.banks.map((b) => <option key={b.id} value={b.name}>{b.name}</option>)}
               </Select>
             </Field>
             <Field label="No. Rekening">
@@ -385,7 +436,7 @@ export default function AdminEmployees() {
             <Input value={emergencyPhone} onChange={(e) => setEmergencyPhone(e.target.value)} />
           </Field>
           {showEditForm && <AccountSection employeeId={selected!} />}
-          <Btn variant="official" onClick={showEditForm ? handleEdit : handleAdd} disabled={!name || !email} className="w-full">
+          <Btn variant="official" onClick={showEditForm ? handleEdit : handleAdd} disabled={!canSubmit} className="w-full">
             {showEditForm ? "Simpan Perubahan" : "Simpan Karyawan"}
           </Btn>
         </div>
@@ -521,6 +572,7 @@ function EmployeeDetail({ emp }: { emp: Employee }) {
   const loc = data.workLocations.find((w) => w.id === emp.workLocationId);
   const branch = data.branches.find((b) => b.id === emp.branchId);
   const manager = data.employees.find((m) => m.id === emp.managerId);
+  const spv = data.employees.find((s) => s.id === emp.spvId);
 
   // Riwayat absensi 14 hari terakhir
   const history = data.attendance
@@ -540,8 +592,9 @@ function EmployeeDetail({ emp }: { emp: Employee }) {
           <Row k="NIK" v={emp.nik} mono />
           <Row k="Cabang" v={branch?.name ?? "—"} />
           <Row k="Departemen" v={dept?.name ?? "—"} />
-          <Row k="Posisi" v={pos?.title ?? "—"} />
-          <Row k="Atasan" v={manager?.name ?? "—"} />
+          <Row k="Jabatan" v={pos?.title ?? "—"} />
+          <Row k="SPV" v={spv?.name ?? "—"} />
+          <Row k="Manager" v={manager?.name ?? "—"} />
           <Row k="Bergabung" v={fmtDateShortID(emp.joinDate)} />
           <Row k="Telepon" v={emp.phone} mono />
           <Row k="Email" v={emp.email} />

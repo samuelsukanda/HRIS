@@ -51,7 +51,7 @@ type Action =
   | { type: "REGISTER_FACE"; employeeId: string; descriptor?: number[] }
   | { type: "UPDATE_SELF_PHOTO"; employeeId: string; photoUrl: string | null }
   | { type: "SUBMIT_REIMBURSEMENT"; request: Reimbursement }
-  | { type: "DECIDE_REIMBURSEMENT"; id: string; level: "manager" | "hr"; approve: boolean; byName: string }
+  | { type: "DECIDE_REIMBURSEMENT"; id: string; level: "spv" | "manager"; approve: boolean; byName: string }
   | { type: "APPLY_CANDIDATE"; candidate: Candidate }
   | { type: "UPDATE_CANDIDATE"; id: string; status: Candidate["status"]; notes?: string }
   | { type: "ENROLL_TRAINING"; enrollment: TrainingEnrollment }
@@ -86,7 +86,7 @@ type Action =
   | { type: "DELETE_ASSET"; id: string }
   | { type: "BULK_DECIDE_LEAVE"; ids: string[]; approve: boolean; byName: string }
   | { type: "BULK_DECIDE_OVERTIME"; ids: string[]; approve: boolean; byName: string }
-  | { type: "BULK_DECIDE_REIMBURSEMENT"; ids: string[]; approve: boolean; level: "manager" | "hr" }
+  | { type: "BULK_DECIDE_REIMBURSEMENT"; ids: string[]; approve: boolean; level: "spv" | "manager" }
   | { type: "CANCEL_LEAVE"; id: string }
   | { type: "CANCEL_OVERTIME"; id: string }
   | { type: "CREATE_LOCATION"; location: WorkLocation }
@@ -159,7 +159,22 @@ function reducer(state: State, action: Action): State {
           },
         ),
       };
-    case "DECIDE_LEAVE":
+    case "DECIDE_LEAVE": {
+      const req = state.data.leaveRequests.find((r) => r.id === action.id);
+      const emp = state.data.employees.find((e) => e.id === req?.employeeId);
+      const isSpv = emp && state.session?.employeeId && emp.spvId === state.session.employeeId;
+      const isMgr = emp && state.session?.employeeId && emp.managerId === state.session.employeeId;
+      const prev = req?.status ?? "pending";
+      let next: string;
+      if (!action.approve) {
+        next = "rejected";
+      } else if (isSpv && prev === "pending") {
+        next = "spv_approved";
+      } else if (isMgr && prev === "spv_approved") {
+        next = "approved";
+      } else {
+        next = "approved";
+      }
       return {
         ...state,
         data: log(
@@ -167,7 +182,7 @@ function reducer(state: State, action: Action): State {
             ...state.data,
             leaveRequests: state.data.leaveRequests.map((r) =>
               r.id === action.id
-                ? { ...r, status: action.approve ? ("approved" as const) : ("rejected" as const), decidedBy: action.byName, decidedAt: new Date().toISOString() }
+                ? { ...r, status: next as LeaveRequest["status"], decidedBy: action.byName, decidedAt: new Date().toISOString() }
                 : r,
             ),
           },
@@ -178,12 +193,13 @@ function reducer(state: State, action: Action): State {
             targetType: "leave_request",
             targetId: action.id,
             detail: action.approve ? "Pengajuan cuti disetujui" : "Pengajuan cuti ditolak",
-            before: "pending",
-            after: action.approve ? "approved" : "rejected",
+            before: prev,
+            after: next,
             at: new Date().toISOString(),
           },
         ),
       };
+    }
     case "SUBMIT_OVERTIME":
       return {
         ...state,
@@ -206,9 +222,14 @@ function reducer(state: State, action: Action): State {
         data: log(
           {
             ...state.data,
-            overtimeRequests: state.data.overtimeRequests.map((r) =>
-              r.id === action.id ? { ...r, status: action.approve ? ("approved" as const) : ("rejected" as const), decidedBy: action.byName } : r,
-            ),
+            overtimeRequests: state.data.overtimeRequests.map((r) => {
+              if (r.id !== action.id) return r;
+              if (!action.approve) return { ...r, status: "rejected" as const, decidedBy: action.byName };
+              const emp = state.data.employees.find((e) => e.id === r.employeeId);
+              const isMgr = emp && state.session?.employeeId && emp.managerId === state.session.employeeId;
+              const next: "spv_approved" | "approved" = (r.status === "pending" && !isMgr) ? "spv_approved" : "approved";
+              return { ...r, status: next, decidedBy: action.byName };
+            }),
           },
           {
             actorId: state.session?.userId ?? "-",
@@ -331,8 +352,8 @@ function reducer(state: State, action: Action): State {
         ),
       };
     case "DECIDE_REIMBURSEMENT": {
-      const isLastLevel = action.level === "hr";
-      const newStatus = action.approve ? (isLastLevel ? "approved" : "manager_approved") : "rejected";
+      const isLastLevel = action.level === "manager";
+      const newStatus = action.approve ? (isLastLevel ? "approved" : "spv_approved") : "rejected";
       const entry: ApprovalEntry = { level: action.level, byName: action.byName, at: new Date().toISOString(), approved: action.approve };
       return {
         ...state,
@@ -532,14 +553,30 @@ function reducer(state: State, action: Action): State {
     case "DELETE_ASSET":
       return { ...state, data: { ...state.data, assets: state.data.assets.filter((a) => a.id !== action.id) } };
     case "BULK_DECIDE_LEAVE":
-      return { ...state, data: { ...state.data, leaveRequests: state.data.leaveRequests.map((l) => (action.ids.includes(l.id) ? { ...l, status: action.approve ? "approved" as const : "rejected" as const, decidedBy: action.byName } : l)) } };
+      return { ...state, data: { ...state.data, leaveRequests: state.data.leaveRequests.map((l) => {
+        if (!action.ids.includes(l.id)) return l;
+        const emp = state.data.employees.find((e) => e.id === l.employeeId);
+        const isSpv = emp && state.session?.employeeId && emp.spvId === state.session.employeeId;
+        const isMgr = emp && state.session?.employeeId && emp.managerId === state.session.employeeId;
+        let next: LeaveRequest["status"];
+        if (!action.approve) {
+          next = "rejected";
+        } else if (isSpv && l.status === "pending") {
+          next = "spv_approved";
+        } else if (isMgr && l.status === "spv_approved") {
+          next = "approved";
+        } else {
+          next = "approved";
+        }
+        return { ...l, status: next, decidedBy: action.byName };
+      }) } };
     case "BULK_DECIDE_OVERTIME":
       return { ...state, data: { ...state.data, overtimeRequests: state.data.overtimeRequests.map((o) => (action.ids.includes(o.id) ? { ...o, status: action.approve ? "approved" as const : "rejected" as const, decidedBy: action.byName } : o)) } };
     case "BULK_DECIDE_REIMBURSEMENT":
       return { ...state, data: { ...state.data, reimbursements: state.data.reimbursements.map((r) => {
         if (!action.ids.includes(r.id)) return r;
         const entry: ApprovalEntry = { level: action.level, byName: "", at: new Date().toISOString(), approved: action.approve };
-        return { ...r, status: action.approve ? (action.level === "hr" ? "approved" as const : "manager_approved" as const) : "rejected" as const, approvals: [...r.approvals, entry] };
+        return { ...r, status: action.approve ? (action.level === "manager" ? "approved" as const : "spv_approved" as const) : "rejected" as const, approvals: [...r.approvals, entry] };
       }) } };
     case "CANCEL_LEAVE":
       return { ...state, data: { ...state.data, leaveRequests: state.data.leaveRequests.map((l) => (l.id === action.id ? { ...l, status: "cancelled" as const } : l)) } };
@@ -551,12 +588,22 @@ function reducer(state: State, action: Action): State {
       return { ...state, data: { ...state.data, workLocations: state.data.workLocations.filter((l) => l.id !== action.id) } };
     case "REQUEST_SHIFT_SWAP":
       return { ...state, data: { ...state.data, shiftSwaps: [action.swap, ...state.data.shiftSwaps] } };
-    case "DECIDE_SHIFT_SWAP":
-      return { ...state, data: { ...state.data, shiftSwaps: state.data.shiftSwaps.map((s) => (s.id === action.id ? { ...s, status: action.approve ? "approved" as const : "rejected" as const } : s)) } };
+    case "DECIDE_SHIFT_SWAP": {
+      const s0 = state.data.shiftSwaps.find((s) => s.id === action.id);
+      const emp = s0 ? state.data.employees.find((e) => e.id === s0.employeeId) : undefined;
+      const isSpv = emp?.spvId && state.session?.userId && state.data.users.find((u) => u.id === state.session!.userId)?.employeeId === emp.spvId;
+      const newStatus = action.approve ? (isSpv ? "spv_approved" as const : "approved" as const) : "rejected" as const;
+      return { ...state, data: { ...state.data, shiftSwaps: state.data.shiftSwaps.map((s) => (s.id === action.id ? { ...s, status: newStatus } : s)) } };
+    }
     case "REQUEST_ASSET":
       return { ...state, data: { ...state.data, assetRequests: [action.request, ...state.data.assetRequests] } };
-    case "DECIDE_ASSET_REQUEST":
-      return { ...state, data: { ...state.data, assetRequests: state.data.assetRequests.map((r) => (r.id === action.id ? { ...r, status: action.approve ? "approved" as const : "rejected" as const } : r)) } };
+    case "DECIDE_ASSET_REQUEST": {
+      const r0 = state.data.assetRequests.find((r) => r.id === action.id);
+      const emp = r0 ? state.data.employees.find((e) => e.id === r0.employeeId) : undefined;
+      const isSpv = emp?.spvId && state.session?.userId && state.data.users.find((u) => u.id === state.session!.userId)?.employeeId === emp.spvId;
+      const newStatus = action.approve ? (isSpv ? "spv_approved" as const : "approved" as const) : "rejected" as const;
+      return { ...state, data: { ...state.data, assetRequests: state.data.assetRequests.map((r) => (r.id === action.id ? { ...r, status: newStatus } : r)) } };
+    }
     default:
       return state;
   }

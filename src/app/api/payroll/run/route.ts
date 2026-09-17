@@ -1,5 +1,5 @@
 import { pool } from "@/db/client";
-import { computePayslip } from "@/lib/payroll";
+import { computePayslip, type PayrollConfig } from "@/lib/payroll";
 import { getSessionUser } from "@/lib/server/session";
 import { writeAudit } from "@/lib/server/state";
 
@@ -32,6 +32,15 @@ export async function POST(req: Request) {
   const emps = await pool.query(
     `SELECT e.id, e.name, e.base_salary, e.allowance FROM employees e WHERE e.status IN ('active','on_leave') ORDER BY e.id`,
   );
+
+  const cfgR = await pool.query(`SELECT key, value FROM settings WHERE key IN ('ot_mode','ot_flat_rate','alpha_mode','alpha_flat_rate')`);
+  const s = Object.fromEntries(cfgR.rows.map((r: { key: string; value: string }) => [r.key, r.value]));
+  const cfg: PayrollConfig = {
+    otMode: s.ot_mode === "flat" ? "flat" : "formula",
+    otFlatRate: Number(s.ot_flat_rate) || 0,
+    alphaMode: s.alpha_mode === "flat" ? "flat" : "proportional",
+    alphaFlatRate: Number(s.alpha_flat_rate) || 0,
+  };
 
   const runId = `PR-${period}`;
   const client = await pool.connect();
@@ -75,7 +84,7 @@ export async function POST(req: Request) {
         presentDays: attR.rows[0].c,
         paidLeaveDays: leaveR.rows[0].c,
         overtimeHours: Number(otR.rows[0].h),
-      });
+      }, cfg);
 
       await client.query(
         `INSERT INTO payslips (id, run_id, employee_id, breakdown) VALUES ($1,$2,$3,$4)

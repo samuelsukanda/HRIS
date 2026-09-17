@@ -8,6 +8,7 @@ import type {
   AssetAssignment,
   AttendanceRecord,
   AuditLogEntry,
+  Bank,
   Branch,
   Candidate,
   Department,
@@ -70,6 +71,19 @@ export const positions: Position[] = [
   { id: "PS-SEC", title: "Petugas Keamanan", level: "Staff" },
 ];
 
+export const banks: Bank[] = [
+  { id: "BANK-001", name: "BCA" },
+  { id: "BANK-002", name: "Mandiri" },
+  { id: "BANK-003", name: "BNI" },
+  { id: "BANK-004", name: "BRI" },
+  { id: "BANK-005", name: "CIMB Niaga" },
+  { id: "BANK-006", name: "BTN" },
+  { id: "BANK-007", name: "Danamon" },
+  { id: "BANK-008", name: "Permata Bank" },
+  { id: "BANK-009", name: "Bank BSI" },
+  { id: "BANK-010", name: "OCBC NISP" },
+];
+
 // Koordinat nyata area perkantoran (dibulatkan untuk demo)
 export const workLocations: WorkLocation[] = [
   {
@@ -116,7 +130,8 @@ interface SeedDef {
   pos: string;
   loc: string;
   shift: string;
-  manager?: number; // index karyawan lain, diisi setelah array jadi
+  spv?: number; // index SPV (team leader)
+  manager?: number; // index Manager (kepala dept)
 }
 
 const SEED_DEFS: SeedDef[] = [
@@ -125,27 +140,26 @@ const SEED_DEFS: SeedDef[] = [
   { name: "Budi Santoso", gender: "L", dep: "DP-HR", pos: "PS-ADM", loc: "WL-JKT", shift: "S-OFFICE", manager: 0 },
   { name: "Dewi Lestari", gender: "P", dep: "DP-FIN", pos: "PS-FIN", loc: "WL-JKT", shift: "S-OFFICE", manager: 0 },
   { name: "Agus Prasetyo", gender: "L", dep: "DP-IT", pos: "PS-IT", loc: "WL-JKT", shift: "S-OFFICE", manager: 0 },
-  { name: "Siti Rahmawati", gender: "P", dep: "DP-HR", pos: "PS-ADM", loc: "WL-JKT", shift: "S-OFFICE", manager: 0 },
+  { name: "Siti Rahmawati", gender: "P", dep: "DP-HR", pos: "PS-ADM", loc: "WL-JKT", shift: "S-OFFICE", spv: 2, manager: 0 },
   { name: "Joko Susilo", gender: "L", dep: "DP-OPS", pos: "PS-SUP", loc: "WL-BDG", shift: "S-PAGI", manager: 1 },
-  { name: "Rina Marlina", gender: "P", dep: "DP-OPS", pos: "PS-ADM", loc: "WL-BDG", shift: "S-PAGI", manager: 1 },
-  { name: "Hendra Gunawan", gender: "L", dep: "DP-OPS", pos: "PS-SEC", loc: "WL-BDG", shift: "S-SIANG", manager: 1 },
-  { name: "Maya Anggraini", gender: "P", dep: "DP-OPS", pos: "PS-ADM", loc: "WL-BDG", shift: "S-MALAM", manager: 1 },
+  { name: "Rina Marlina", gender: "P", dep: "DP-OPS", pos: "PS-ADM", loc: "WL-BDG", shift: "S-PAGI", spv: 6, manager: 1 },
+  { name: "Hendra Gunawan", gender: "L", dep: "DP-OPS", pos: "PS-SEC", loc: "WL-BDG", shift: "S-SIANG", spv: 6, manager: 1 },
+  { name: "Maya Anggraini", gender: "P", dep: "DP-OPS", pos: "PS-ADM", loc: "WL-BDG", shift: "S-MALAM", spv: 6, manager: 1 },
   { name: "dr. Lina Kusuma", gender: "P", dep: "DP-MED", pos: "PS-DIR", loc: "WL-SBY", shift: "S-OFFICE" },
   { name: "Nur Aisyah", gender: "P", dep: "DP-MED", pos: "PS-NRS", loc: "WL-SBY", shift: "S-PAGI", manager: 10 },
-  { name: "Eko Saputra", gender: "L", dep: "DP-MED", pos: "PS-NRS", loc: "WL-SBY", shift: "S-SIANG", manager: 10 },
-  { name: "Fitri Handayani", gender: "P", dep: "DP-MED", pos: "PS-NRS", loc: "WL-SBY", shift: "S-MALAM", manager: 10 },
-  { name: "Gilang Ramadhan", gender: "L", dep: "DP-MED", pos: "PS-APT", loc: "WL-SBY", shift: "S-PAGI", manager: 10 },
-  { name: "Indah Permata", gender: "P", dep: "DP-MED", pos: "PS-ADM", loc: "WL-SBY", shift: "S-OFFICE", manager: 10 },
-  { name: "Bayu Nugroho", gender: "L", dep: "DP-IT", pos: "PS-IT", loc: "WL-JKT", shift: "S-OFFICE", manager: 0 },
-  { name: "Citra Kirana", gender: "P", dep: "DP-FIN", pos: "PS-FIN", loc: "WL-JKT", shift: "S-OFFICE", manager: 0 },
-  { name: "Dimas Aryo", gender: "L", dep: "DP-OPS", pos: "PS-SEC", loc: "WL-BDG", shift: "S-MALAM", manager: 1 },
-  { name: "Endah Sulistyowati", gender: "P", dep: "DP-MED", pos: "PS-NRS", loc: "WL-SBY", shift: "S-PAGI", manager: 10 },
-  { name: "Fajar Hidayat", gender: "L", dep: "DP-MED", pos: "PS-NRS", loc: "WL-SBY", shift: "S-SIANG", manager: 10 },
-  { name: "Gita Savitri", gender: "P", dep: "DP-HR", pos: "PS-ADM", loc: "WL-JKT", shift: "S-OFFICE", manager: 0 },
+  { name: "Eko Saputra", gender: "L", dep: "DP-MED", pos: "PS-NRS", loc: "WL-SBY", shift: "S-SIANG", spv: 11, manager: 10 },
+  { name: "Fitri Handayani", gender: "P", dep: "DP-MED", pos: "PS-NRS", loc: "WL-SBY", shift: "S-MALAM", spv: 11, manager: 10 },
+  { name: "Gilang Ramadhan", gender: "L", dep: "DP-MED", pos: "PS-APT", loc: "WL-SBY", shift: "S-PAGI", spv: 11, manager: 10 },
+  { name: "Indah Permata", gender: "P", dep: "DP-MED", pos: "PS-ADM", loc: "WL-SBY", shift: "S-OFFICE", spv: 11, manager: 10 },
+  { name: "Bayu Nugroho", gender: "L", dep: "DP-IT", pos: "PS-IT", loc: "WL-JKT", shift: "S-OFFICE", spv: 4, manager: 0 },
+  { name: "Citra Kirana", gender: "P", dep: "DP-FIN", pos: "PS-FIN", loc: "WL-JKT", shift: "S-OFFICE", spv: 3, manager: 0 },
+  { name: "Dimas Aryo", gender: "L", dep: "DP-OPS", pos: "PS-SEC", loc: "WL-BDG", shift: "S-MALAM", spv: 6, manager: 1 },
+  { name: "Endah Sulistyowati", gender: "P", dep: "DP-MED", pos: "PS-NRS", loc: "WL-SBY", shift: "S-PAGI", spv: 11, manager: 10 },
+  { name: "Fajar Hidayat", gender: "L", dep: "DP-MED", pos: "PS-NRS", loc: "WL-SBY", shift: "S-SIANG", spv: 11, manager: 10 },
+  { name: "Gita Savitri", gender: "P", dep: "DP-HR", pos: "PS-ADM", loc: "WL-JKT", shift: "S-OFFICE", spv: 2, manager: 0 },
 ];
 
 const KOTA_LAHIR = ["Jakarta", "Bandung", "Surabaya", "Semarang", "Yogyakarta", "Malang", "Solo", "Medan"];
-const BANKS = ["BCA", "Mandiri", "BNI", "BRI"];
 
 export function buildEmployees(): Employee[] {
   return SEED_DEFS.map((def, i) => {
@@ -165,11 +179,12 @@ export function buildEmployees(): Employee[] {
       departmentId: def.dep,
       positionId: def.pos,
       managerId: def.manager !== undefined ? `EMP-${String(def.manager + 1).padStart(3, "0")}` : undefined,
+      spvId: def.spv !== undefined ? `EMP-${String(def.spv + 1).padStart(3, "0")}` : undefined,
       branchId: workLocations.find((w) => w.id === def.loc)!.branchId,
       workLocationId: def.loc,
       employmentType: i === 21 ? "probation" : i % 11 === 0 ? "contract" : "permanent",
       status: "active",
-      bankName: BANKS[i % BANKS.length]!,
+      bankName: banks[i % banks.length]!.name,
       bankAccount: String(7000000000 + i * 12345),
       emergencyContact: {
         name: pick(["Sulaiman", "Wati", "Bambang", "Kartika"]) + " " + def.name.split(" ").pop()!,
@@ -197,7 +212,6 @@ export function buildRoster(): RosterEntry[] {
     d.setDate(d.getDate() + off);
     const iso = toLocalISO(d);
     const weekend = d.getDay() === 0 || d.getDay() === 6;
-    let rosterIdx = 0;
     for (const emp of employees) {
       if (weekend) {
         entries.push({ id: `RST-${String(entries.length + 1).padStart(3, "0")}`, employeeId: emp.id, date: iso, shiftId: null });
@@ -478,9 +492,9 @@ export const announcements: Announcement[] = [
 
 // ── Phase 3-4: Reimbursement ──────────────────────────────────────
 export const reimbursements: Reimbursement[] = [
-  { id: "RBM-001", employeeId: "EMP-003", category: "transport", amount: 285000, description: "Grab ke客户 meeting di Sudirman", status: "approved", submittedAt: new Date(Date.now() - 3 * 86_400_000).toISOString(), approvals: [{ level: "manager", byName: "Samuel Hartono", at: new Date(Date.now() - 2.5 * 86_400_000).toISOString(), approved: true }, { level: "hr", byName: "Samuel Hartono", at: new Date(Date.now() - 2 * 86_400_000).toISOString(), approved: true }] },
+  { id: "RBM-001", employeeId: "EMP-003", category: "transport", amount: 285000, description: "Grab ke客户 meeting di Sudirman", status: "approved", submittedAt: new Date(Date.now() - 3 * 86_400_000).toISOString(), approvals: [{ level: "spv", byName: "Budi Santoso", at: new Date(Date.now() - 2.5 * 86_400_000).toISOString(), approved: true }, { level: "manager", byName: "Samuel Hartono", at: new Date(Date.now() - 2 * 86_400_000).toISOString(), approved: true }] },
   { id: "RBM-002", employeeId: "EMP-005", category: "equipment", amount: 1500000, description: "Keyboard mechanical untuk work from home", status: "pending", submittedAt: new Date(Date.now() - 86_400_000).toISOString(), approvals: [] },
-  { id: "RBM-003", employeeId: "EMP-008", category: "meal", amount: 85000, description: "Makan siang saat lembur deployment", status: "manager_approved", submittedAt: new Date(Date.now() - 2 * 86_400_000).toISOString(), approvals: [{ level: "manager", byName: "Ratna Wijaya", at: new Date(Date.now() - 86_400_000).toISOString(), approved: true }] },
+  { id: "RBM-003", employeeId: "EMP-008", category: "meal", amount: 85000, description: "Makan siang saat lembur deployment", status: "spv_approved", submittedAt: new Date(Date.now() - 2 * 86_400_000).toISOString(), approvals: [{ level: "spv", byName: "Joko Susilo", at: new Date(Date.now() - 86_400_000).toISOString(), approved: true }] },
 ];
 
 // ── Phase 3-4: Recruitment ────────────────────────────────────────
@@ -549,6 +563,7 @@ export function seedData(): HrisData {
     branches,
     departments,
     positions,
+    banks,
     workLocations,
     employees,
     shifts,
@@ -570,6 +585,6 @@ export function seedData(): HrisData {
     notifications,
     shiftSwaps: [],
     assetRequests: [],
-    settings: { wfh_gps: "TIDAK WAJIB", wfh_face: "WAJIB", wfh_liveness: "WAJIB", checkin_window: "60" },
+    settings: { wfh_gps: "TIDAK WAJIB", wfh_face: "WAJIB", wfh_liveness: "WAJIB", checkin_window: "60", ot_mode: "formula", ot_flat_rate: "0", alpha_mode: "proportional", alpha_flat_rate: "0" },
   };
 }

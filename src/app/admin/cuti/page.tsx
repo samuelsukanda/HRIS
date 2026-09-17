@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CalendarBlank, CaretLeft, CaretRight, Check, X } from "@phosphor-icons/react";
-import { Avatar, Btn, EmptyState, PageHead, Pager, Select, Stamp, StatusStamp } from "@/components/ui";
+import { Avatar, Btn, EmptyState, PageHead, Pager, Select, Stamp } from "@/components/ui";
 import { toastOk } from "@/lib/swal";
 import { leaveBalance } from "@/lib/engine";
 import { fmtDateID, fmtDateShortID } from "@/lib/format";
@@ -19,7 +19,23 @@ export default function AdminCutiPage() {
   const { state, dispatch } = useHris();
   const { data } = state;
   const me = currentUser(state);
-  const canDecide = !!me && me.user.role !== "employee";
+  function getApprovalLevel(emp: { spvId?: string; managerId?: string }): "spv" | "manager" | null {
+    if (!me) return null;
+    if (emp.spvId === me.employee.id) return "spv";
+    if (emp.managerId === me.employee.id) return "manager";
+    return null;
+  }
+
+  function canDecideLeave(r: { status: string; employeeId: string }): boolean {
+    if (!me) return false;
+    const emp = data.employees.find((e) => e.id === r.employeeId);
+    if (!emp) return false;
+    const level = getApprovalLevel(emp);
+    if (!level) return false;
+    if (level === "spv" && r.status === "pending") return true;
+    if (level === "manager" && (r.status === "spv_approved" || r.status === "pending")) return true;
+    return false;
+  }
 
   const [empId, setEmpId] = useState(data.employees[0]?.id ?? "");
   const [q, setQ] = useState("");
@@ -30,7 +46,7 @@ export default function AdminCutiPage() {
   const LIMIT = 10;
 
   const requests = [...data.leaveRequests].filter(r=> !q.trim() || `${data.employees.find(e=> e.id===r.employeeId)?.name ?? ""} ${r.reason}`.toLowerCase().includes(q.toLowerCase())).sort(
-    (a, b) => (a.status === "pending" ? 0 : 1) - (b.status === "pending" ? 0 : 1),
+    (a, b) => ((a.status === "pending" || a.status === "spv_approved") ? 0 : 1) - ((b.status === "pending" || b.status === "spv_approved") ? 0 : 1),
   );
   const paged = requests.slice((page - 1) * LIMIT, page * LIMIT);
 
@@ -45,7 +61,7 @@ export default function AdminCutiPage() {
       : null;
 
   function decide(id: string, approve: boolean) {
-    if (!canDecide || !me) return;
+    if (!me) return;
     dispatch({ type: "DECIDE_LEAVE", id, approve, byName: me.employee.name });
     toastOk(approve ? "Cuti disetujui" : "Cuti ditolak");
   }
@@ -55,12 +71,12 @@ export default function AdminCutiPage() {
   }
 
   function selectAllPending() {
-    const pendingIds = paged.filter((r) => r.status === "pending").map((r) => r.id);
+    const pendingIds = paged.filter((r) => canDecideLeave(r)).map((r) => r.id);
     setSelected(pendingIds);
   }
 
   function bulkDecide(approve: boolean) {
-    if (!canDecide || !me || selected.length === 0) return;
+    if (!me || selected.length === 0) return;
     dispatch({ type: "BULK_DECIDE_LEAVE", ids: selected, approve, byName: me.employee.name });
     toastOk(approve ? `${selected.length} cuti disetujui` : `${selected.length} cuti ditolak`);
     setSelected([]);
@@ -101,7 +117,7 @@ export default function AdminCutiPage() {
           <header className="flex items-baseline justify-between border-b border-rule px-5 py-3.5">
             <h2 className="font-semibold">Daftar Pengajuan</h2>
             <div className="flex items-center gap-3">
-              {canDecide && selected.length > 0 && (
+              {selected.length > 0 && (
                 <div className="flex gap-2">
                   <Btn variant="official" size="sm" icon={Check} onClick={() => bulkDecide(true)}>
                     Setujui {selected.length}
@@ -132,7 +148,7 @@ export default function AdminCutiPage() {
                     key={r.id}
                     className="flex flex-wrap items-center gap-4 border-b border-ledger/60 px-5 py-3.5 last:border-b-0"
                   >
-                    {canDecide && r.status === "pending" && (
+                    {canDecideLeave(r) && (
                       <input
                         type="checkbox"
                         checked={selected.includes(r.id)}
@@ -161,8 +177,19 @@ export default function AdminCutiPage() {
                           : `${fmtDateShortID(r.startDate)} – ${fmtDateID(r.endDate)}`}
                       </p>
                     </div>
-                    <StatusStamp status={r.status} />
-                    {r.status === "pending" && canDecide && (
+                    <Stamp kind={
+                      r.status === "approved" ? "approved" :
+                      r.status === "rejected" ? "rejected" :
+                      r.status === "cancelled" ? "neutral" :
+                      "pending"
+                    }>{
+                      r.status === "approved" ? "Disetujui" :
+                      r.status === "rejected" ? "Ditolak" :
+                      r.status === "cancelled" ? "Dibatalkan" :
+                      r.status === "spv_approved" ? "Menunggu Manager" :
+                      "Menunggu SPV"
+                    }</Stamp>
+                    {canDecideLeave(r) && (
                       <div className="flex shrink-0 items-center gap-1.5">
                         <Btn variant="official" size="sm" icon={Check} onClick={() => decide(r.id, true)}>
                           Setujui

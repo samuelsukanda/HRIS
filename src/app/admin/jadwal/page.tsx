@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, MoonStars, Pencil, Trash } from "@phosphor-icons
 import { Btn, IconBtn, PageHead, Modal } from "@/components/ui";
 import { confirmDelete, formModal, toastOk } from "@/lib/swal";
 import { addDays, fmtDateID, parseLocalISO, toLocalISO } from "@/lib/format";
-import { useHris } from "@/lib/store";
+import { useHris, currentUser } from "@/lib/store";
 
 const SHIFT_CODE: Record<string, string> = { "S-PAGI": "P", "S-SIANG": "S", "S-MALAM": "M", "S-OFFICE": "OH" };
 const SHIFT_LABEL: Record<string, string> = {
@@ -233,7 +233,8 @@ function LegendSwatch({ code, label, cls }: { code: string; label: string; cls: 
 
 function SwapReview() {
   const { state, dispatch } = useHris();
-  const pending = state.data.shiftSwaps.filter((s) => s.status === "pending");
+  const me = currentUser(state);
+  const pending = state.data.shiftSwaps.filter((s) => s.status === "pending" || s.status === "spv_approved");
   if (pending.length === 0) return null;
   const shiftName = (id: string | null) => id ? state.data.shifts.find((s) => s.id === id)?.name ?? id : "Off";
   return (
@@ -245,16 +246,22 @@ function SwapReview() {
       <ul className="divide-y divide-ledger/50">
         {pending.map((s) => {
           const emp = state.data.employees.find((e) => e.id === s.employeeId);
+          const isSpv = me?.employee.id === emp?.spvId;
+          const isManager = me?.employee.id === emp?.managerId;
+          const canDecide = (s.status === "pending" && isSpv) || (s.status === "pending" && isManager) || (s.status === "spv_approved" && isManager);
           return (
             <li key={s.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold">{emp?.name ?? s.employeeId} <span className="tnum font-normal text-ink-faint">· {s.date}</span></p>
                 <p className="text-xs text-ink-soft">{shiftName(s.fromShiftId)} → {shiftName(s.targetShiftId)}{s.reason ? ` · ${s.reason}` : ""}</p>
+                <p className="mt-1 text-[11px] font-medium text-ink-faint">{s.status === "pending" ? "Menunggu SPV" : "Menunggu Manager"}</p>
               </div>
-              <div className="flex shrink-0 items-center gap-1.5">
-                <Btn variant="official" size="sm" onClick={() => { dispatch({ type: "DECIDE_SHIFT_SWAP", id: s.id, approve: true }); toastOk("Tukar shift disetujui"); }}>Setujui</Btn>
-                <Btn variant="secondary" size="sm" onClick={() => { dispatch({ type: "DECIDE_SHIFT_SWAP", id: s.id, approve: false }); toastOk("Tukar shift ditolak"); }}>Tolak</Btn>
-              </div>
+              {canDecide && (
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <Btn variant="official" size="sm" onClick={() => { dispatch({ type: "DECIDE_SHIFT_SWAP", id: s.id, approve: true }); toastOk("Tukar shift disetujui"); }}>Setujui</Btn>
+                  <Btn variant="secondary" size="sm" onClick={() => { dispatch({ type: "DECIDE_SHIFT_SWAP", id: s.id, approve: false }); toastOk("Tukar shift ditolak"); }}>Tolak</Btn>
+                </div>
+              )}
             </li>
           );
         })}

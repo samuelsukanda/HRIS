@@ -2,10 +2,9 @@ import { pool } from "@/db/client";
 import { getSessionUser } from "@/lib/server/session";
 import { nextId, writeAudit, writeNotification } from "@/lib/server/state";
 
-const HR = ["hr_manager","hr_admin","super_admin","manager"];
-
 export async function GET(req: Request) {
-  const u = await getSessionUser(); if (!u) return Response.json({ ok: false }, { status: 401 });
+  const u = await getSessionUser();
+  if (!u) return Response.json({ ok: false }, { status: 401 });
   const mine = u.role === "employee";
   const r = mine
     ? await pool.query(`SELECT s.*, e.name emp_name FROM shift_swaps s JOIN employees e ON e.id=s.employee_id WHERE s.employee_id=$1 ORDER BY s.created_at DESC`, [u.employee_id])
@@ -14,7 +13,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const u = await getSessionUser(); if (!u) return Response.json({ ok: false }, { status: 401 });
+  const u = await getSessionUser();
+  if (!u) return Response.json({ ok: false }, { status: 401 });
   const body = await req.json() as Record<string, unknown>;
   const date = typeof body.date === "string" ? body.date : "";
   if (!date) return Response.json({ ok: false, error: "Tanggal wajib." }, { status: 400 });
@@ -29,9 +29,16 @@ export async function POST(req: Request) {
   );
   const emp = (await pool.query(`SELECT name FROM employees WHERE id=$1`, [u.employee_id])).rows[0]?.name ?? u.employee_id;
   await writeAudit({ actorId: u.id, actorName: emp, action: "Shift swap requested", targetType: "shift_swap", targetId: id, detail: `${date} → ${targetShiftId ?? "Off"}`, at: new Date().toISOString() });
-  const mgrs = await pool.query(`SELECT id FROM users WHERE role IN ('hr_manager','hr_admin','super_admin','manager') AND active=true`);
-  for (const m of mgrs.rows) {
-    await writeNotification({ userId: m.id, title: "Permintaan Tukar Shift", body: `${emp} ajukan tukar shift ${date} → ${targetShiftId ?? "Off"}`, type: "approval", link: "/admin/jadwal" });
+
+  // Notifikasi ke SPV saja
+  const empR = await pool.query(`SELECT spv_id FROM employees WHERE id=$1`, [u.employee_id]);
+  const spvId = empR.rows[0]?.spv_id;
+  if (spvId) {
+    const spvUser = await pool.query(`SELECT id FROM users WHERE employee_id=$1 AND active=true`, [spvId]);
+    if (spvUser.rows[0]) {
+      await writeNotification({ userId: spvUser.rows[0].id, title: "Permintaan Tukar Shift", body: `${emp} ajukan tukar shift ${date} → ${targetShiftId ?? "Off"}`, type: "approval", link: "/admin/jadwal" });
+    }
   }
+
   return Response.json({ ok: true, id });
 }

@@ -44,6 +44,11 @@ export interface Position {
   level: string;
 }
 
+export interface Bank {
+  id: string;
+  name: string;
+}
+
 export type EmploymentStatus = "probation" | "permanent" | "contract" | "intern" | "resigned";
 export type PresenceState = "active" | "on_leave" | "absent" | "resigned" | "inactive";
 
@@ -60,6 +65,7 @@ export interface Employee {
   joinDate: string;
   departmentId: string;
   positionId: string;
+  spvId?: string;
   managerId?: string;
   branchId: string;
   workLocationId: string;
@@ -170,7 +176,7 @@ export interface LeaveRequest {
   endDate: string;
   days: number;
   reason: string;
-  status: "pending" | "approved" | "rejected" | "cancelled";
+  status: "pending" | "spv_approved" | "approved" | "rejected" | "cancelled";
   submittedAt: string;
   decidedBy?: string;
   decidedAt?: string;
@@ -185,7 +191,7 @@ export interface OvertimeRequest {
   end: string;
   hours: number;
   reason: string;
-  status: "pending" | "approved" | "rejected" | "cancelled";
+  status: "pending" | "spv_approved" | "approved" | "rejected" | "cancelled";
   submittedAt: string;
   decidedBy?: string;
 }
@@ -216,6 +222,7 @@ export interface HrisData {
   branches: Branch[];
   departments: Department[];
   positions: Position[];
+  banks: Bank[];
   workLocations: WorkLocation[];
   employees: Employee[];
   shifts: Shift[];
@@ -244,7 +251,7 @@ export interface HrisData {
 
 
 export interface ApprovalEntry {
-  level: "manager" | "hr";
+  level: "spv" | "manager";
   byName: string;
   at: string;
   approved: boolean;
@@ -256,7 +263,7 @@ export interface Reimbursement {
   category: "transport" | "meal" | "accommodation" | "equipment" | "other";
   amount: number;
   description: string;
-  status: "pending" | "manager_approved" | "approved" | "rejected";
+  status: "pending" | "spv_approved" | "approved" | "rejected";
   submittedAt: string;
   approvals: ApprovalEntry[];
   attachmentUrl?: string;
@@ -356,7 +363,7 @@ export interface ShiftSwap {
   fromShiftId: string | null;
   targetShiftId: string | null;
   reason: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "spv_approved" | "approved" | "rejected";
   decidedBy?: string;
   createdAt: string;
 }
@@ -366,7 +373,7 @@ export interface AssetRequest {
   employeeId: string;
   category: string;
   description: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "spv_approved" | "approved" | "rejected";
   decidedBy?: string;
   createdAt: string;
 }

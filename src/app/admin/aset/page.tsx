@@ -136,10 +136,25 @@ export default function AdminAset() {
     toastOk("Pengembalian dikonfirmasi");
   }
 
-  const pendingRequests = data.assetRequests.filter((r) => r.status === "pending");
+  const pendingRequests = data.assetRequests.filter((r) => r.status === "pending" || r.status === "spv_approved");
   function decideRequest(id: string, approve: boolean) {
     dispatch({ type: "DECIDE_ASSET_REQUEST", id, approve });
     toastOk(approve ? "Permintaan disetujui" : "Permintaan ditolak");
+  }
+
+  function canApproveRequest(r: { employeeId: string; status: string }) {
+    if (!me) return false;
+    const emp = data.employees.find((e) => e.id === r.employeeId);
+    if (!emp) return false;
+    if (r.status === "pending" && emp.spvId === me.employee.id) return true;
+    if ((r.status === "spv_approved" || r.status === "pending") && emp.managerId === me.employee.id) return true;
+    return false;
+  }
+
+  function requestStageLabel(r: { status: string }) {
+    if (r.status === "pending") return <span className="text-xs text-amber-600 font-medium">Menunggu SPV</span>;
+    if (r.status === "spv_approved") return <span className="text-xs text-blue-600 font-medium">Menunggu Manager</span>;
+    return null;
   }
 
   return (
@@ -158,15 +173,21 @@ export default function AdminAset() {
           <ul className="divide-y divide-ledger/50">
             {pendingRequests.map((r) => {
               const emp = data.employees.find((e) => e.id === r.employeeId);
+              const showButtons = canApproveRequest(r);
               return (
                 <li key={r.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold">{emp?.name ?? r.employeeId} <span className="font-normal text-ink-faint capitalize">· {r.category}</span></p>
                     <p className="truncate text-xs text-ink-soft">{r.description}</p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <Btn variant="official" size="sm" onClick={() => decideRequest(r.id, true)}>Setujui</Btn>
-                    <Btn variant="secondary" size="sm" onClick={() => decideRequest(r.id, false)}>Tolak</Btn>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {requestStageLabel(r)}
+                    {showButtons && (
+                      <>
+                        <Btn variant="official" size="sm" onClick={() => decideRequest(r.id, true)}>Setujui</Btn>
+                        <Btn variant="secondary" size="sm" onClick={() => decideRequest(r.id, false)}>Tolak</Btn>
+                      </>
+                    )}
                   </div>
                 </li>
               );
@@ -181,15 +202,20 @@ export default function AdminAset() {
             <span className="tnum text-xs text-ink-faint">{pendingReturns.length} pending</span>
           </header>
           <ul className="divide-y divide-ledger/50">
-            {pendingReturns.map((a) => (
-              <li key={a.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold">{a.assignee?.name ?? a.employeeId} <span className="font-normal text-ink-faint">· {a.asset?.name ?? a.assetId}</span></p>
-                  <p className="tnum text-xs text-ink-soft">Serial: {a.asset?.serialNumber ?? "—"}</p>
-                </div>
-                <Btn variant="official" size="sm" onClick={() => doReturn(a.id)}>Konfirmasi Kembali</Btn>
-              </li>
-            ))}
+            {pendingReturns.map((a) => {
+              const isManager = me && a.assignee?.managerId === me.employee.id;
+              return (
+                <li key={a.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold">{a.assignee?.name ?? a.employeeId} <span className="font-normal text-ink-faint">· {a.asset?.name ?? a.assetId}</span></p>
+                    <p className="tnum text-xs text-ink-soft">Serial: {a.asset?.serialNumber ?? "—"} · <span className="text-amber-600">menunggu konfirmasi Manager</span></p>
+                  </div>
+                  {isManager && (
+                    <Btn variant="official" size="sm" onClick={() => doReturn(a.id)}>Konfirmasi Kembali</Btn>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}

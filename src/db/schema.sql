@@ -17,6 +17,11 @@ CREATE TABLE IF NOT EXISTS positions (
   level TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS banks (
+  id   TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE
+);
+
 CREATE TABLE IF NOT EXISTS work_locations (
   id            TEXT PRIMARY KEY,
   name          TEXT NOT NULL,
@@ -40,6 +45,7 @@ CREATE TABLE IF NOT EXISTS employees (
   join_date         TEXT NOT NULL,
   department_id     TEXT NOT NULL REFERENCES departments(id),
   position_id       TEXT NOT NULL REFERENCES positions(id),
+  spv_id            TEXT REFERENCES employees(id),
   manager_id        TEXT REFERENCES employees(id),
   branch_id         TEXT NOT NULL REFERENCES branches(id),
   work_location_id  TEXT NOT NULL REFERENCES work_locations(id),
@@ -279,7 +285,11 @@ INSERT INTO settings (key, value, updated_at) VALUES
   ('wfh_gps', 'TIDAK WAJIB', NOW()),
   ('wfh_face', 'WAJIB', NOW()),
   ('wfh_liveness', 'WAJIB', NOW()),
-  ('checkin_window', '60', NOW())
+  ('checkin_window', '60', NOW()),
+  ('ot_mode', 'formula', NOW()),
+  ('ot_flat_rate', '0', NOW()),
+  ('alpha_mode', 'proportional', NOW()),
+  ('alpha_flat_rate', '0', NOW())
 ON CONFLICT (key) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS asset_requests (
@@ -296,6 +306,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS attachment_url TEXT;
 ALTER TABLE reimbursements ADD COLUMN IF NOT EXISTS attachment_url TEXT;
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS photo_url TEXT;
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS spv_id TEXT REFERENCES employees(id);
 
 CREATE TABLE IF NOT EXISTS notifications (
   id         TEXT PRIMARY KEY,

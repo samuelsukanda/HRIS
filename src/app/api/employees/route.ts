@@ -39,6 +39,7 @@ export async function POST(req: Request) {
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const email = typeof body.email === "string" ? body.email.trim() : "";
   const phone = typeof body.phone === "string" ? body.phone : "";
+  const address = typeof body.address === "string" ? body.address : "";
   const nik = typeof body.nik === "string" && body.nik ? body.nik : String(Date.now()).slice(-16).padStart(16, "0");
   if (!name || !email) return Response.json({ ok: false, error: "Nama dan email wajib diisi." }, { status: 400 });
 
@@ -46,12 +47,14 @@ export async function POST(req: Request) {
   const positionId = await resolveFk("positions", (body.positionId ?? body.position) as unknown);
   const branchId = await resolveFk("branches", body.branchId as unknown);
   const workLocationId = await resolveFk("work_locations", (body.workLocationId ?? body.location_id) as unknown);
+  const spvId = typeof body.spvId === "string" && body.spvId ? body.spvId : null;
+  const managerId = typeof body.managerId === "string" && body.managerId ? body.managerId : null;
   if (!departmentId) return Response.json({ ok: false, error: "Departemen tidak valid / belum ada data master." }, { status: 400 });
-  if (!positionId) return Response.json({ ok: false, error: "Posisi tidak valid / belum ada data master." }, { status: 400 });
+  if (!positionId) return Response.json({ ok: false, error: "Jabatan tidak valid / belum ada data master." }, { status: 400 });
   if (!branchId) return Response.json({ ok: false, error: "Cabang tidak valid / belum ada data master." }, { status: 400 });
   if (!workLocationId) return Response.json({ ok: false, error: "Lokasi kerja tidak valid / belum ada data master." }, { status: 400 });
 
-  const employmentType = typeof body.employmentType === "string" ? body.employmentType : "probation";
+  const employmentType = typeof body.employmentType === "string" && body.employmentType ? body.employmentType : "probation";
   // whitelist role — super_admin hanya boleh dibuat oleh super_admin
   const role = ["employee", "manager", "finance", "hr_admin", "hr_manager"].includes(body.role as string)
     ? (body.role as string)
@@ -60,8 +63,10 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, error: "Hanya super_admin yang dapat membuat super_admin." }, { status: 403 });
   }
   const finalRole = body.role === "super_admin" ? "super_admin" : role;
-  const base_salary = Number(body.baseSalary ?? body.base_salary) || 5000000;
-  const allowance = Number(body.allowance) || 750000;
+  const base_salary = Number(body.baseSalary ?? body.base_salary) || 0;
+  const allowance = Number(body.allowance) || 0;
+  const bankName = typeof body.bankName === "string" ? body.bankName : "";
+  const bankAccount = typeof body.bankAccount === "string" ? body.bankAccount : "";
   const join_date = (typeof body.joinDate === "string" && body.joinDate) || (typeof body.join_date === "string" && (body.join_date as string)) || new Date().toISOString().slice(0, 10);
 
   const dup = await pool.query(`SELECT id FROM employees WHERE email=$1`, [email]);
@@ -73,9 +78,9 @@ export async function POST(req: Request) {
   const userId = await nextId("users", "USR");
 
   await pool.query(
-    `INSERT INTO employees (id,nik,name,gender,birth_place,birth_date,address,phone,email,join_date,department_id,position_id,branch_id,work_location_id,employment_type,status,bank_name,bank_account,emergency_contact,face_registered,base_salary,allowance)
-     VALUES ($1,$2,$3,'L','Jakarta','1995-01-01','', $4,$5,$6,$7,$8,$9,$10,$11,'active','BCA','','{}',false,$12,$13)`,
-    [id, nik, name, phone, email, join_date, departmentId, positionId, branchId, workLocationId, employmentType, base_salary, allowance],
+    `INSERT INTO employees (id,nik,name,gender,birth_place,birth_date,address,phone,email,join_date,department_id,position_id,spv_id,manager_id,branch_id,work_location_id,employment_type,status,bank_name,bank_account,emergency_contact,face_registered,base_salary,allowance)
+     VALUES ($1,$2,$3,'L','Jakarta','1995-01-01',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'active',$15,$16,'{}',false,$17,$18)`,
+    [id, nik, name, address, phone, email, join_date, departmentId, positionId, spvId, managerId, branchId, workLocationId, employmentType, bankName, bankAccount, base_salary, allowance],
   );
 
   await pool.query(

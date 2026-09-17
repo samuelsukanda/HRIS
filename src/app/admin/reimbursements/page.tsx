@@ -7,14 +7,14 @@ import { toastOk } from "@/lib/swal";
 import { currentUser, useHris } from "@/lib/store";
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: "Pending",
-  manager_approved: "Manager Approved",
-  approved: "Approved",
-  rejected: "Rejected",
+  pending: "Menunggu SPV",
+  spv_approved: "Menunggu Manager",
+  approved: "Disetujui",
+  rejected: "Ditolak",
 };
 const STATUS_KIND: Record<string, "pending" | "approved" | "rejected"> = {
   pending: "pending",
-  manager_approved: "pending",
+  spv_approved: "pending",
   approved: "approved",
   rejected: "rejected",
 };
@@ -28,8 +28,7 @@ export default function AdminReimbursements() {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
   const LIMIT = 10;
-  const isHR = me?.user.role === "hr_manager" || me?.user.role === "hr_admin" || me?.user.role === "super_admin";
-  const isManager = me?.user.role === "manager";
+  const isApprover = me?.user.role === "manager" || me?.user.role === "super_admin";
 
   const rows = useMemo(() => {
     return data.reimbursements
@@ -46,7 +45,7 @@ export default function AdminReimbursements() {
   }, [data.reimbursements, data.employees, filter, q]);
   const paged = rows.slice((page - 1) * LIMIT, page * LIMIT);
 
-  function decide(id: string, level: "manager" | "hr", approve: boolean) {
+  function decide(id: string, level: "spv" | "manager", approve: boolean) {
     dispatch({ type: "DECIDE_REIMBURSEMENT", id, level, approve, byName: me?.employee.name ?? "-" });
     toastOk(approve ? "Reimbursement disetujui" : "Reimbursement ditolak");
   }
@@ -55,7 +54,7 @@ export default function AdminReimbursements() {
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
-  function bulkDecide(level: "manager" | "hr", approve: boolean) {
+  function bulkDecide(level: "spv" | "manager", approve: boolean) {
     if (selected.length === 0) return;
     dispatch({ type: "BULK_DECIDE_REIMBURSEMENT", ids: selected, approve, level });
     toastOk(approve ? `${selected.length} reimbursement disetujui` : `${selected.length} reimbursement ditolak`);
@@ -74,7 +73,7 @@ export default function AdminReimbursements() {
           <Select value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Filter status">
             <option value="all">Semua status</option>
             <option value="pending">Pending</option>
-            <option value="manager_approved">Manager Approved</option>
+            <option value="spv_approved">SPV Approved</option>
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
           </Select>
@@ -84,18 +83,18 @@ export default function AdminReimbursements() {
         <EmptyState icon={CheckCircle} title="Tidak ada reimbursement" body="Belum ada pengajuan reimbursement untuk periode ini." />
       ) : (
         <>
-          {(isHR || isManager) && selected.length > 0 && (
+          {isApprover && selected.length > 0 && (
             <div className="mb-3 flex gap-2">
-              {isManager && <Btn variant="official" size="sm" onClick={() => bulkDecide("manager", true)}>Setujui Manager ({selected.length})</Btn>}
-              {isHR && <Btn variant="official" size="sm" onClick={() => bulkDecide("hr", true)}>Setujui HR ({selected.length})</Btn>}
-              <Btn variant="danger" size="sm" onClick={() => bulkDecide(isHR ? "hr" : "manager", false)}>Tolak ({selected.length})</Btn>
+              <Btn variant="official" size="sm" onClick={() => bulkDecide("spv", true)}>Setujui SPV ({selected.length})</Btn>
+              <Btn variant="official" size="sm" onClick={() => bulkDecide("manager", true)}>Setujui Manager ({selected.length})</Btn>
+              <Btn variant="danger" size="sm" onClick={() => bulkDecide("spv", false)}>Tolak ({selected.length})</Btn>
             </div>
           )}
           <div className="overflow-x-auto border border-rule bg-card">
           <table className="w-full min-w-[700px] text-sm">
             <thead>
               <tr className="border-b border-rule font-mono text-[10px] tracking-widest text-ink-faint uppercase">
-                {(isHR || isManager) && <th className="w-10 px-2 py-2.5"><span className="sr-only">Pilih</span></th>}
+                {isApprover && <th className="w-10 px-2 py-2.5"><span className="sr-only">Pilih</span></th>}
                 <th className="px-4 py-2.5 text-left">Karyawan</th>
                 <th className="px-3 py-2.5 text-left">Kategori</th>
                 <th className="px-3 py-2.5 text-right">Jumlah</th>
@@ -106,13 +105,13 @@ export default function AdminReimbursements() {
             </thead>
             <tbody className="divide-y divide-ledger/50">
               {paged.map((r) => {
-                const canApproveManager = r.status === "pending" && me?.user.role !== "employee";
-                const canApproveHR = r.status === "manager_approved" && me?.user.role === "hr_manager";
+                const canApproveSPV = r.status === "pending" && isApprover;
+                const canApproveManager = (r.status === "spv_approved" || r.status === "pending") && isApprover;
                 return (
                   <tr key={r.id} className="hover:bg-black/[0.02]">
-                    {(isHR || isManager) && (
+                    {isApprover && (
                       <td className="px-2 py-3">
-                        {(canApproveManager || canApproveHR) && (
+                        {(canApproveSPV || canApproveManager) && (
                           <input
                             type="checkbox"
                             checked={selected.includes(r.id)}
@@ -131,19 +130,19 @@ export default function AdminReimbursements() {
                     <td className="max-w-[200px] truncate px-3 py-3 text-ink-soft">{r.description}{r.attachmentUrl && <> · <a href={r.attachmentUrl} target="_blank" rel="noreferrer" className="text-official underline">lampiran</a></>}</td>
                     <td className="px-3 py-3 text-center"><Stamp kind={STATUS_KIND[r.status] ?? "pending"}>{STATUS_LABEL[r.status]}</Stamp></td>
                     <td className="px-3 py-3 text-center">
+                      {canApproveSPV && (
+                        <span className="inline-flex gap-1">
+                          <Btn variant="official" size="sm" icon={CheckCircle} onClick={() => decide(r.id, "spv", true)}>SPV</Btn>
+                          <Btn variant="danger" size="sm" icon={XCircle} aria-label="Tolak" onClick={() => decide(r.id, "spv", false)} />
+                        </span>
+                      )}
                       {canApproveManager && (
                         <span className="inline-flex gap-1">
                           <Btn variant="official" size="sm" icon={CheckCircle} onClick={() => decide(r.id, "manager", true)}>Mgr</Btn>
                           <Btn variant="danger" size="sm" icon={XCircle} aria-label="Tolak" onClick={() => decide(r.id, "manager", false)} />
                         </span>
                       )}
-                      {canApproveHR && (
-                        <span className="inline-flex gap-1">
-                          <Btn variant="official" size="sm" icon={CheckCircle} onClick={() => decide(r.id, "hr", true)}>HR</Btn>
-                          <Btn variant="danger" size="sm" icon={XCircle} aria-label="Tolak" onClick={() => decide(r.id, "hr", false)} />
-                        </span>
-                      )}
-                      {!canApproveManager && !canApproveHR && (
+                      {!canApproveSPV && !canApproveManager && (
                         <span className="text-xs text-ink-faint">{r.approvals.length}/{r.status === "approved" ? 2 : r.approvals.length}</span>
                       )}
                     </td>
