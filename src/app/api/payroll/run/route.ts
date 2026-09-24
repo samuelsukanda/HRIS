@@ -3,13 +3,13 @@ import { computePayslip, type PayrollConfig } from "@/lib/payroll";
 import { getSessionUser } from "@/lib/server/session";
 import { writeAudit } from "@/lib/server/state";
 
-const HR_ROLES = ["hr_admin", "hr_manager", "super_admin"];
+import { isHr } from "@/lib/roles";
 
 /** POST /api/payroll/run {period:"YYYY-MM"} — hitung draft payroll seluruh karyawan aktif. */
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return Response.json({ ok: false }, { status: 401 });
-  if (!HR_ROLES.includes(user.role)) {
+  if (!isHr(user.role)) {
     return Response.json({ ok: false, error: "Hanya HR." }, { status: 403 });
   }
   const { period } = (await req.json()) as { period?: string };
@@ -29,8 +29,12 @@ export async function POST(req: Request) {
   const ny = m === 12 ? y + 1 : y;
   const endEx = `${ny}-${String(nm).padStart(2, "0")}-01`;
 
+  // Superadmin hanya akun pengaturan — tidak ikut payroll
   const emps = await pool.query(
-    `SELECT e.id, e.name, e.base_salary, e.allowance FROM employees e WHERE e.status IN ('active','on_leave') ORDER BY e.id`,
+    `SELECT e.id, e.name, e.base_salary, e.allowance FROM employees e
+     WHERE e.status IN ('active','on_leave')
+       AND NOT EXISTS (SELECT 1 FROM users u WHERE u.employee_id = e.id AND u.role = 'super_admin')
+     ORDER BY e.id`,
   );
 
   const cfgR = await pool.query(`SELECT key, value FROM settings WHERE key IN ('ot_mode','ot_flat_rate','alpha_mode','alpha_flat_rate')`);

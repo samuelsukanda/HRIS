@@ -2,7 +2,7 @@ import { pool } from "@/db/client";
 import { getSessionUser } from "@/lib/server/session";
 import { writeAudit } from "@/lib/server/state";
 
-const HR = ["hr_manager","hr_admin","super_admin"];
+import { isHr } from "@/lib/roles";
 
 export async function GET() {
   const u = await getSessionUser(); if (!u) return Response.json({ ok: false }, { status: 401 });
@@ -12,7 +12,7 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   const u = await getSessionUser(); if (!u) return Response.json({ ok: false }, { status: 401 });
-  if (!HR.includes(u.role)) return Response.json({ ok: false }, { status: 403 });
+  if (!isHr(u.role)) return Response.json({ ok: false }, { status: 403 });
   const body = await req.json() as Record<string, string>;
   const actor = (await pool.query(`SELECT name FROM employees WHERE id=$1`, [u.employee_id])).rows[0]?.name ?? u.employee_id;
   const ALLOWED_KEYS = new Set(["wfh_gps", "wfh_face", "wfh_liveness", "checkin_window", "ot_mode", "ot_flat_rate", "alpha_mode", "alpha_flat_rate"]);

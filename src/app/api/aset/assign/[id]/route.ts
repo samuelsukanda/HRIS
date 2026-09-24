@@ -1,6 +1,7 @@
 import { pool } from "@/db/client";
 import { writeAudit, writeNotification } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
+import { isHr } from "@/lib/roles";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser();
@@ -8,8 +9,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const { id } = await params;
   const r = await pool.query(
-    `SELECT a.*, e.manager_id FROM asset_assignments a
-     JOIN employees e ON e.id = a.employee_id WHERE a.id = $1`,
+    `SELECT a.* FROM asset_assignments a WHERE a.id = $1`,
     [id],
   );
   if (r.rows.length === 0) return Response.json({ ok: false }, { status: 404 });
@@ -24,26 +24,26 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   // Karyawan: ajukan pengembalian
   if (asgn.employee_id === user.employee_id) {
-    if (asgn.return_requested_at) return Response.json({ ok: false, error: "Sudah diajukan, menunggu Manager." }, { status: 409 });
+    if (asgn.return_requested_at) return Response.json({ ok: false, error: "Sudah diajukan, menunggu HR." }, { status: 409 });
     await pool.query(`UPDATE asset_assignments SET return_requested_at=NOW() WHERE id=$1`, [id]);
-    await writeAudit({ actorId: user.id, actorName, action: "Asset return requested", targetType: "asset_assignment", targetId: id, detail: `${assetName} — menunggu konfirmasi Manager`, at: new Date().toISOString() });
-    // Notifikasi ke Manager
-    if (asgn.manager_id) {
-      const mu = await pool.query(`SELECT id FROM users WHERE employee_id=$1 AND active=true`, [asgn.manager_id]);
-      if (mu.rows[0]) await writeNotification({ userId: mu.rows[0].id, title: "Permintaan Pengembalian Aset", body: `${actorName} mengajukan pengembalian ${assetName}.`, type: "approval", link: "/admin/aset" });
+    await writeAudit({ actorId: user.id, actorName, action: "Asset return requested", targetType: "asset_assignment", targetId: id, detail: `${assetName} — menunggu konfirmasi HR`, at: new Date().toISOString() });
+    // Notifikasi ke HR
+    const hrs = await pool.query(`SELECT id FROM users WHERE role IN ('hr','super_admin') AND active=true`);
+    for (const h of hrs.rows) {
+      await writeNotification({ userId: h.id, title: "Permintaan Pengembalian Aset", body: `${actorName} mengajukan pengembalian ${assetName}.`, type: "approval", link: "/admin/aset" });
     }
     return Response.json({ ok: true, requested: true });
   }
 
-  // Manager: konfirmasi pengembalian
-  if (asgn.manager_id && user.employee_id === asgn.manager_id) {
+  // HR: konfirmasi pengembalian
+  if (isHr(user.role)) {
     await pool.query(`UPDATE asset_assignments SET returned_at=NOW(), return_requested_at=NULL WHERE id=$1`, [id]);
     await pool.query(`UPDATE assets SET status='available' WHERE id=$1`, [asgn.asset_id]);
     await writeAudit({ actorId: user.id, actorName, action: "Asset returned", targetType: "asset_assignment", targetId: id, detail: `${assetName} returned`, at: new Date().toISOString() });
     const ownerR = await pool.query(`SELECT id FROM users WHERE employee_id=$1`, [asgn.employee_id]);
-    if (ownerR.rows[0]) await writeNotification({ userId: ownerR.rows[0].id, title: "Pengembalian Dikonfirmasi", body: `Pengembalian ${assetName} dikonfirmasi Manager.`, type: "info", link: "/app/aset" });
+    if (ownerR.rows[0]) await writeNotification({ userId: ownerR.rows[0].id, title: "Pengembalian Dikonfirmasi", body: `Pengembalian ${assetName} dikonfirmasi HR.`, type: "info", link: "/app/aset" });
     return Response.json({ ok: true });
   }
 
-  return Response.json({ ok: false, error: "Anda bukan atasan aset ini." }, { status: 403 });
+  return Response.json({ ok: false, error: "Hanya HR yang dapat mengonfirmasi pengembalian." }, { status: 403 });
 }

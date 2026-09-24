@@ -4,11 +4,12 @@ import { useMemo, useState } from "react";
 import { CheckCircle, MagnifyingGlass, XCircle } from "@phosphor-icons/react";
 import { Btn, EmptyState, Input, PageHead, Pager, Select, Stamp } from "@/components/ui";
 import { toastOk } from "@/lib/swal";
+import { isHr } from "@/lib/roles";
 import { currentUser, useHris } from "@/lib/store";
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: "Menunggu SPV",
-  spv_approved: "Menunggu Manager",
+  pending: "Menunggu HR",
+  spv_approved: "Menunggu HR",
   approved: "Disetujui",
   rejected: "Ditolak",
 };
@@ -26,9 +27,8 @@ export default function AdminReimbursements() {
   const [filter, setFilter] = useState("all");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState<string[]>([]);
   const LIMIT = 10;
-  const isApprover = me?.user.role === "manager" || me?.user.role === "super_admin";
+  const isApprover = isHr(me?.user.role ?? "");
 
   const rows = useMemo(() => {
     return data.reimbursements
@@ -45,20 +45,10 @@ export default function AdminReimbursements() {
   }, [data.reimbursements, data.employees, filter, q]);
   const paged = rows.slice((page - 1) * LIMIT, page * LIMIT);
 
-  function decide(id: string, level: "spv" | "manager", approve: boolean) {
-    dispatch({ type: "DECIDE_REIMBURSEMENT", id, level, approve, byName: me?.employee.name ?? "-" });
-    toastOk(approve ? "Reimbursement disetujui" : "Reimbursement ditolak");
-  }
-
-  function toggleSelect(id: string) {
-    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  }
-
-  function bulkDecide(level: "spv" | "manager", approve: boolean) {
-    if (selected.length === 0) return;
-    dispatch({ type: "BULK_DECIDE_REIMBURSEMENT", ids: selected, approve, level });
-    toastOk(approve ? `${selected.length} reimbursement disetujui` : `${selected.length} reimbursement ditolak`);
-    setSelected([]);
+  function decide(id: string, approve: boolean) {
+    void dispatch({ type: "DECIDE_REIMBURSEMENT", id, level: "hr", approve, byName: me?.employee.name ?? "-" }).then((ok) => {
+      if (ok) toastOk(approve ? "Reimbursement disetujui" : "Reimbursement ditolak");
+    });
   }
 
   return (
@@ -72,8 +62,7 @@ export default function AdminReimbursements() {
         <div className="w-40">
           <Select value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Filter status">
             <option value="all">Semua status</option>
-            <option value="pending">Pending</option>
-            <option value="spv_approved">SPV Approved</option>
+            <option value="pending">Menunggu HR</option>
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
           </Select>
@@ -83,18 +72,10 @@ export default function AdminReimbursements() {
         <EmptyState icon={CheckCircle} title="Tidak ada reimbursement" body="Belum ada pengajuan reimbursement untuk periode ini." />
       ) : (
         <>
-          {isApprover && selected.length > 0 && (
-            <div className="mb-3 flex gap-2">
-              <Btn variant="official" size="sm" onClick={() => bulkDecide("spv", true)}>Setujui SPV ({selected.length})</Btn>
-              <Btn variant="official" size="sm" onClick={() => bulkDecide("manager", true)}>Setujui Manager ({selected.length})</Btn>
-              <Btn variant="danger" size="sm" onClick={() => bulkDecide("spv", false)}>Tolak ({selected.length})</Btn>
-            </div>
-          )}
           <div className="overflow-x-auto border border-rule bg-card">
           <table className="w-full min-w-[700px] text-sm">
             <thead>
               <tr className="border-b border-rule font-mono text-[10px] tracking-widest text-ink-faint uppercase">
-                {isApprover && <th className="w-10 px-2 py-2.5"><span className="sr-only">Pilih</span></th>}
                 <th className="px-4 py-2.5 text-left">Karyawan</th>
                 <th className="px-3 py-2.5 text-left">Kategori</th>
                 <th className="px-3 py-2.5 text-right">Jumlah</th>
@@ -105,22 +86,9 @@ export default function AdminReimbursements() {
             </thead>
             <tbody className="divide-y divide-ledger/50">
               {paged.map((r) => {
-                const canApproveSPV = r.status === "pending" && isApprover;
-                const canApproveManager = (r.status === "spv_approved" || r.status === "pending") && isApprover;
+                const canApprove = (r.status === "pending" || r.status === "spv_approved") && isApprover;
                 return (
                   <tr key={r.id} className="hover:bg-black/[0.02]">
-                    {isApprover && (
-                      <td className="px-2 py-3">
-                        {(canApproveSPV || canApproveManager) && (
-                          <input
-                            type="checkbox"
-                            checked={selected.includes(r.id)}
-                            onChange={() => toggleSelect(r.id)}
-                            className="h-4 w-4 accent-official"
-                          />
-                        )}
-                      </td>
-                    )}
                     <td className="px-4 py-3">
                       <p className="font-medium">{r.emp?.name ?? r.employeeId}</p>
                       <p className="tnum text-[10px] text-ink-faint">{r.id}</p>
@@ -130,20 +98,13 @@ export default function AdminReimbursements() {
                     <td className="max-w-[200px] truncate px-3 py-3 text-ink-soft">{r.description}{r.attachmentUrl && <> · <a href={r.attachmentUrl} target="_blank" rel="noreferrer" className="text-official underline">lampiran</a></>}</td>
                     <td className="px-3 py-3 text-center"><Stamp kind={STATUS_KIND[r.status] ?? "pending"}>{STATUS_LABEL[r.status]}</Stamp></td>
                     <td className="px-3 py-3 text-center">
-                      {canApproveSPV && (
+                      {canApprove ? (
                         <span className="inline-flex gap-1">
-                          <Btn variant="official" size="sm" icon={CheckCircle} onClick={() => decide(r.id, "spv", true)}>SPV</Btn>
-                          <Btn variant="danger" size="sm" icon={XCircle} aria-label="Tolak" onClick={() => decide(r.id, "spv", false)} />
+                          <Btn variant="official" size="sm" icon={CheckCircle} onClick={() => decide(r.id, true)}>Setujui</Btn>
+                          <Btn variant="danger" size="sm" icon={XCircle} aria-label="Tolak" onClick={() => decide(r.id, false)} />
                         </span>
-                      )}
-                      {canApproveManager && (
-                        <span className="inline-flex gap-1">
-                          <Btn variant="official" size="sm" icon={CheckCircle} onClick={() => decide(r.id, "manager", true)}>Mgr</Btn>
-                          <Btn variant="danger" size="sm" icon={XCircle} aria-label="Tolak" onClick={() => decide(r.id, "manager", false)} />
-                        </span>
-                      )}
-                      {!canApproveSPV && !canApproveManager && (
-                        <span className="text-xs text-ink-faint">{r.approvals.length}/{r.status === "approved" ? 2 : r.approvals.length}</span>
+                      ) : (
+                        <span className="text-xs text-ink-faint">—</span>
                       )}
                     </td>
                   </tr>

@@ -1,33 +1,69 @@
 "use client";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Pencil, Trash } from "@phosphor-icons/react";
 import { useHris } from "@/lib/store";
-import { confirmDelete, formModal, toastOk } from "@/lib/swal";
+import { confirmDelete, formModal, toastErr, toastOk } from "@/lib/swal";
 import { fmtRupiah } from "@/lib/format";
 import { Btn, IconBtn, PageHead } from "@/components/ui";
 
+async function handleApi(r: Response): Promise<boolean> {
+  const j = await r.json().catch(() => null) as { ok?: boolean; error?: string } | null;
+  if (j?.ok) return true;
+  toastErr(j?.error ?? `Terjadi kesalahan server (${r.status}).`);
+  return false;
+}
 async function patch(url: string, body: unknown) {
   const r = await fetch(url, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  return (await r.json() as { ok: boolean }).ok;
+  return handleApi(r);
+}
+async function post(url: string, body: unknown) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return handleApi(r);
 }
 async function del(url: string) {
   const r = await fetch(url, { method: "DELETE" });
-  return (await r.json() as { ok: boolean }).ok;
+  return handleApi(r);
 }
 function saved(msg: string) {
   toastOk(msg);
   setTimeout(() => location.reload(), 650);
 }
 
+const MASTER_TAB_KEYS = ["branch", "dept", "pos", "leave", "bank", "window", "payroll"] as const;
+type MasterTab = (typeof MASTER_TAB_KEYS)[number];
+
+// Tab aktif disimpan di URL hash agar tetap terjaga setelah saved() me-reload halaman.
+let masterTabListeners: (() => void)[] = [];
+function subscribeMasterTab(cb: () => void) {
+  const onHash = () => cb();
+  window.addEventListener("hashchange", onHash);
+  masterTabListeners.push(cb);
+  return () => {
+    window.removeEventListener("hashchange", onHash);
+    masterTabListeners = masterTabListeners.filter((l) => l !== cb);
+  };
+}
+function currentMasterTab(): MasterTab {
+  const h = window.location.hash.replace("#", "") as MasterTab;
+  return MASTER_TAB_KEYS.includes(h) ? h : "branch";
+}
+
 export default function MasterPage(){
-  const {state, showToast}=useHris();
-  const [tab,setTab]=useState<"branch"|"dept"|"pos"|"leave"|"bank"|"window"|"payroll">("branch");
+  const {state}=useHris();
+  const tab = useSyncExternalStore(subscribeMasterTab, currentMasterTab, () => "branch" as MasterTab);
   const [name,setName]=useState(""); const [city,setCity]=useState(""); const [branchId,setBranchId]=useState(state.data.branches[0]?.id??""); const [title,setTitle]=useState(""); const [level,setLevel]=useState("staff"); const [days,setDays]=useState(12);
-  async function createBranch(){ if(!name.trim()||!city.trim()) return; const r=await fetch("/api/branches",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:name.trim(),city:city.trim()})}); const j=await r.json() as {ok:boolean;error?:string}; if(j.ok){ saved("Cabang ditambahkan"); } else showToast(j.error??"Gagal","error"); }
-  async function createDept(){ if(!name.trim()) return; const r=await fetch("/api/departments",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:name.trim(),branch_id:branchId})}); const j=await r.json() as {ok:boolean;error?:string}; if(j.ok){ saved("Departemen ditambahkan"); } else showToast(j.error??"Gagal","error"); }
-  async function createPos(){ if(!title.trim()) return; const r=await fetch("/api/positions",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({title:title.trim(),level})}); const j=await r.json() as {ok:boolean;error?:string}; if(j.ok){ saved("Jabatan ditambahkan"); } else showToast(j.error??"Gagal","error"); }
-  async function createLeave(){ if(!name.trim()) return; const r=await fetch("/api/leave-types",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:name.trim(),allocation_days:days,paid:true,requires_attachment:false})}); const j=await r.json() as {ok:boolean;error?:string}; if(j.ok){ saved("Jenis cuti ditambahkan"); } else showToast(j.error??"Gagal","error"); }
-  async function createBank(){ if(!name.trim()) return; const r=await fetch("/api/banks",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:name.trim()})}); const j=await r.json() as {ok:boolean;error?:string}; if(j.ok){ saved("Bank ditambahkan"); } else showToast(j.error??"Gagal","error"); }
+
+  function changeTab(key: MasterTab) {
+    window.history.replaceState(null, "", `#${key}`);
+    for (const l of masterTabListeners) l();
+    setMq("");
+  }
+
+  async function createBranch(){ if(!name.trim()||!city.trim()) return; if(await post("/api/branches",{name:name.trim(),city:city.trim()})) saved("Cabang ditambahkan"); }
+  async function createDept(){ if(!name.trim()) return; if(await post("/api/departments",{name:name.trim(),branch_id:branchId})) saved("Departemen ditambahkan"); }
+  async function createPos(){ if(!title.trim()) return; if(await post("/api/positions",{title:title.trim(),level})) saved("Jabatan ditambahkan"); }
+  async function createLeave(){ if(!name.trim()) return; if(await post("/api/leave-types",{name:name.trim(),allocation_days:days,paid:true,requires_attachment:false})) saved("Jenis cuti ditambahkan"); }
+  async function createBank(){ if(!name.trim()) return; if(await post("/api/banks",{name:name.trim()})) saved("Bank ditambahkan"); }
 
   const tabs = [
     { key:"branch", label:"Cabang" },
@@ -44,7 +80,7 @@ export default function MasterPage(){
   return <>
     <PageHead title="Master Data" sub="Kelola data cabang, departemen, jabatan, jenis cuti, bank, dan window check-in." />
     <div className="mb-4 flex gap-2">
-      {tabs.map(t=> <button key={t.key} onClick={()=> { setTab(t.key); setMq(""); }} className={`min-h-9 px-3 py-1.5 text-xs font-semibold border ${tab===t.key?"bg-ink text-white":"bg-card"}`}>{t.label}</button>)}
+      {tabs.map(t=> <button key={t.key} onClick={()=> changeTab(t.key)} className={`min-h-9 px-3 py-1.5 text-xs font-semibold border ${tab===t.key?"bg-ink text-white":"bg-card"}`}>{t.label}</button>)}
     </div>
     {tab !== "window" && tab !== "payroll" && (
       <div className="mb-4 max-w-md">
@@ -68,7 +104,7 @@ export default function MasterPage(){
           <select value={branchId} onChange={e=> setBranchId(e.target.value)} aria-label="Cabang" className="min-h-9 border border-rule bg-paper px-2 py-1 text-sm">{state.data.branches.map(b=> <option key={b.id} value={b.id}>{b.name}</option>)}</select>
           <Btn size="sm" onClick={createDept} disabled={!name.trim()}>+ Departemen</Btn>
         </div>
-        <ul className="divide-y divide-ledger/40 text-sm">{state.data.departments.filter((d) => matchMq(d.name)).map(d=> <li key={d.id} className="py-2 flex items-center justify-between gap-2"><span className="font-medium">{d.name} <span className="font-normal text-ink-faint">— {state.data.branches.find(b=> b.id===d.branchId)?.name}</span></span><span className="flex gap-1"><IconBtn label={`Edit ${d.name}`} icon={Pencil} onClick={async()=>{ const v=await formModal<{name:string}>("Edit Departemen",[{key:"name",label:"Nama",value:d.name}]); if(!v||!v.name.trim()) return; if(await patch(`/api/departments/${d.id}`,{name:v.name.trim()})) saved("Departemen disimpan"); }} /><IconBtn label={`Hapus ${d.name}`} icon={Trash} className="hover:text-stamp" onClick={async()=>{ if(await confirmDelete(d.name) && await del(`/api/departments/${d.id}`)) saved("Departemen dihapus"); }} /></span></li>)}</ul>
+        <ul className="divide-y divide-ledger/40 text-sm">{state.data.departments.filter((d) => matchMq(d.name)).map(d=> <li key={d.id} className="py-2 flex items-center justify-between gap-2"><span className="font-medium">{d.name} <span className="font-normal text-ink-faint">— {state.data.branches.find(b=> b.id===d.branchId)?.name}</span></span><span className="flex gap-1"><IconBtn label={`Edit ${d.name}`} icon={Pencil} onClick={async()=>{ const v=await formModal<{name:string;branch_id:string}>("Edit Departemen",[{key:"name",label:"Nama",value:d.name},{key:"branch_id",label:"Cabang",value:d.branchId,options:state.data.branches.map(b=> ({value:b.id,label:b.name}))}]); if(!v||!v.name.trim()) return; if(await patch(`/api/departments/${d.id}`,{name:v.name.trim(),branch_id:v.branch_id})) saved("Departemen disimpan"); }} /><IconBtn label={`Hapus ${d.name}`} icon={Trash} className="hover:text-stamp" onClick={async()=>{ if(await confirmDelete(d.name) && await del(`/api/departments/${d.id}`)) saved("Departemen dihapus"); }} /></span></li>)}</ul>
       </section>
     )}
     {tab==="pos" && (

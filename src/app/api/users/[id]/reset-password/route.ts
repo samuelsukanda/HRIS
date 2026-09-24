@@ -3,13 +3,13 @@ import { writeAudit } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
 import { hashPassword, randomPassword } from "@/lib/server/auth";
 
-const HR_ROLES = ["hr_manager", "hr_admin", "super_admin"];
+import { isHr } from "@/lib/roles";
 
 // Reset password akun oleh admin — password baru acak, tampil sekali
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const u = await getSessionUser();
   if (!u) return Response.json({ ok: false }, { status: 401 });
-  if (!HR_ROLES.includes(u.role)) return Response.json({ ok: false }, { status: 403 });
+  if (!isHr(u.role)) return Response.json({ ok: false }, { status: 403 });
 
   const { id } = await params;
   const r = await pool.query(`SELECT id, email FROM users WHERE id=$1`, [id]);

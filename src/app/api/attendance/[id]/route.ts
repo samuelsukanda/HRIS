@@ -19,7 +19,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (!rec) return Response.json({ ok: false, error: "Rekaman tidak ditemukan." }, { status: 404 });
 
   const corrections: Correction[] = rec.corrections ?? [];
-  const isAdmin = ["hr_admin", "hr_manager", "super_admin", "manager"].includes(user.role);
+  const isAdmin = ["hr", "super_admin", "manager", "supervisor"].includes(user.role);
 
   // Karyawan ajukan koreksi
   if (body.correction) {

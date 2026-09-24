@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Package } from "@phosphor-icons/react";
-import { Btn, EmptyState, Field, Input, PageHead, Select, Stamp, StatusStamp, Textarea } from "@/components/ui";
+import { Btn, EmptyState, Field, PageHead, Select, Stamp, Textarea } from "@/components/ui";
 import { confirmDelete, toastOk } from "@/lib/swal";
 import { currentUser, useHris } from "@/lib/store";
 
@@ -82,7 +82,7 @@ export default function MyAset() {
                   <p className="text-sm font-semibold capitalize">{r.category}</p>
                   <p className="truncate text-xs text-ink-soft">{r.description}</p>
                 </div>
-                <StatusStamp status={r.status} />
+                <Stamp kind={r.status === "approved" ? "approved" : r.status === "rejected" ? "rejected" : "pending"}>{r.status === "approved" ? "Disetujui" : r.status === "rejected" ? "Ditolak" : "Menunggu HR"}</Stamp>
               </li>
             ))}
           </ul>

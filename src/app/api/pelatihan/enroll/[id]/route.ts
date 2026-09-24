@@ -11,7 +11,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (r.rows.length === 0) return Response.json({ ok: false }, { status: 404 });
 
   const enr = r.rows[0];
-  if (enr.employee_id !== user.employee_id && !["hr_manager", "hr_admin", "super_admin"].includes(user.role)) {
+  if (enr.employee_id !== user.employee_id && !["hr", "super_admin"].includes(user.role)) {
     return Response.json({ ok: false }, { status: 403 });
   }
 

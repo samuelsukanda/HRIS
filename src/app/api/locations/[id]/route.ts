@@ -2,12 +2,12 @@ import { pool } from "@/db/client";
 import { writeAudit } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
 
-const HR_ROLES = ["hr_manager", "hr_admin", "super_admin"];
+import { isHr } from "@/lib/roles";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser();
   if (!user) return Response.json({ ok: false }, { status: 401 });
-  if (!HR_ROLES.includes(user.role)) return Response.json({ ok: false }, { status: 403 });
+  if (!isHr(user.role)) return Response.json({ ok: false }, { status: 403 });
   const { id } = await params;
   const body = await req.json() as Record<string, unknown>;
   const r = await pool.query(`SELECT * FROM work_locations WHERE id=$1`, [id]);
@@ -33,7 +33,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser();
   if (!user) return Response.json({ ok: false }, { status: 401 });
-  if (!HR_ROLES.includes(user.role)) return Response.json({ ok: false }, { status: 403 });
+  if (!isHr(user.role)) return Response.json({ ok: false }, { status: 403 });
   const { id } = await params;
   const r = await pool.query(`SELECT * FROM work_locations WHERE id=$1`, [id]);
   if (r.rows.length === 0) return Response.json({ ok: false }, { status: 404 });

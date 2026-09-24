@@ -2,12 +2,12 @@ import { pool } from "@/db/client";
 import { nextId, writeAudit } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
 
-const HR_ROLES = ["hr_manager", "hr_admin", "super_admin"];
+import { isHr } from "@/lib/roles";
 
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return Response.json({ ok: false }, { status: 401 });
-  if (!HR_ROLES.includes(user.role)) return Response.json({ ok: false }, { status: 403 });
+  if (!isHr(user.role)) return Response.json({ ok: false }, { status: 403 });
 
   const body = await req.json();
   const { employeeId, period, score, strengths, improvements, goals } = body as {

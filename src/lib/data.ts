@@ -49,6 +49,7 @@ export const branches: Branch[] = [
   { id: "BR-JKT", name: "Kantor Pusat Jakarta", city: "Jakarta" },
   { id: "BR-BDG", name: "Cabang Bandung", city: "Bandung" },
   { id: "BR-SBY", name: "Klinik Surabaya", city: "Surabaya" },
+  { id: "BR-SBG", name: "Cabang Subang", city: "Subang" },
 ];
 
 export const departments: Department[] = [
@@ -57,6 +58,7 @@ export const departments: Department[] = [
   { id: "DP-FIN", name: "Keuangan", branchId: "BR-JKT" },
   { id: "DP-OPS", name: "Operasional", branchId: "BR-BDG" },
   { id: "DP-MED", name: "Layanan Medis", branchId: "BR-SBY" },
+  { id: "DP-SBG", name: "Manajemen - Cabang Subang", branchId: "BR-SBG" },
 ];
 
 export const positions: Position[] = [
@@ -69,6 +71,8 @@ export const positions: Position[] = [
   { id: "PS-APT", title: "Apoteker", level: "Staff" },
   { id: "PS-ADM", title: "Admin Kantor", level: "Staff" },
   { id: "PS-SEC", title: "Petugas Keamanan", level: "Staff" },
+  { id: "PS-MGR-B", title: "Manajer Cabang", level: "Manager" },
+  { id: "PS-HRS", title: "Staf HR", level: "Staff" },
 ];
 
 export const banks: Bank[] = [
@@ -111,6 +115,15 @@ export const workLocations: WorkLocation[] = [
     latitude: -7.2635,
     longitude: 112.7502,
     radiusM: 75,
+    allowedTypes: ["onsite"],
+  },
+  {
+    id: "WL-SBG",
+    name: "Kantor Cabang Subang",
+    branchId: "BR-SBG",
+    latitude: -6.5274346,
+    longitude: 107.7913394,
+    radiusM: 100,
     allowedTypes: ["onsite"],
   },
 ];
@@ -157,6 +170,11 @@ const SEED_DEFS: SeedDef[] = [
   { name: "Endah Sulistyowati", gender: "P", dep: "DP-MED", pos: "PS-NRS", loc: "WL-SBY", shift: "S-PAGI", spv: 11, manager: 10 },
   { name: "Fajar Hidayat", gender: "L", dep: "DP-MED", pos: "PS-NRS", loc: "WL-SBY", shift: "S-SIANG", spv: 11, manager: 10 },
   { name: "Gita Savitri", gender: "P", dep: "DP-HR", pos: "PS-ADM", loc: "WL-JKT", shift: "S-OFFICE", spv: 2, manager: 0 },
+  // Tim Cabang Subang: manager, supervisor, karyawan biasa, dan HR cabang
+  { name: "Bambang Prakoso", gender: "L", dep: "DP-SBG", pos: "PS-MGR-B", loc: "WL-SBG", shift: "S-OFFICE" },
+  { name: "Sari Wulandari", gender: "P", dep: "DP-SBG", pos: "PS-SUP", loc: "WL-SBG", shift: "S-OFFICE", manager: 22 },
+  { name: "Rudi Hartawan", gender: "L", dep: "DP-SBG", pos: "PS-ADM", loc: "WL-SBG", shift: "S-PAGI", spv: 23, manager: 22 },
+  { name: "Melati Puspita", gender: "P", dep: "DP-SBG", pos: "PS-HRS", loc: "WL-SBG", shift: "S-OFFICE", manager: 22 },
 ];
 
 const KOTA_LAHIR = ["Jakarta", "Bandung", "Surabaya", "Semarang", "Yogyakarta", "Malang", "Solo", "Medan"];
@@ -182,7 +200,7 @@ export function buildEmployees(): Employee[] {
       spvId: def.spv !== undefined ? `EMP-${String(def.spv + 1).padStart(3, "0")}` : undefined,
       branchId: workLocations.find((w) => w.id === def.loc)!.branchId,
       workLocationId: def.loc,
-      employmentType: i === 21 ? "probation" : i % 11 === 0 ? "contract" : "permanent",
+      employmentType: i === 21 ? "probation" : i === 11 ? "contract" : "permanent",
       status: "active",
       bankName: banks[i % banks.length]!.name,
       bankAccount: String(7000000000 + i * 12345),
@@ -198,16 +216,22 @@ export function buildEmployees(): Employee[] {
 export const employees = buildEmployees();
 
 export const users: User[] = [
-  { id: "USR-001", employeeId: "EMP-001", email: "samuel.hartono@hrissmart.id", role: "hr_manager" },
+  { id: "USR-001", employeeId: "EMP-001", email: "samuel.hartono@hrissmart.id", role: "hr" },
   { id: "USR-002", employeeId: "EMP-002", email: "ratna.wijaya@hrissmart.id", role: "manager" },
   { id: "USR-003", employeeId: "EMP-003", email: "budi.santoso@hrissmart.id", role: "employee" },
+  { id: "USR-004", employeeId: "EMP-023", email: "bambang.prakoso@hrissmart.id", role: "manager" },
+  { id: "USR-005", employeeId: "EMP-024", email: "sari.wulandari@hrissmart.id", role: "supervisor" },
+  { id: "USR-006", employeeId: "EMP-025", email: "rudi.hartawan@hrissmart.id", role: "employee" },
+  { id: "USR-007", employeeId: "EMP-026", email: "melati.puspita@hrissmart.id", role: "hr" },
 ];
 
-// ── Roster: 14 hari ke belakang + 7 hari ke depan ────────────────────
+// ── Roster: 14 hari ke belakang + sampai akhir bulan Oktober ─────────
 export function buildRoster(): RosterEntry[] {
   const entries: RosterEntry[] = [];
   const today = new Date();
-  for (let off = -14; off <= 7; off++) {
+  const endOfOctober = new Date(today.getFullYear(), 9, 31); // bulan index 9 = Oktober
+  const endOff = Math.max(7, Math.ceil((endOfOctober.getTime() - today.getTime()) / 86_400_000));
+  for (let off = -14; off <= endOff; off++) {
     const d = new Date(today);
     d.setDate(d.getDate() + off);
     const iso = toLocalISO(d);

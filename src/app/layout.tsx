@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Libre_Franklin, Spline_Sans_Mono } from "next/font/google";
 import { HrisProvider } from "@/lib/store";
-import { Toast } from "@/components/ui";
 import "./globals.css";
 
 const libreFranklin = Libre_Franklin({
@@ -47,7 +46,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <div dangerouslySetInnerHTML={{ __html: CONTRACT_COMMENT }} aria-hidden />
         <HrisProvider>
           {children}
-          <Toast />
         </HrisProvider>
         {process.env.NODE_ENV === "production" && (
           <script dangerouslySetInnerHTML={{__html:`if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}`}} />

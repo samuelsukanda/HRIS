@@ -1,6 +1,7 @@
 import { pool } from "@/db/client";
 import { getSessionUser } from "@/lib/server/session";
 import { writeAudit, writeNotification } from "@/lib/server/state";
+import { fmtDateLongID } from "@/lib/format";
 
 /** PATCH /api/overtime/[id] — 2 tahap: SPV → Manager */
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -38,10 +39,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     await pool.query(`UPDATE overtime_requests SET status=$1, decided_by=$2 WHERE id=$3`, [newStatus, approverName, id]);
     await writeAudit({ actorId: user.id, actorName: approverName, action: body.approve ? "SPV approved overtime" : "SPV rejected overtime", targetType: "overtime_request", targetId: id, detail: `${ot.emp_name}: ${ot.date} ${ot.start_time}–${ot.end_time} (${ot.hours} jam)`, before: "pending", after: newStatus, at: new Date().toISOString() });
     const userR = await pool.query(`SELECT id FROM users WHERE employee_id = $1`, [ot.employee_id]);
-    if (userR.rows[0]) await writeNotification({ userId: userR.rows[0].id, title: body.approve ? "Lembur Disetujui SPV" : "Lembur Ditolak SPV", body: `Pengajuan lembur Anda ${ot.date} (${ot.hours} jam) telah ${body.approve ? 'disetujui' : 'ditolak'} oleh SPV.`, type: "info", link: "/app/lembur" });
+    if (userR.rows[0]) await writeNotification({ userId: userR.rows[0].id, title: body.approve ? "Lembur Disetujui SPV" : "Lembur Ditolak SPV", body: `Pengajuan lembur Anda ${fmtDateLongID(ot.date)} (${ot.hours} jam) telah ${body.approve ? "disetujui" : "ditolak"} oleh SPV.`, type: "info", link: "/app/lembur" });
     if (body.approve && ot.manager_id) {
       const mu = await pool.query(`SELECT id FROM users WHERE employee_id = $1`, [ot.manager_id]);
-      if (mu.rows[0]) await writeNotification({ userId: mu.rows[0].id, title: "Lembur Perlu Persetujuan Manager", body: `Pengajuan lembur ${ot.emp_name} ${ot.date} menunggu persetujuan Anda.`, type: "approval", link: "/admin/lembur" });
+      if (mu.rows[0]) await writeNotification({ userId: mu.rows[0].id, title: "Lembur Perlu Persetujuan Manager", body: `Pengajuan lembur ${ot.emp_name} ${fmtDateLongID(ot.date)} menunggu persetujuan Anda.`, type: "approval", link: "/admin/lembur" });
     }
     return Response.json({ ok: true, status: newStatus });
   }
@@ -53,7 +54,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     await pool.query(`UPDATE overtime_requests SET status=$1, decided_by=$2 WHERE id=$3`, [newStatus, approverName, id]);
     await writeAudit({ actorId: user.id, actorName: approverName, action: body.approve ? "Manager approved overtime" : "Manager rejected overtime", targetType: "overtime_request", targetId: id, detail: `${ot.emp_name}: ${ot.date} ${ot.start_time}–${ot.end_time} (${ot.hours} jam)`, before: ot.status, after: newStatus, at: new Date().toISOString() });
     const userR = await pool.query(`SELECT id FROM users WHERE employee_id = $1`, [ot.employee_id]);
-    if (userR.rows[0]) await writeNotification({ userId: userR.rows[0].id, title: body.approve ? "Lembur Disetujui" : "Lembur Ditolak Manager", body: `Pengajuan lembur Anda ${ot.date} (${ot.hours} jam) telah ${body.approve ? 'disetujui' : 'ditolak'} oleh Manager.`, type: "info", link: "/app/lembur" });
+    if (userR.rows[0]) await writeNotification({ userId: userR.rows[0].id, title: body.approve ? "Lembur Disetujui" : "Lembur Ditolak Manager", body: `Pengajuan lembur Anda ${fmtDateLongID(ot.date)} (${ot.hours} jam) telah ${body.approve ? "disetujui" : "ditolak"} oleh Manager.`, type: "info", link: "/app/lembur" });
     return Response.json({ ok: true, status: newStatus });
   }
 

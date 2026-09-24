@@ -1,6 +1,7 @@
 import { pool } from "@/db/client";
 import { getSessionUser } from "@/lib/server/session";
 import { writeAudit, writeNotification } from "@/lib/server/state";
+import { fmtDateLongID } from "@/lib/format";
 
 /** PATCH /api/leave/[id] — 2 tahap: SPV → Manager */
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -60,7 +61,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       await writeNotification({
         userId: userR.rows[0].id,
         title: approve ? "Cuti Disetujui SPV" : "Cuti Ditolak SPV",
-        body: `Pengajuan cuti Anda tanggal ${req0.start_date} s.d. ${req0.end_date} telah ${approve ? 'disetujui' : 'ditolak'} oleh SPV (${approverName}).`,
+        body: `Pengajuan cuti Anda tanggal ${fmtDateLongID(req0.start_date)} s.d. ${fmtDateLongID(req0.end_date)} telah ${approve ? "disetujui" : "ditolak"} oleh SPV (${approverName}).`,
         type: "info", link: "/app/cuti",
       });
     }
@@ -71,7 +72,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         await writeNotification({
           userId: mgrUserR.rows[0].id,
           title: "Cuti Perlu Persetujuan Manager",
-          body: `Pengajuan cuti ${req0.emp_name} tanggal ${req0.start_date} s.d. ${req0.end_date} telah disetujui SPV dan menunggu persetujuan Anda.`,
+          body: `Pengajuan cuti ${req0.emp_name} tanggal ${fmtDateLongID(req0.start_date)} s.d. ${fmtDateLongID(req0.end_date)} telah disetujui SPV dan menunggu persetujuan Anda.`,
           type: "approval", link: "/admin/cuti",
         });
       }
@@ -79,8 +80,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     return Response.json({ ok: true, status: newStatus });
   }
 
-  // Tahap 2: Manager approve → approved (bisa dari pending jika tidak ada SPV, atau dari spv_approved)
+  // Tahap 2: Manager (dari pending hanya jika tanpa SPV, atau dari spv_approved)
   if (req0.manager_id && user.employee_id === req0.manager_id) {
+    if (req0.status === "pending" && req0.spv_id) {
+      return Response.json({ ok: false, error: "Menunggu persetujuan SPV." }, { status: 409 });
+    }
     if (req0.status !== "spv_approved" && req0.status !== "pending") return Response.json({ ok: false, error: "Sudah diproses." }, { status: 409 });
     const newStatus = approve ? "approved" : "rejected";
     await pool.query(`UPDATE leave_requests SET status=$1, decided_by=$2, decided_at=$3 WHERE id=$4`, [
@@ -99,7 +103,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       await writeNotification({
         userId: userR.rows[0].id,
         title: approve ? "Cuti Disetujui" : "Cuti Ditolak Manager",
-        body: `Pengajuan cuti Anda tanggal ${req0.start_date} s.d. ${req0.end_date} telah ${approve ? 'disetujui' : 'ditolak'} oleh Manager (${approverName}).`,
+        body: `Pengajuan cuti Anda tanggal ${fmtDateLongID(req0.start_date)} s.d. ${fmtDateLongID(req0.end_date)} telah ${approve ? "disetujui" : "ditolak"} oleh Manager (${approverName}).`,
         type: "info", link: "/app/cuti",
       });
     }

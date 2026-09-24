@@ -5,6 +5,10 @@ const BULAN = [
   "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
   "Jul", "Agu", "Sep", "Okt", "Nov", "Des",
 ];
+const BULAN_LONG = [
+  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+  "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+];
 
 export function parseLocalISO(iso: string): Date {
   const [y, m, d] = iso.split("-").map(Number);
@@ -46,9 +50,34 @@ export function fmtDateShortID(iso: string): string {
   return `${d.getDate()} ${BULAN[d.getMonth()]}`;
 }
 
+/** "Rab, 25 Sep - 30 Sep 2026" — rentang; hari yang sama → fmtDateID. */
+export function fmtDateRangeID(start: string, end: string): string {
+  if (start === end) return fmtDateID(start);
+  const s = parseLocalISO(start);
+  const e = parseLocalISO(end);
+  return `${HARI[s.getDay()]}, ${s.getDate()} ${BULAN[s.getMonth()]} - ${e.getDate()} ${BULAN[e.getMonth()]} ${e.getFullYear()}`;
+}
+
 export function fmtDateTimeID(isoTimestamp: string): string {
   const d = new Date(isoTimestamp);
   return `${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()} · ${fmtClock(d)}`;
+}
+
+function toDateLong(v: string | Date): Date {
+  if (v instanceof Date) return v;
+  return v.length === 10 ? parseLocalISO(v) : new Date(v);
+}
+
+/** "25 September 2026" — terima ISO date string atau Date (hasil query PG). */
+export function fmtDateLongID(v: string | Date): string {
+  const d = toDateLong(v);
+  return `${d.getDate()} ${BULAN_LONG[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+/** "25 September 2026 18:00" — untuk timestamp keputusan dsb. */
+export function fmtDateTimeLongID(v: string | Date): string {
+  const d = toDateLong(v);
+  return `${fmtDateLongID(d)} ${fmtClock(d)}`;
 }
 
 function fmtClock(d: Date): string {

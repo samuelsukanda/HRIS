@@ -2,10 +2,9 @@
 
 export type Role =
   | "super_admin"
-  | "hr_admin"
-  | "hr_manager"
+  | "hr"
   | "manager"
-  | "finance"
+  | "supervisor"
   | "employee";
 
 export interface User {
@@ -251,7 +250,7 @@ export interface HrisData {
 
 
 export interface ApprovalEntry {
-  level: "spv" | "manager";
+  level: "spv" | "manager" | "hr";
   byName: string;
   at: string;
   approved: boolean;

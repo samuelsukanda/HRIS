@@ -33,8 +33,8 @@ export async function POST(req: Request) {
           if (mu.rows[0]) await writeNotification({ userId: mu.rows[0].id, title: "Cuti Perlu Persetujuan Manager", body: `Pengajuan cuti menunggu persetujuan Anda`, type: "approval", link: "/admin/cuti" });
         }
       }
-      // Tahap 2: Manager (bisa dari pending jika tidak ada SPV, atau dari spv_approved)
-      else if (req0.manager_id && u.employee_id === req0.manager_id && (req0.status === "spv_approved" || req0.status === "pending")) {
+      // Tahap 2: Manager (dari pending hanya jika tanpa SPV, atau dari spv_approved)
+      else if (req0.manager_id && u.employee_id === req0.manager_id && (req0.status === "spv_approved" || (req0.status === "pending" && !req0.spv_id))) {
         const newStatus = approve ? "approved" : "rejected";
         await client.query(`UPDATE leave_requests SET status=$1, decided_by=$2, decided_at=NOW() WHERE id=$3`, [newStatus, approver, id]);
         await writeAudit({ actorId: u.id, actorName: approver, action: "Manager approved leave", targetType: "leave_request", targetId: id, detail: newStatus, before: "spv_approved", after: newStatus, at: new Date().toISOString() });

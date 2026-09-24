@@ -2,8 +2,6 @@ import { pool } from "@/db/client";
 import { nextId, writeAudit } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
 
-const HR_ROLES = ["hr_manager", "hr_admin", "super_admin"];
-
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return Response.json({ ok: false }, { status: 401 });

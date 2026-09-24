@@ -6,8 +6,7 @@ import { Avatar, Btn, EmptyState, IconBtn, Input, PageHead, Pager, Select, Stamp
 import { currentUser, useHris } from "@/lib/store";
 import { showTempPassword, toastErr, toastOk } from "@/lib/swal";
 import type { User } from "@/lib/types";
-
-const HR_ROLES = ["hr_manager", "hr_admin", "super_admin"];
+import { isHr } from "@/lib/roles";
 
 export default function AdminAccounts() {
   const { state } = useHris();
@@ -19,7 +18,7 @@ export default function AdminAccounts() {
   const LIMIT = 10;
 
   const rows = useMemo(() => {
-    if (!me || !HR_ROLES.includes(me.user.role)) return [];
+    if (!me || !isHr(me.user.role)) return [];
     return data.employees
       .filter((e) => e.status !== "resigned" && e.status !== "inactive")
       .filter((e) => {
@@ -34,7 +33,7 @@ export default function AdminAccounts() {
   const paged = rows.slice((page - 1) * LIMIT, page * LIMIT);
 
   if (!state.session) return null;
-  if (!me || !HR_ROLES.includes(me.user.role)) {
+  if (!me || !isHr(me.user.role)) {
     return (
       <>
         <PageHead title="Kelola Akun" sub="Kelola akun login karyawan." />
@@ -144,10 +143,9 @@ function RoleCell({ user }: { user: User }) {
     <div className="flex items-center gap-1.5">
       <Select value={role} onChange={(e) => setRole(e.target.value as User["role"])} aria-label={`Role ${user.email}`} className="min-w-0 py-1 text-xs">
         <option value="employee">Employee</option>
+        <option value="supervisor">Supervisor</option>
         <option value="manager">Manager</option>
-        <option value="hr_admin">HR Admin</option>
-        <option value="hr_manager">HR Manager</option>
-        <option value="finance">Finance</option>
+        <option value="hr">HR</option>
         <option value="super_admin">Super Admin</option>
       </Select>
       <Btn variant="secondary" size="sm" disabled={busy || role === user.role} onClick={() => void save()}>Simpan</Btn>

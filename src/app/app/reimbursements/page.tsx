@@ -8,9 +8,15 @@ import { currentUser, useHris } from "@/lib/store";
 
 const STATUS_KIND: Record<string, "pending" | "approved" | "rejected" | "neutral"> = {
   pending: "pending",
-  manager_approved: "pending",
+  spv_approved: "pending",
   approved: "approved",
   rejected: "rejected",
+};
+const STATUS_LABEL: Record<string, string> = {
+  pending: "Menunggu HR",
+  spv_approved: "Menunggu HR",
+  approved: "Disetujui",
+  rejected: "Ditolak",
 };
 
 export default function MyReimbursements() {
@@ -136,7 +142,7 @@ export default function MyReimbursements() {
             <li key={r.id} className="border border-rule bg-card p-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold capitalize">{r.category}</span>
-                <Stamp kind={STATUS_KIND[r.status]}>{r.status.replace("_", " ")}</Stamp>
+                <Stamp kind={STATUS_KIND[r.status] ?? "pending"}>{STATUS_LABEL[r.status] ?? r.status}</Stamp>
               </div>
               <p className="tnum mt-1 font-mono text-sm text-official">Rp {r.amount.toLocaleString("id-ID")}</p>
               <p className="mt-0.5 text-xs text-ink-soft">{r.description}</p>

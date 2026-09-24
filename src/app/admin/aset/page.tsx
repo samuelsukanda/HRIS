@@ -5,6 +5,7 @@ import { Package, Pencil, Trash } from "@phosphor-icons/react";
 import { Btn, EmptyState, Field, IconBtn, Input, Modal, PageHead, Pager, Select, Stamp, Textarea } from "@/components/ui";
 import { currentUser, useHris } from "@/lib/store";
 import { confirmDelete, toastOk } from "@/lib/swal";
+import { isHr } from "@/lib/roles";
 import type { Asset } from "@/lib/types";
 
 type AssetStatus = "available" | "assigned" | "maintenance" | "retired";
@@ -138,22 +139,15 @@ export default function AdminAset() {
 
   const pendingRequests = data.assetRequests.filter((r) => r.status === "pending" || r.status === "spv_approved");
   function decideRequest(id: string, approve: boolean) {
-    dispatch({ type: "DECIDE_ASSET_REQUEST", id, approve });
-    toastOk(approve ? "Permintaan disetujui" : "Permintaan ditolak");
+    void dispatch({ type: "DECIDE_ASSET_REQUEST", id, approve }).then((ok) => {
+      if (ok) toastOk(approve ? "Permintaan disetujui" : "Permintaan ditolak");
+    });
   }
 
-  function canApproveRequest(r: { employeeId: string; status: string }) {
-    if (!me) return false;
-    const emp = data.employees.find((e) => e.id === r.employeeId);
-    if (!emp) return false;
-    if (r.status === "pending" && emp.spvId === me.employee.id) return true;
-    if ((r.status === "spv_approved" || r.status === "pending") && emp.managerId === me.employee.id) return true;
-    return false;
-  }
+  const canDecide = isHr(me?.user.role ?? "");
 
   function requestStageLabel(r: { status: string }) {
-    if (r.status === "pending") return <span className="text-xs text-amber-600 font-medium">Menunggu SPV</span>;
-    if (r.status === "spv_approved") return <span className="text-xs text-blue-600 font-medium">Menunggu Manager</span>;
+    if (r.status === "pending" || r.status === "spv_approved") return <span className="text-xs text-amber-600 font-medium">Menunggu keputusan HR</span>;
     return null;
   }
 
@@ -173,7 +167,7 @@ export default function AdminAset() {
           <ul className="divide-y divide-ledger/50">
             {pendingRequests.map((r) => {
               const emp = data.employees.find((e) => e.id === r.employeeId);
-              const showButtons = canApproveRequest(r);
+              const showButtons = canDecide;
               return (
                 <li key={r.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
                   <div className="min-w-0 flex-1">
@@ -203,14 +197,14 @@ export default function AdminAset() {
           </header>
           <ul className="divide-y divide-ledger/50">
             {pendingReturns.map((a) => {
-              const isManager = me && a.assignee?.managerId === me.employee.id;
+              const canConfirm = !!me && isHr(me.user.role);
               return (
                 <li key={a.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold">{a.assignee?.name ?? a.employeeId} <span className="font-normal text-ink-faint">· {a.asset?.name ?? a.assetId}</span></p>
-                    <p className="tnum text-xs text-ink-soft">Serial: {a.asset?.serialNumber ?? "—"} · <span className="text-amber-600">menunggu konfirmasi Manager</span></p>
+                    <p className="tnum text-xs text-ink-soft">Serial: {a.asset?.serialNumber ?? "—"} · <span className="text-amber-600">menunggu konfirmasi HR</span></p>
                   </div>
-                  {isManager && (
+                  {canConfirm && (
                     <Btn variant="official" size="sm" onClick={() => doReturn(a.id)}>Konfirmasi Kembali</Btn>
                   )}
                 </li>

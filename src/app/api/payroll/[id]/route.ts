@@ -2,13 +2,13 @@ import { pool } from "@/db/client";
 import { getSessionUser } from "@/lib/server/session";
 import { writeAudit } from "@/lib/server/state";
 
-const HR_ROLES = ["hr_admin", "hr_manager", "super_admin"];
+import { isHr } from "@/lib/roles";
 
 /** GET /api/payroll/[id] — detail run + seluruh slip (HR saja). */
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser();
   if (!user) return Response.json({ ok: false }, { status: 401 });
-  if (!HR_ROLES.includes(user.role)) return Response.json({ ok: false, error: "Hanya HR." }, { status: 403 });
+  if (!isHr(user.role)) return Response.json({ ok: false, error: "Hanya HR." }, { status: 403 });
   const { id } = await ctx.params;
   const runR = await pool.query(`SELECT * FROM payroll_runs WHERE id = $1`, [id]);
   const run = runR.rows[0];
@@ -33,7 +33,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser();
   if (!user) return Response.json({ ok: false }, { status: 401 });
-  if (!HR_ROLES.includes(user.role)) {
+  if (!isHr(user.role)) {
     return Response.json({ ok: false, error: "Hanya HR." }, { status: 403 });
   }
   const { id } = await ctx.params;

@@ -47,9 +47,16 @@ export default function AdminEmployees() {
   const [managerId, setManagerId] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // Superadmin hanya akun pengaturan — tidak tampil sebagai karyawan
+  const superAdminIds = useMemo(
+    () => new Set(data.users.filter((u) => u.role === "super_admin").map((u) => u.employeeId)),
+    [data.users],
+  );
+
   const rows = useMemo(
     () =>
       data.employees.filter((e) => {
+        if (superAdminIds.has(e.id)) return false;
         if (e.status === "resigned" || e.status === "inactive") return false;
         if (branchFilter !== "all" && e.branchId !== branchFilter) return false;
         if (deptFilter !== "all" && e.departmentId !== deptFilter) return false;
@@ -58,7 +65,7 @@ export default function AdminEmployees() {
         const pos = data.positions.find((p) => p.id === e.positionId)?.title ?? "";
         return `${e.name} ${e.id} ${dep} ${pos}`.toLowerCase().includes(q.toLowerCase());
       }),
-    [data, q, branchFilter, deptFilter],
+    [data, q, branchFilter, deptFilter, superAdminIds],
   );
 
   const emp = selected ? data.employees.find((e) => e.id === selected)! : null;
@@ -482,10 +489,9 @@ function AccountSection({ employeeId }: { employeeId: string }) {
             <p className="mb-1 text-xs font-semibold tracking-wide text-ink-soft uppercase">Role</p>
             <Select value={role} onChange={(e) => setRole(e.target.value as never)} aria-label="Role akun baru" className="min-w-0 py-1.5 text-xs">
               <option value="employee">Employee</option>
+              <option value="supervisor">Supervisor</option>
               <option value="manager">Manager</option>
-              <option value="hr_admin">HR Admin</option>
-              <option value="hr_manager">HR Manager</option>
-              <option value="finance">Finance</option>
+              <option value="hr">HR</option>
               <option value="super_admin">Super Admin</option>
             </Select>
           </div>
@@ -531,10 +537,9 @@ function AccountSection({ employeeId }: { employeeId: string }) {
           <div className="flex items-center gap-2">
             <Select value={role} onChange={(e) => setRole(e.target.value as never)} aria-label="Role akun" className="min-w-0 flex-1 py-1.5 text-xs">
               <option value="employee">Employee</option>
+              <option value="supervisor">Supervisor</option>
               <option value="manager">Manager</option>
-              <option value="hr_admin">HR Admin</option>
-              <option value="hr_manager">HR Manager</option>
-              <option value="finance">Finance</option>
+              <option value="hr">HR</option>
               <option value="super_admin">Super Admin</option>
             </Select>
             <Btn variant="secondary" size="sm" disabled={busy || role === account.role} onClick={() => void save({ role }, "Role diperbarui")}>Simpan</Btn>

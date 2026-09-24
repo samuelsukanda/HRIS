@@ -5,7 +5,6 @@ import { X } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 import { initials } from "@/lib/format";
-import { useHris } from "@/lib/store";
 
 export function Stamp({
   kind,
@@ -162,12 +161,12 @@ export function PageHead({ title, sub, action }: { title: string; sub?: string; 
   );
 }
 
-export function EmptyState({ icon: Icon, title, body }: { icon: Icon; title: string; body: string }) {
+export function EmptyState({ icon: Icon, title, body }: { icon: Icon; title: string; body?: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 border border-dashed border-rule px-6 py-14 text-center">
       <Icon size={28} className="text-ink-faint" weight="light" />
       <p className="font-semibold text-ink">{title}</p>
-      <p className="max-w-[45ch] text-sm text-ink-soft">{body}</p>
+      {body && <p className="max-w-[45ch] text-sm text-ink-soft">{body}</p>}
     </div>
   );
 }
@@ -226,21 +225,6 @@ export function Pager({ page, total, limit, onChange }: { page: number; total: n
           Next →
         </Btn>
       </div>
-    </div>
-  );
-}
-
-export function Toast() {
-  const { toast, hideToast } = useHris();
-  if (!toast) return null;
-  return (
-    <div className="fixed right-4 bottom-4 z-50 flex max-w-sm items-start justify-between gap-3 border border-rule bg-card p-4 shadow-lg">
-      <div className="text-sm">
-        <span className={`inline-block h-2 w-2 rounded-full mr-2 ${toast.type === "error" ? "bg-stamp" : "bg-official"}`} />
-        <span className="font-semibold">{toast.type === "error" ? "Gagal" : "Sukses"}</span>
-        <p className="mt-1 text-ink-soft leading-relaxed">{toast.message}</p>
-      </div>
-      <button onClick={hideToast} className="btn-press text-ink-faint hover:text-ink"><X size={14} /></button>
     </div>
   );
 }

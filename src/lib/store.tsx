@@ -25,7 +25,7 @@ import type {
   WorkLocation,
 } from "./types";
 import { seedData } from "./data";
-import { alertAccountDisabled, showTempPassword } from "./swal";
+import { alertAccountDisabled, showTempPassword, toastErr, toastOk } from "./swal";
 
 export interface SessionUser {
   userId: string;
@@ -51,7 +51,7 @@ type Action =
   | { type: "REGISTER_FACE"; employeeId: string; descriptor?: number[] }
   | { type: "UPDATE_SELF_PHOTO"; employeeId: string; photoUrl: string | null }
   | { type: "SUBMIT_REIMBURSEMENT"; request: Reimbursement }
-  | { type: "DECIDE_REIMBURSEMENT"; id: string; level: "spv" | "manager"; approve: boolean; byName: string }
+  | { type: "DECIDE_REIMBURSEMENT"; id: string; level: "hr"; approve: boolean; byName: string }
   | { type: "APPLY_CANDIDATE"; candidate: Candidate }
   | { type: "UPDATE_CANDIDATE"; id: string; status: Candidate["status"]; notes?: string }
   | { type: "ENROLL_TRAINING"; enrollment: TrainingEnrollment }
@@ -62,6 +62,7 @@ type Action =
   | { type: "FINALIZE_REVIEW"; id: string }
   | { type: "MARK_NOTIFICATION_READ"; id: string }
   | { type: "MARK_ALL_NOTIFICATIONS_READ"; userId: string }
+  | { type: "DELETE_NOTIFICATION"; id: string }
   | { type: "CREATE_ANNOUNCEMENT"; announcement: { id: string; title: string; body: string; category: "pengumuman" | "kebijakan" | "libur" | "acara"; date: string } }
   | { type: "UPDATE_ANNOUNCEMENT"; id: string; title?: string; body?: string; category?: "pengumuman" | "kebijakan" | "libur" | "acara"; date?: string }
   | { type: "DELETE_ANNOUNCEMENT"; id: string }
@@ -86,7 +87,7 @@ type Action =
   | { type: "DELETE_ASSET"; id: string }
   | { type: "BULK_DECIDE_LEAVE"; ids: string[]; approve: boolean; byName: string }
   | { type: "BULK_DECIDE_OVERTIME"; ids: string[]; approve: boolean; byName: string }
-  | { type: "BULK_DECIDE_REIMBURSEMENT"; ids: string[]; approve: boolean; level: "spv" | "manager" }
+  | { type: "BULK_DECIDE_REIMBURSEMENT"; ids: string[]; approve: boolean; level: "hr" }
   | { type: "CANCEL_LEAVE"; id: string }
   | { type: "CANCEL_OVERTIME"; id: string }
   | { type: "CREATE_LOCATION"; location: WorkLocation }
@@ -352,8 +353,7 @@ function reducer(state: State, action: Action): State {
         ),
       };
     case "DECIDE_REIMBURSEMENT": {
-      const isLastLevel = action.level === "manager";
-      const newStatus = action.approve ? (isLastLevel ? "approved" : "spv_approved") : "rejected";
+      const newStatus = action.approve ? "approved" : "rejected";
       const entry: ApprovalEntry = { level: action.level, byName: action.byName, at: new Date().toISOString(), approved: action.approve };
       return {
         ...state,
@@ -482,6 +482,14 @@ function reducer(state: State, action: Action): State {
           notifications: state.data.notifications.map((n) => (n.userId === action.userId ? { ...n, read: true } : n)),
         },
       };
+    case "DELETE_NOTIFICATION":
+      return {
+        ...state,
+        data: {
+          ...state.data,
+          notifications: state.data.notifications.filter((n) => n.id !== action.id),
+        },
+      };
     case "CREATE_ANNOUNCEMENT":
       return {
         ...state,
@@ -576,7 +584,7 @@ function reducer(state: State, action: Action): State {
       return { ...state, data: { ...state.data, reimbursements: state.data.reimbursements.map((r) => {
         if (!action.ids.includes(r.id)) return r;
         const entry: ApprovalEntry = { level: action.level, byName: "", at: new Date().toISOString(), approved: action.approve };
-        return { ...r, status: action.approve ? (action.level === "manager" ? "approved" as const : "spv_approved" as const) : "rejected" as const, approvals: [...r.approvals, entry] };
+        return { ...r, status: action.approve ? "approved" as const : "rejected" as const, approvals: [...r.approvals, entry] };
       }) } };
     case "CANCEL_LEAVE":
       return { ...state, data: { ...state.data, leaveRequests: state.data.leaveRequests.map((l) => (l.id === action.id ? { ...l, status: "cancelled" as const } : l)) } };
@@ -780,6 +788,8 @@ async function syncAction(a: Action): Promise<boolean> {
       return (await postJSON(`/api/notifications`, { id: a.id }, "PATCH")).r.ok;
     case "MARK_ALL_NOTIFICATIONS_READ":
       return (await postJSON(`/api/notifications`, { markAll: true }, "PATCH")).r.ok;
+    case "DELETE_NOTIFICATION":
+      return (await postJSON(`/api/notifications`, { id: a.id }, "DELETE")).r.ok;
     default:
       return false;
   }
@@ -787,15 +797,13 @@ async function syncAction(a: Action): Promise<boolean> {
 
 const Ctx = createContext<{
   state: State;
-  dispatch: React.Dispatch<Action>;
+  dispatch: (value: Action) => Promise<boolean>;
   refresh: () => Promise<boolean>;
   login: (email: string, password: string) => Promise<string | null>;
   logout: () => Promise<void>;
   submitCheckIn: (payload: CheckInPayload) => Promise<AttendanceRecord>;
   submitCheckOut: (payload: CheckInPayload) => Promise<{ id: string; snap: VerificationSnapshot }>;
-  toast: { message: string; type: "success" | "error" } | null;
   showToast: (message: string, type?: "success" | "error") => void;
-  hideToast: () => void;
 } | null>(null);
 
 export function HrisProvider({ children }: { children: React.ReactNode }) {
@@ -833,14 +841,10 @@ export function HrisProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const showToast = useCallback((message: string, type: "success" | "error" = "success") => {
-    setToast({ message, type });
-    setTimeout(() => {
-      setToast((curr) => (curr?.message === message ? null : curr));
-    }, 4000);
+    if (type === "error") toastErr(message);
+    else toastOk(message);
   }, []);
-  const hideToast = useCallback(() => setToast(null), []);
 
   useEffect(() => {
     hadSessionRef.current = !!state.session;
@@ -902,16 +906,18 @@ export function HrisProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(t);
   }, [refresh]);
 
-  const dispatch = useCallback<React.Dispatch<Action>>(
-    (a) => {
+  const dispatch = useCallback(
+    (a: Action): Promise<boolean> => {
       rawDispatch(a);
-      syncAction(a)
+      return syncAction(a)
         .then((changed) => {
-          if (changed) void refresh();
+          if (changed) return refresh().then(() => true);
+          return true;
         })
         .catch((err) => {
           showToast(err.message || "Gagal sinkronisasi data.", "error");
           void refresh(); // revert optimistic state
+          return false;
         });
     },
     [refresh, showToast],
@@ -957,8 +963,8 @@ export function HrisProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ state, dispatch, refresh, login, logout, submitCheckIn, submitCheckOut, toast, showToast, hideToast }),
-    [state, dispatch, refresh, login, logout, submitCheckIn, submitCheckOut, toast, showToast, hideToast],
+    () => ({ state, dispatch, refresh, login, logout, submitCheckIn, submitCheckOut, showToast }),
+    [state, dispatch, refresh, login, logout, submitCheckIn, submitCheckOut, showToast],
   );
   if (!ready) return <div className="min-h-[100dvh] bg-paper" aria-hidden />;
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -5,7 +5,7 @@ import { getSessionUser } from "@/lib/server/session";
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return Response.json({ ok: false }, { status: 401 });
-  if (!["hr_admin", "hr_manager", "super_admin"].includes(user.role)) {
+  if (!["hr", "super_admin"].includes(user.role)) {
     return Response.json({ ok: false, error: "Hanya HR." }, { status: 403 });
   }
   const r = await pool.query(

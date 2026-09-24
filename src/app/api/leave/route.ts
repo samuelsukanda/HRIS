@@ -1,7 +1,7 @@
 import { pool } from "@/db/client";
 import { getSessionUser } from "@/lib/server/session";
 import { nextId, writeAudit, writeNotification } from "@/lib/server/state";
-import { toLocalISO, addDays } from "@/lib/format";
+import { addDays, fmtDateLongID } from "@/lib/format";
 
 /** POST /api/leave — karyawan ajukan cuti */
 export async function POST(req: Request) {
@@ -26,21 +26,37 @@ export async function POST(req: Request) {
     [id, user.employee_id, body.typeId, body.startDate, body.endDate, days, body.reason.trim(), new Date(), body.attachmentUrl ?? null],
   );
 
-  const nameR = await pool.query(`SELECT name FROM employees WHERE id = $1`, [user.employee_id]);
-  const empName = nameR.rows[0]?.name ?? "-";
+  const empR = await pool.query(`SELECT name, spv_id, manager_id FROM employees WHERE id = $1`, [user.employee_id]);
+  const empName = empR.rows[0]?.name ?? "-";
+  const spvId: string | null = empR.rows[0]?.spv_id ?? null;
+  const dateRange = `${fmtDateLongID(body.startDate)} s.d. ${fmtDateLongID(body.endDate)}`;
   await writeAudit({
     actorId: user.id, actorName: empName,
     action: "Leave requested", targetType: "leave_request", targetId: id,
     detail: `${body.startDate} s.d. ${body.endDate} (${days} hari)`, at: new Date().toISOString(),
   });
 
-  // Kirim notifikasi ke HR
-  const hrs = await pool.query(`SELECT id FROM users WHERE role IN ('hr_manager', 'hr_admin', 'super_admin')`);
+  // Notifikasi ke SPV
+  if (spvId) {
+    const spvUserR = await pool.query(`SELECT id FROM users WHERE employee_id = $1`, [spvId]);
+    if (spvUserR.rows[0]) {
+      await writeNotification({
+        userId: spvUserR.rows[0].id,
+        title: "Pengajuan Cuti Baru",
+        body: `${empName} mengajukan cuti dari ${dateRange} (${days} hari). Menunggu persetujuan Anda.`,
+        type: "approval",
+        link: "/admin/cuti",
+      });
+    }
+  }
+
+  // Notifikasi ke HR
+  const hrs = await pool.query(`SELECT id FROM users WHERE role IN ('hr', 'super_admin')`);
   for (const hr of hrs.rows) {
     await writeNotification({
       userId: hr.id,
       title: "Pengajuan Cuti Baru",
-      body: `${empName} mengajukan cuti dari ${body.startDate} s.d. ${body.endDate} (${days} hari).`,
+      body: `${empName} mengajukan cuti dari ${dateRange} (${days} hari).`,
       type: "approval",
       link: "/admin/cuti",
     });

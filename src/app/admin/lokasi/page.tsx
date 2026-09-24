@@ -231,7 +231,7 @@ function LocationCard({ loc }: { loc: WorkLocation }) {
         </div>
       </header>
 
-      <div className="grid gap-4 px-5 py-4 sm:grid-cols-[1fr_150px]">
+      <div className={edit ? "px-5 py-4" : "grid gap-4 px-5 py-4 sm:grid-cols-[1fr_150px]"}>
         <div>
           {edit && (
             <div className="mb-4">
@@ -290,9 +290,11 @@ function LocationCard({ loc }: { loc: WorkLocation }) {
         </div>
 
         {/* Peta real sebaran check-in */}
-        <div className="mx-auto w-full max-w-[220px]">
-          <LocationMiniMap latitude={loc.latitude} longitude={loc.longitude} radiusM={loc.radiusM} points={points} />
-        </div>
+        {!edit && (
+          <div className="mx-auto w-full max-w-[220px]">
+            <LocationMiniMap latitude={loc.latitude} longitude={loc.longitude} radiusM={loc.radiusM} points={points} />
+          </div>
+        )}
       </div>
     </section>
   );

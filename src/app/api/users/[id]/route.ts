@@ -3,12 +3,12 @@ import { getSessionUser } from "@/lib/server/session";
 import { writeAudit } from "@/lib/server/state";
 import type { Role } from "@/lib/types";
 
-const HR = ["hr_manager","hr_admin","super_admin"];
-const VALID_ROLES: Role[] = ["super_admin","hr_admin","hr_manager","manager","finance","employee"];
+import { isHr } from "@/lib/roles";
+const VALID_ROLES: Role[] = ["super_admin","hr","manager","supervisor","employee"];
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const u = await getSessionUser(); if (!u) return Response.json({ ok: false }, { status: 401 });
-  if (!HR.includes(u.role)) return Response.json({ ok: false }, { status: 403 });
+  if (!isHr(u.role)) return Response.json({ ok: false }, { status: 403 });
   const { id } = await params;
   const r = await pool.query(`SELECT id, email, employee_id, role, active FROM users WHERE id=$1`, [id]);
   if (!r.rows.length) return Response.json({ ok: false }, { status: 404 });
@@ -17,7 +17,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const u = await getSessionUser(); if (!u) return Response.json({ ok: false }, { status: 401 });
-  if (!HR.includes(u.role)) return Response.json({ ok: false }, { status: 403 });
+  if (!isHr(u.role)) return Response.json({ ok: false }, { status: 403 });
   const { id } = await params;
   const body = await req.json() as Record<string, unknown>;
   const r = await pool.query(`SELECT * FROM users WHERE id=$1`, [id]);

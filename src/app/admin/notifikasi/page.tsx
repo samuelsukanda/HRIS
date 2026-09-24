@@ -1,33 +1,38 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Bell, Trash } from "@phosphor-icons/react";
 import { Btn, EmptyState, PageHead } from "@/components/ui";
 import { currentUser, useHris } from "@/lib/store";
 
-export default function NotificationsPage() {
+export default function AdminNotificationsPage() {
   const { state, dispatch, refresh } = useHris();
   const { data } = state;
-  const me = currentUser(state);
 
   // ponytail: ambil terbaru tiap buka halaman — tanpa realtime infra
   useEffect(() => { void refresh(); }, [refresh]);
 
-  const myNotifs = me
-    ? data.notifications
-        .filter((n) => n.userId === me.user.id)
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    : [];
+  const notifs = useMemo(
+    () => [...data.notifications].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [data.notifications],
+  );
+
+  const nameByUserId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const u of data.users) {
+      const emp = data.employees.find((e) => e.id === u.employeeId);
+      map.set(u.id, emp?.name ?? u.email);
+    }
+    return map;
+  }, [data.users, data.employees]);
 
   function markRead(id: string) {
     dispatch({ type: "MARK_NOTIFICATION_READ", id });
   }
-
   function markAllRead() {
-    if (me) dispatch({ type: "MARK_ALL_NOTIFICATIONS_READ", userId: me.user.id });
+    for (const n of notifs) dispatch({ type: "MARK_NOTIFICATION_READ", id: n.id });
   }
-
   function remove(id: string) {
     void dispatch({ type: "DELETE_NOTIFICATION", id });
   }
@@ -36,20 +41,20 @@ export default function NotificationsPage() {
     <>
       <PageHead
         title="Notifikasi"
-        sub="Pantau pemberitahuan dan informasi penting terkait aktivitas HRIS Anda."
+        sub="Seluruh pemberitahuan di seluruh perusahaan, termasuk untuk karyawan."
         action={
-          myNotifs.some((n) => !n.read) ? (
+          notifs.some((n) => !n.read) ? (
             <Btn variant="secondary" size="sm" onClick={markAllRead}>
               Tandai semua dibaca
             </Btn>
           ) : undefined
         }
       />
-      {myNotifs.length === 0 ? (
+      {notifs.length === 0 ? (
         <EmptyState icon={Bell} title="Belum ada notifikasi" />
       ) : (
         <ul className="divide-y divide-ledger/60 border border-rule bg-card">
-          {myNotifs.map((n) => (
+          {notifs.map((n) => (
             <li key={n.id} className="relative">
               {n.link ? (
                 <Link
@@ -57,14 +62,14 @@ export default function NotificationsPage() {
                   onClick={() => !n.read && markRead(n.id)}
                   className={`block px-4 py-3 pr-10 hover:bg-black/[0.02] ${!n.read ? "border-l-4 border-l-official bg-official/5" : ""}`}
                 >
-                  <NotifItem n={n} />
+                  <NotifItem n={n} name={nameByUserId.get(n.userId) ?? n.userId} />
                 </Link>
               ) : (
                 <div
                   onClick={() => !n.read && markRead(n.id)}
                   className={`px-4 py-3 pr-10 ${!n.read ? "border-l-4 border-l-official bg-official/5" : ""}`}
                 >
-                  <NotifItem n={n} />
+                  <NotifItem n={n} name={nameByUserId.get(n.userId) ?? n.userId} />
                 </div>
               )}
               <button
@@ -84,13 +89,15 @@ export default function NotificationsPage() {
   );
 }
 
-function NotifItem({ n }: { n: { title: string; body: string; type: string; read: boolean; createdAt: string } }) {
+function NotifItem({ n, name }: { n: { title: string; body: string; type: string; read: boolean; createdAt: string }; name: string }) {
   return (
     <div className="flex items-start gap-3">
       <div className="min-w-0 flex-1">
         <p className={`text-sm ${!n.read ? "font-semibold" : ""}`}>{n.title}</p>
         <p className="mt-0.5 text-xs leading-relaxed text-ink-soft">{n.body}</p>
-        <p className="tnum mt-1 text-[10px] text-ink-faint">{new Date(n.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+        <p className="tnum mt-1 text-[10px] text-ink-faint">
+          {name} · {new Date(n.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+        </p>
       </div>
       {!n.read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-official" />}
     </div>

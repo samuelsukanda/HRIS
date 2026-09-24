@@ -15,3 +15,12 @@ export function MapClickHandler({ onChange }: { onChange: (latitude: number, lon
   useMapEvents({ click: (event) => onChange(event.latlng.lat, event.latlng.lng) });
   return null;
 }
+
+/** Hilangkan label "Leaflet" pada attribution; kredit OpenStreetMap tetap wajib tampil. */
+export function MapAttribution() {
+  const map = useMap();
+  useEffect(() => {
+    map.attributionControl.setPrefix("");
+  }, [map]);
+  return null;
+}

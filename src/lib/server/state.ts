@@ -211,34 +211,64 @@ export async function loadHrisData(): Promise<HrisData> {
   };
 }
 
-/** Karyawan hanya melihat data miliknya; role lain melihat penuh. */
+/** Karyawan hanya melihat data miliknya; manager/supervisor hanya timnya; hr hanya cabangnya. */
 export function scopeForUser(data: HrisData, user: User | null): HrisData {
-  if (!user || user.role !== "employee") return data;
-  const own = <T extends { employeeId: string }>(arr: T[]) => arr.filter((x) => x.employeeId === user.employeeId);
-  return {
-    ...data,
-    // direktori minimal: tanpa NIK/gaji/bank/kontak/wajah
-    users: data.users.map((x) => ({ ...x, email: x.id === user.id ? x.email : "" })),
-    employees: data.employees
-      .map((e) => (e.id === user.employeeId
-        ? e
-        : { ...e, nik: "", phone: "", email: "", address: "", baseSalary: undefined, allowance: undefined, bankName: "", bankAccount: "", emergencyContact: { name: "", relation: "", phone: "" }, faceRegistered: false })),
-    // roster milik sendiri tetap dikirim — dibutuhkan deteksi shift di absensi & jadwal;
-    // roster karyawan lain dan kandidat bukan konsumsi employee
-    roster: own(data.roster),
-    candidates: [],
-    attendance: own(data.attendance),
-    leaveRequests: own(data.leaveRequests),
-    overtimeRequests: own(data.overtimeRequests),
-    reimbursements: own(data.reimbursements),
-    trainingEnrollments: own(data.trainingEnrollments),
-    assetAssignments: own(data.assetAssignments),
-    performanceReviews: own(data.performanceReviews),
-    shiftSwaps: own(data.shiftSwaps),
-    assetRequests: own(data.assetRequests),
-    notifications: data.notifications.filter((n) => n.userId === user.id),
-    auditLogs: [],
-  };
+  if (!user) return data;
+
+  if (user.role === "employee") {
+    const own = <T extends { employeeId: string }>(arr: T[]) => arr.filter((x) => x.employeeId === user.employeeId);
+    return {
+      ...data,
+      // direktori minimal: tanpa NIK/gaji/bank/kontak/wajah
+      users: data.users.map((x) => ({ ...x, email: x.id === user.id ? x.email : "" })),
+      employees: data.employees
+        .map((e) => (e.id === user.employeeId
+          ? e
+          : { ...e, nik: "", phone: "", email: "", address: "", baseSalary: undefined, allowance: undefined, bankName: "", bankAccount: "", emergencyContact: { name: "", relation: "", phone: "" }, faceRegistered: false })),
+      // roster milik sendiri tetap dikirim — dibutuhkan deteksi shift di absensi & jadwal;
+      // roster karyawan lain dan kandidat bukan konsumsi employee
+      roster: own(data.roster),
+      candidates: [],
+      attendance: own(data.attendance),
+      leaveRequests: own(data.leaveRequests),
+      overtimeRequests: own(data.overtimeRequests),
+      reimbursements: own(data.reimbursements),
+      trainingEnrollments: own(data.trainingEnrollments),
+      assetAssignments: own(data.assetAssignments),
+      performanceReviews: own(data.performanceReviews),
+      shiftSwaps: own(data.shiftSwaps),
+      assetRequests: own(data.assetRequests),
+      notifications: data.notifications.filter((n) => n.userId === user.id),
+      auditLogs: [],
+    };
+  }
+
+  if (user.role === "hr" || user.role === "manager" || user.role === "supervisor") {
+    const me = data.employees.find((e) => e.id === user.employeeId);
+    const allowed = new Set<string>();
+    if (user.role === "hr") {
+      for (const e of data.employees) if (me && e.branchId === me.branchId) allowed.add(e.id);
+    } else {
+      for (const e of data.employees) {
+        if (e.spvId === user.employeeId || e.managerId === user.employeeId || e.id === user.employeeId) allowed.add(e.id);
+      }
+    }
+    if (allowed.size > 0) {
+      const inScope = <T extends { employeeId: string }>(arr: T[]) => arr.filter((x) => allowed.has(x.employeeId));
+      return {
+        ...data,
+        employees: data.employees.filter((e) => allowed.has(e.id)),
+        attendance: inScope(data.attendance),
+        roster: inScope(data.roster),
+        leaveRequests: inScope(data.leaveRequests),
+        overtimeRequests: inScope(data.overtimeRequests),
+        shiftSwaps: inScope(data.shiftSwaps),
+        notifications: data.notifications.filter((n) => n.userId === user.id),
+      };
+    }
+  }
+
+  return data;
 }
 
 export async function writeAudit(entry: Omit<AuditLogEntry, "id">) {
@@ -265,12 +295,13 @@ export async function nextId(table: string, prefix: string): Promise<string> {
   try {
     await client.query("BEGIN");
     await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [table]);
-    const r = await client.query(`SELECT id FROM ${table} ORDER BY id DESC LIMIT 1`);
+    // pindai semua ID — ID terbesar leksikografis bisa tanpa angka (mis. "PS-SUP") sehingga
+    // hitungan reset ke 1 dan menabrak ID lama
+    const r = await client.query(`SELECT id FROM ${table}`);
     let nextNum = 1;
-    if (r.rows.length > 0) {
-      const lastId = String(r.rows[0].id);
-      const m = lastId.match(/(\d+)\s*$/);
-      nextNum = (m ? parseInt(m[1], 10) : 0) + 1 || 1;
+    for (const row of r.rows) {
+      const m = String(row.id).match(/(\d+)\s*$/);
+      if (m) nextNum = Math.max(nextNum, parseInt(m[1], 10) + 1);
     }
     await client.query("COMMIT");
     return `${prefix}-${String(nextNum).padStart(3, "0")}`;

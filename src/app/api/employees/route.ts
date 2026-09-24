@@ -3,7 +3,7 @@ import { nextId, writeAudit } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
 import { hashPassword, randomPassword } from "@/lib/server/auth";
 
-const HR_ROLES = ["hr_manager", "hr_admin", "super_admin"];
+import { isHr } from "@/lib/roles";
 
 async function resolveFk(table: string, id: unknown, fallbackCol = "id"): Promise<string | null> {
   if (typeof id === "string" && id.trim()) {
@@ -18,8 +18,7 @@ async function resolveFk(table: string, id: unknown, fallbackCol = "id"): Promis
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return Response.json({ ok: false }, { status: 401 });
-  const HR = ["hr_manager", "hr_admin", "super_admin"];
-  if (HR.includes(user.role)) {
+  if (isHr(user.role)) {
     const r = await pool.query(`SELECT e.* FROM employees e ORDER BY e.name`);
     return Response.json({ employees: r.rows });
   }
@@ -33,7 +32,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return Response.json({ ok: false }, { status: 401 });
-  if (!HR_ROLES.includes(user.role)) return Response.json({ ok: false }, { status: 403 });
+  if (!isHr(user.role)) return Response.json({ ok: false }, { status: 403 });
 
   const body = await req.json() as Record<string, unknown>;
   const name = typeof body.name === "string" ? body.name.trim() : "";
@@ -56,7 +55,7 @@ export async function POST(req: Request) {
 
   const employmentType = typeof body.employmentType === "string" && body.employmentType ? body.employmentType : "probation";
   // whitelist role — super_admin hanya boleh dibuat oleh super_admin
-  const role = ["employee", "manager", "finance", "hr_admin", "hr_manager"].includes(body.role as string)
+  const role = ["employee", "manager", "supervisor", "hr"].includes(body.role as string)
     ? (body.role as string)
     : "employee";
   if (body.role === "super_admin" && user.role !== "super_admin") {

@@ -8,7 +8,7 @@ import { currentUser, useHris } from "@/lib/store";
 import { alertAccountDisabled } from "@/lib/swal";
 
 const DEMO_ACCOUNTS = [
-  { email: "samuel.hartono@hrissmart.id", name: "Samuel Hartono", role: "HR Manager", desc: "Dashboard HR penuh, review absensi & risiko fraud, kelola karyawan, approval cuti/lembur." },
+  { email: "samuel.hartono@hrissmart.id", name: "Samuel Hartono", role: "HR", desc: "Dashboard HR penuh, review absensi & risiko fraud, kelola karyawan, approval cuti/lembur." },
   { email: "ratna.wijaya@hrissmart.id", name: "Ratna Wijaya", role: "Supervisor Cabang", desc: "Pantau kehadiran tim Bandung dan setujui pengajuan subordinate." },
   { email: "budi.santoso@hrissmart.id", name: "Budi Santoso", role: "Karyawan", desc: "Check-in GPS + face + liveness, lihat shift, saldo cuti, dan riwayat." },
 ];

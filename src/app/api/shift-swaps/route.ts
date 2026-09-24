@@ -1,6 +1,7 @@
 import { pool } from "@/db/client";
 import { getSessionUser } from "@/lib/server/session";
 import { nextId, writeAudit, writeNotification } from "@/lib/server/state";
+import { fmtDateLongID } from "@/lib/format";
 
 export async function GET(req: Request) {
   const u = await getSessionUser();
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
   if (spvId) {
     const spvUser = await pool.query(`SELECT id FROM users WHERE employee_id=$1 AND active=true`, [spvId]);
     if (spvUser.rows[0]) {
-      await writeNotification({ userId: spvUser.rows[0].id, title: "Permintaan Tukar Shift", body: `${emp} ajukan tukar shift ${date} → ${targetShiftId ?? "Off"}`, type: "approval", link: "/admin/jadwal" });
+      await writeNotification({ userId: spvUser.rows[0].id, title: "Permintaan Tukar Shift", body: `${emp} ajukan tukar shift ${fmtDateLongID(date)} → ${targetShiftId ?? "Off"}`, type: "approval", link: "/admin/jadwal" });
     }
   }
 

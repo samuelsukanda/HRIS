@@ -4,14 +4,14 @@ import { getSessionUser } from "@/lib/server/session";
 import { hashPassword, randomPassword } from "@/lib/server/auth";
 import type { Role } from "@/lib/types";
 
-const HR_ROLES = ["hr_manager", "hr_admin", "super_admin"];
-const VALID_ROLES: Role[] = ["super_admin", "hr_admin", "hr_manager", "manager", "finance", "employee"];
+import { isHr } from "@/lib/roles";
+const VALID_ROLES: Role[] = ["super_admin", "hr", "manager", "supervisor", "employee"];
 
 // Buat akun login untuk karyawan yang belum punya akun
 export async function POST(req: Request) {
   const u = await getSessionUser();
   if (!u) return Response.json({ ok: false }, { status: 401 });
-  if (!HR_ROLES.includes(u.role)) return Response.json({ ok: false }, { status: 403 });
+  if (!isHr(u.role)) return Response.json({ ok: false }, { status: 403 });
 
   const body = await req.json() as Record<string, unknown>;
   const employeeId = typeof body.employeeId === "string" ? body.employeeId.trim() : "";

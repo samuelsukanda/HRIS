@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { HandHeart, X } from "@phosphor-icons/react";
-import { Btn, EmptyState, Field, Input, Select, Stamp, StatusStamp, Textarea } from "@/components/ui";
+import { Btn, EmptyState, Field, Input, Select, StatusStamp, Textarea } from "@/components/ui";
 import { confirmDelete, toastOk } from "@/lib/swal";
 import { leaveBalance } from "@/lib/engine";
-import { fmtDateShortID } from "@/lib/format";
+import { fmtDateRangeID } from "@/lib/format";
 import { currentUser, useHris } from "@/lib/store";
 
 export default function EmployeeLeave() {
@@ -171,8 +171,7 @@ export default function EmployeeLeave() {
                     <StatusStamp status={r.status} />
                   </div>
                   <p className="tnum mt-0.5 text-xs text-ink-soft">
-                    {fmtDateShortID(r.startDate)}
-                    {r.endDate !== r.startDate ? ` – ${fmtDateShortID(r.endDate)}` : ""} · {r.days} hari
+                    {fmtDateRangeID(r.startDate, r.endDate)} · {r.days} hari
                   </p>
                   <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-ink-faint">{r.reason}</p>
                   {r.attachmentUrl && (

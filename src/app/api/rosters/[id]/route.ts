@@ -2,7 +2,7 @@ import { pool } from "@/db/client";
 import { writeAudit } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
 
-const HR_ROLES = ["hr_manager", "hr_admin", "super_admin"];
+import { isHr } from "@/lib/roles";
 function parseId(id: string): { eid: string; date: string } | null {
   // id format EMP-001-2024-01-15  -> split last 3 parts as date
   const m = id.match(/^(.*)-(\d{4}-\d{2}-\d{2})$/);
@@ -13,7 +13,7 @@ function parseId(id: string): { eid: string; date: string } | null {
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser();
   if (!user) return Response.json({ ok: false }, { status: 401 });
-  if (!HR_ROLES.includes(user.role)) return Response.json({ ok: false }, { status: 403 });
+  if (!isHr(user.role)) return Response.json({ ok: false }, { status: 403 });
   const { id } = await params;
   const body = await req.json() as Record<string,string>;
   const p = parseId(id);
@@ -28,7 +28,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser();
   if (!user) return Response.json({ ok: false }, { status: 401 });
-  if (!HR_ROLES.includes(user.role)) return Response.json({ ok: false }, { status: 403 });
+  if (!isHr(user.role)) return Response.json({ ok: false }, { status: 403 });
   const { id } = await params;
   const p = parseId(id);
   if (!p) return Response.json({ ok: false, error: "ID roster tidak valid." }, { status: 400 });

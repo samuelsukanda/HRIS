@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { CalendarBlank, CaretLeft, CaretRight, Check, X } from "@phosphor-icons/react";
-import { Avatar, Btn, EmptyState, PageHead, Pager, Select, Stamp } from "@/components/ui";
+import { Avatar, Btn, EmptyState, PageHead, Pager, Stamp } from "@/components/ui";
 import { toastOk } from "@/lib/swal";
 import { leaveBalance } from "@/lib/engine";
-import { fmtDateID, fmtDateShortID } from "@/lib/format";
+import { fmtDateRangeID } from "@/lib/format";
 import { currentUser, useHris } from "@/lib/store";
 
 const BULAN_ID = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
@@ -33,7 +33,19 @@ export default function AdminCutiPage() {
     const level = getApprovalLevel(emp);
     if (!level) return false;
     if (level === "spv" && r.status === "pending") return true;
-    if (level === "manager" && (r.status === "spv_approved" || r.status === "pending")) return true;
+    if (level === "manager" && r.status === "spv_approved") return true;
+    if (level === "manager" && r.status === "pending" && !emp.spvId) return true;
+    return false;
+  }
+
+  /** Pending hanya terlihat oleh SPV-nya (HR/super admin tetap lihat semua). */
+  function canSeeLeave(r: { status: string; employeeId: string }): boolean {
+    if (r.status !== "pending") return true;
+    if (me?.user.role === "hr" || me?.user.role === "super_admin") return true;
+    const emp = data.employees.find((e) => e.id === r.employeeId);
+    if (!emp || !me) return false;
+    if (emp.spvId === me.employee.id) return true;
+    if (!emp.spvId && emp.managerId === me.employee.id) return true;
     return false;
   }
 
@@ -42,16 +54,21 @@ export default function AdminCutiPage() {
   const [view, setView] = useState<"list"|"calendar">("list");
   const [calMonth, setCalMonth] = useState(()=> new Date().toISOString().slice(0,7));
   const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState<string[]>([]);
   const LIMIT = 10;
 
-  const requests = [...data.leaveRequests].filter(r=> !q.trim() || `${data.employees.find(e=> e.id===r.employeeId)?.name ?? ""} ${r.reason}`.toLowerCase().includes(q.toLowerCase())).sort(
+  const requests = [...data.leaveRequests].filter((r) => canSeeLeave(r)).filter(r=> !q.trim() || `${data.employees.find(e=> e.id===r.employeeId)?.name ?? ""} ${r.reason}`.toLowerCase().includes(q.toLowerCase())).sort(
     (a, b) => ((a.status === "pending" || a.status === "spv_approved") ? 0 : 1) - ((b.status === "pending" || b.status === "spv_approved") ? 0 : 1),
   );
   const paged = requests.slice((page - 1) * LIMIT, page * LIMIT);
 
   const annualType = data.leaveTypes.find((t) => /annual/i.test(t.name)) ?? data.leaveTypes[0];
-  const balEmp = data.employees.find((e) => e.id === empId);
+  // Manager/SPV: dropdown saldo hanya karyawan yang dibawahi, bukan semua karyawan
+  const isMgrRole = me?.user.role === "manager" || me?.user.role === "supervisor";
+  const saldoEmployees = isMgrRole && me
+    ? data.employees.filter((e) => e.spvId === me.employee.id || e.managerId === me.employee.id)
+    : data.employees;
+  const activeEmpId = saldoEmployees.some((e) => e.id === empId) ? empId : saldoEmployees[0]?.id ?? "";
+  const balEmp = data.employees.find((e) => e.id === activeEmpId);
   const bal =
     annualType && balEmp
       ? leaveBalance(
@@ -64,22 +81,6 @@ export default function AdminCutiPage() {
     if (!me) return;
     dispatch({ type: "DECIDE_LEAVE", id, approve, byName: me.employee.name });
     toastOk(approve ? "Cuti disetujui" : "Cuti ditolak");
-  }
-
-  function toggleSelect(id: string) {
-    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  }
-
-  function selectAllPending() {
-    const pendingIds = paged.filter((r) => canDecideLeave(r)).map((r) => r.id);
-    setSelected(pendingIds);
-  }
-
-  function bulkDecide(approve: boolean) {
-    if (!me || selected.length === 0) return;
-    dispatch({ type: "BULK_DECIDE_LEAVE", ids: selected, approve, byName: me.employee.name });
-    toastOk(approve ? `${selected.length} cuti disetujui` : `${selected.length} cuti ditolak`);
-    setSelected([]);
   }
 
   return (
@@ -117,16 +118,6 @@ export default function AdminCutiPage() {
           <header className="flex items-baseline justify-between border-b border-rule px-5 py-3.5">
             <h2 className="font-semibold">Daftar Pengajuan</h2>
             <div className="flex items-center gap-3">
-              {selected.length > 0 && (
-                <div className="flex gap-2">
-                  <Btn variant="official" size="sm" icon={Check} onClick={() => bulkDecide(true)}>
-                    Setujui {selected.length}
-                  </Btn>
-                  <Btn variant="danger" size="sm" icon={X} onClick={() => bulkDecide(false)}>
-                    Tolak {selected.length}
-                  </Btn>
-                </div>
-              )}
               <span className="tnum text-xs text-ink-faint">
                 {requests.filter((r) => r.status === "pending").length} pending
               </span>
@@ -148,14 +139,6 @@ export default function AdminCutiPage() {
                     key={r.id}
                     className="flex flex-wrap items-center gap-4 border-b border-ledger/60 px-5 py-3.5 last:border-b-0"
                   >
-                    {canDecideLeave(r) && (
-                      <input
-                        type="checkbox"
-                        checked={selected.includes(r.id)}
-                        onChange={() => toggleSelect(r.id)}
-                        className="h-4 w-4 accent-official"
-                      />
-                    )}
                     <Avatar name={emp?.name ?? r.employeeId} src={emp?.photoUrl} />
                     <div className="min-w-[200px] flex-1">
                       <div className="flex items-baseline gap-2">
@@ -171,24 +154,19 @@ export default function AdminCutiPage() {
                       )}
                     </div>
                     <div className="text-sm">
-                      <p className="tnum">
-                        {r.startDate === r.endDate
-                          ? fmtDateID(r.startDate)
-                          : `${fmtDateShortID(r.startDate)} – ${fmtDateID(r.endDate)}`}
-                      </p>
+                      <p className="tnum">{fmtDateRangeID(r.startDate, r.endDate)}</p>
                     </div>
-                    <Stamp kind={
-                      r.status === "approved" ? "approved" :
-                      r.status === "rejected" ? "rejected" :
-                      r.status === "cancelled" ? "neutral" :
-                      "pending"
-                    }>{
-                      r.status === "approved" ? "Disetujui" :
-                      r.status === "rejected" ? "Ditolak" :
-                      r.status === "cancelled" ? "Dibatalkan" :
-                      r.status === "spv_approved" ? "Menunggu Manager" :
-                      "Menunggu SPV"
-                    }</Stamp>
+                    {(r.status === "approved" || r.status === "rejected" || r.status === "cancelled") && (
+                      <Stamp kind={
+                        r.status === "approved" ? "approved" :
+                        r.status === "rejected" ? "rejected" :
+                        "neutral"
+                      }>
+                        {r.status === "approved" ? "Disetujui" :
+                         r.status === "rejected" ? "Ditolak" :
+                         "Dibatalkan"}
+                      </Stamp>
+                    )}
                     {canDecideLeave(r) && (
                       <div className="flex shrink-0 items-center gap-1.5">
                         <Btn variant="official" size="sm" icon={Check} onClick={() => decide(r.id, true)}>
@@ -240,7 +218,7 @@ export default function AdminCutiPage() {
               <h2 className="font-semibold">Saldo {annualType?.name ?? "Annual Leave"}</h2>
             </header>
             <div className="px-5 py-4">
-              <EmployeeSearchSelect employees={data.employees} value={empId} onChange={setEmpId} />
+              <EmployeeSearchSelect employees={saldoEmployees} value={activeEmpId} onChange={setEmpId} />
               {bal && (
                 <dl className="mt-4">
                   {([
