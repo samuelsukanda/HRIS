@@ -217,20 +217,32 @@ function reducer(state: State, action: Action): State {
           },
         ),
       };
-    case "DECIDE_OVERTIME":
+    case "DECIDE_OVERTIME": {
+      const ot = state.data.overtimeRequests.find((r) => r.id === action.id);
+      const emp = state.data.employees.find((e) => e.id === ot?.employeeId);
+      const isSpv = emp && state.session?.employeeId && emp.spvId === state.session.employeeId;
+      const isMgr = emp && state.session?.employeeId && emp.managerId === state.session.employeeId;
+      const prev = ot?.status ?? "pending";
+      let next: OvertimeRequest["status"];
+      if (!action.approve) {
+        next = "rejected";
+      } else if (isSpv && prev === "pending") {
+        next = "spv_approved";
+      } else if (isMgr && prev === "spv_approved") {
+        next = "approved";
+      } else if (isMgr && prev === "pending" && !emp?.spvId) {
+        next = "approved";
+      } else {
+        next = "approved";
+      }
       return {
         ...state,
         data: log(
           {
             ...state.data,
-            overtimeRequests: state.data.overtimeRequests.map((r) => {
-              if (r.id !== action.id) return r;
-              if (!action.approve) return { ...r, status: "rejected" as const, decidedBy: action.byName };
-              const emp = state.data.employees.find((e) => e.id === r.employeeId);
-              const isMgr = emp && state.session?.employeeId && emp.managerId === state.session.employeeId;
-              const next: "spv_approved" | "approved" = (r.status === "pending" && !isMgr) ? "spv_approved" : "approved";
-              return { ...r, status: next, decidedBy: action.byName };
-            }),
+            overtimeRequests: state.data.overtimeRequests.map((r) =>
+              r.id === action.id ? { ...r, status: next, decidedBy: action.byName } : r,
+            ),
           },
           {
             actorId: state.session?.userId ?? "-",
@@ -239,12 +251,13 @@ function reducer(state: State, action: Action): State {
             targetType: "overtime_request",
             targetId: action.id,
             detail: action.approve ? "Lembur disetujui" : "Lembur ditolak",
-            before: "pending",
-            after: action.approve ? "approved" : "rejected",
+            before: prev,
+            after: next,
             at: new Date().toISOString(),
           },
         ),
       };
+    }
     case "DECIDE_CORRECTION": {
       const att = state.data.attendance.find((a) => a.id === action.attendanceId);
       const corr = att?.corrections.find((c) => c.id === action.correctionId);
@@ -579,7 +592,25 @@ function reducer(state: State, action: Action): State {
         return { ...l, status: next, decidedBy: action.byName };
       }) } };
     case "BULK_DECIDE_OVERTIME":
-      return { ...state, data: { ...state.data, overtimeRequests: state.data.overtimeRequests.map((o) => (action.ids.includes(o.id) ? { ...o, status: action.approve ? "approved" as const : "rejected" as const, decidedBy: action.byName } : o)) } };
+      return { ...state, data: { ...state.data, overtimeRequests: state.data.overtimeRequests.map((o) => {
+        if (!action.ids.includes(o.id)) return o;
+        const emp = state.data.employees.find((e) => e.id === o.employeeId);
+        const isSpv = emp && state.session?.employeeId && emp.spvId === state.session.employeeId;
+        const isMgr = emp && state.session?.employeeId && emp.managerId === state.session.employeeId;
+        let next: OvertimeRequest["status"];
+        if (!action.approve) {
+          next = "rejected";
+        } else if (isSpv && o.status === "pending") {
+          next = "spv_approved";
+        } else if (isMgr && o.status === "spv_approved") {
+          next = "approved";
+        } else if (isMgr && o.status === "pending" && !emp?.spvId) {
+          next = "approved";
+        } else {
+          next = "approved";
+        }
+        return { ...o, status: next, decidedBy: action.byName };
+      }) } };
     case "BULK_DECIDE_REIMBURSEMENT":
       return { ...state, data: { ...state.data, reimbursements: state.data.reimbursements.map((r) => {
         if (!action.ids.includes(r.id)) return r;
@@ -672,6 +703,7 @@ async function syncAction(a: Action): Promise<boolean> {
             end: a.request.end,
             hours: a.request.hours,
             reason: a.request.reason,
+            employeeId: a.request.employeeId,
           })
         ).r.ok
       );

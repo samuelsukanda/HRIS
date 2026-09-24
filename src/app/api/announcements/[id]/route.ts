@@ -1,8 +1,21 @@
 import { pool } from "@/db/client";
-import { writeAudit } from "@/lib/server/state";
+import { creatorBranchId, writeAudit } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
 
 import { isHr } from "@/lib/roles";
+
+/** HR non-super hanya boleh sentuh konten cabangnya sendiri (branch null = milik super_admin). */
+async function assertBranchAccess(user: { role: string; employee_id: string }, rowBranch: string | null) {
+  if (user.role === "super_admin") return null;
+  const mine = await creatorBranchId(user.employee_id);
+  if (rowBranch && mine && rowBranch !== mine) {
+    return Response.json({ ok: false, error: "Pengumuman milik cabang lain." }, { status: 403 });
+  }
+  if (!rowBranch && user.role === "hr") {
+    return Response.json({ ok: false, error: "Pengumuman perusahaan hanya bisa diubah super admin." }, { status: 403 });
+  }
+  return null;
+}
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser();
@@ -15,6 +28,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const r = await pool.query(`SELECT * FROM announcements WHERE id=$1`, [id]);
   if (r.rows.length === 0) return Response.json({ ok: false }, { status: 404 });
+  const denied = await assertBranchAccess(user, r.rows[0].branch_id ?? null);
+  if (denied) return denied;
 
   await pool.query(
     `UPDATE announcements SET title=COALESCE($1,title), body=COALESCE($2,body), category=COALESCE($3,category), date=COALESCE($4,date) WHERE id=$5`,
@@ -39,6 +54,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const r = await pool.query(`SELECT * FROM announcements WHERE id=$1`, [id]);
   if (r.rows.length === 0) return Response.json({ ok: false }, { status: 404 });
+  const denied = await assertBranchAccess(user, r.rows[0].branch_id ?? null);
+  if (denied) return denied;
 
   await pool.query(`DELETE FROM announcements WHERE id=$1`, [id]);
 

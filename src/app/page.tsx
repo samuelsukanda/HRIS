@@ -8,12 +8,13 @@ import { currentUser, useHris } from "@/lib/store";
 import { alertAccountDisabled } from "@/lib/swal";
 
 const DEMO_ACCOUNTS = [
-  { email: "samuel.hartono@hrissmart.id", name: "Samuel Hartono", role: "HR", desc: "Dashboard HR penuh, review absensi & risiko fraud, kelola karyawan, approval cuti/lembur." },
-  { email: "ratna.wijaya@hrissmart.id", name: "Ratna Wijaya", role: "Supervisor Cabang", desc: "Pantau kehadiran tim Bandung dan setujui pengajuan subordinate." },
-  { email: "budi.santoso@hrissmart.id", name: "Budi Santoso", role: "Karyawan", desc: "Check-in GPS + face + liveness, lihat shift, saldo cuti, dan riwayat." },
+  { email: "superadmin@hrissmart.id", password: "SuperAdmin123!", name: "Super Admin", role: "Super Admin", desc: "Akses penuh termasuk audit log dan pengelolaan akun super admin." },
+  { email: "samuel.hartono@hrissmart.id", password: "demo1234", name: "Samuel Hartono", role: "HR", desc: "Dashboard HR penuh, review absensi & risiko fraud, kelola karyawan, approval cuti/lembur." },
+  { email: "melati.puspita@hrissmart.id", password: "demo1234", name: "Melati Puspita", role: "HR Cabang", desc: "Staf HR Cabang Subang — kelola karyawan & urusan HR cabang." },
+  { email: "bambang.prakoso@hrissmart.id", password: "demo1234", name: "Bambang Prakoso", role: "Manajer", desc: "Pimpinan Cabang Subang — approve cuti tahap akhir setelah SPV." },
+  { email: "sari.wulandari@hrissmart.id", password: "demo1234", name: "Sari Wulandari", role: "SPV", desc: "Supervisor Cabang Subang — persetujuan pertama cuti subordinate." },
+  { email: "rudi.hartawan@hrissmart.id", password: "demo1234", name: "Rudi Hartawan", role: "Karyawan", desc: "Karyawan Cabang Subang — check-in, pengajuan cuti, lihat shift & saldo." },
 ];
-
-const DEMO_PASSWORD = "demo1234";
 
 export default function LoginPage() {
   const { state, login } = useHris();
@@ -124,18 +125,18 @@ export default function LoginPage() {
           </form>
 
           <motion.div initial="hidden" animate="visible" variants={{ hidden:{}, visible:{ transition:{ staggerChildren:0.07, delayChildren:0.2 }}}} className="mt-8">
-            <p className="mb-2 font-mono text-[11px] tracking-widest text-ink-faint uppercase">Akun demo · password {DEMO_PASSWORD}</p>
+            <p className="mb-2 font-mono text-[11px] tracking-widest text-ink-faint uppercase">Akun demo — klik untuk masuk</p>
             <div className="space-y-2">
               {DEMO_ACCOUNTS.map((r) => (
                 <motion.button
                   key={r.email}
                   variants={{ hidden:{ opacity:0, y:8 }, visible:{ opacity:1, y:0, transition:{ type:"spring", stiffness:100, damping:20 }}}}
                   whileHover={{ y:-1 }} whileTap={{ scale:0.98 }}
-                  disabled={busy}
+disabled={busy}
                   onClick={() => {
                     setEmail(r.email);
-                    setPassword(DEMO_PASSWORD);
-                    void doLogin(r.email, DEMO_PASSWORD);
+                    setPassword(r.password);
+                    void doLogin(r.email, r.password);
                   }}
                   className="group w-full cursor-pointer border border-rule bg-card p-3.5 text-left shadow-[0_8px_24px_-16px_rgba(0,0,0,0.12)] hover:border-official focus-visible:border-official disabled:opacity-60"
                 >

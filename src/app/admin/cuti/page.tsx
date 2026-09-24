@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarBlank, CaretLeft, CaretRight, Check, X } from "@phosphor-icons/react";
-import { Avatar, Btn, EmptyState, PageHead, Pager, Stamp } from "@/components/ui";
+import { CalendarBlank, CaretLeft, CaretRight, Check, Pencil, Plus, X } from "@phosphor-icons/react";
+import { Avatar, Btn, EmptyState, Field, IconBtn, Input, Modal, PageHead, Pager, Select, Stamp, Textarea } from "@/components/ui";
 import { toastOk } from "@/lib/swal";
+import { isHr } from "@/lib/roles";
 import { leaveBalance } from "@/lib/engine";
 import { fmtDateRangeID } from "@/lib/format";
 import { currentUser, useHris } from "@/lib/store";
@@ -83,11 +84,101 @@ export default function AdminCutiPage() {
     toastOk(approve ? "Cuti disetujui" : "Cuti ditolak");
   }
 
+  // Edit alokasi per jenis cuti (Info Saldo)
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTypeId, setEditTypeId] = useState("");
+  const [editDays, setEditDays] = useState<number>(0);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  function openEditSaldo() {
+    const t = data.leaveTypes[0];
+    setEditTypeId(t?.id ?? "");
+    setEditDays(t?.allocationDays ?? 12);
+    setEditError(null);
+    setEditOpen(true);
+  }
+
+  function onEditTypeChange(id: string) {
+    setEditTypeId(id);
+    setEditDays(data.leaveTypes.find((t) => t.id === id)?.allocationDays ?? 0);
+  }
+
+  async function saveSaldo() {
+    setEditError(null);
+    if (!editDays || editDays < 1) return setEditError("Alokasi minimal 1 hari.");
+    const r = await fetch(`/api/leave-types/${editTypeId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ allocation_days: editDays }),
+    });
+    const j = await r.json().catch(() => null) as { ok?: boolean; error?: string } | null;
+    if (!j?.ok) return setEditError(j?.error ?? "Gagal menyimpan alokasi.");
+    toastOk("Alokasi saldo disimpan");
+    setEditOpen(false);
+    setTimeout(() => location.reload(), 650);
+  }
+
+  // Tambah pengajuan untuk diri sendiri (tanpa pilih karyawan)
+  const [showAdd, setShowAdd] = useState(false);
+  const [addTypeId, setAddTypeId] = useState(data.leaveTypes[0]?.id ?? "");
+  const [addStart, setAddStart] = useState("");
+  const [addEnd, setAddEnd] = useState("");
+  const [addReason, setAddReason] = useState("");
+  const [addError, setAddError] = useState<string | null>(null);
+
+  function openAdd() {
+    setAddTypeId(data.leaveTypes[0]?.id ?? "");
+    setAddStart("");
+    setAddEnd("");
+    setAddReason("");
+    setAddError(null);
+    setShowAdd(true);
+  }
+
+  function submitAdd() {
+    setAddError(null);
+    if (!me) return;
+    const addEmpId = me.employee.id;
+    const type = data.leaveTypes.find((t) => t.id === addTypeId);
+    if (!type) return setAddError("Jenis cuti tidak tersedia.");
+    if (!addStart || !addEnd) return setAddError("Tanggal mulai dan selesai wajib diisi.");
+    if (addEnd < addStart) return setAddError("Tanggal selesai tidak boleh sebelum tanggal mulai.");
+    const days = Math.round((new Date(addEnd).getTime() - new Date(addStart).getTime()) / 86_400_000) + 1;
+    const bal = leaveBalance(
+      type.allocationDays,
+      data.leaveRequests.filter((r) => r.employeeId === addEmpId && r.typeId === addTypeId),
+    );
+    if (type.paid && bal.remaining < days)
+      return setAddError(`Saldo ${type.name} tinggal ${Math.max(0, bal.remaining)} hari — kurang untuk ${days} hari.`);
+    if (addReason.trim().length < 10) return setAddError("Tuliskan alasan minimal satu kalimat.");
+    dispatch({
+      type: "SUBMIT_LEAVE",
+      request: {
+        id: `LRV-${String(data.leaveRequests.length + 100).padStart(3, "0")}`,
+        employeeId: addEmpId,
+        typeId: addTypeId,
+        startDate: addStart,
+        endDate: addEnd,
+        days,
+        reason: addReason.trim(),
+        status: "pending",
+        submittedAt: new Date().toISOString(),
+      },
+    });
+    setShowAdd(false);
+    toastOk("Pengajuan cuti dikirim");
+  }
+
   return (
     <>
       <PageHead
         title="Cuti"
         sub="Kelola pengajuan dan persetujuan cuti serta pantau saldo cuti karyawan."
+        action={
+          me ? (
+            <Btn icon={Plus} onClick={openAdd}>Pengajuan</Btn>
+          ) : undefined
+        }
       />
       <div className="mb-4 flex gap-2"><input value={q} onChange={e=> setQ(e.target.value)} placeholder="Cari nama/alasan..." className="flex-1 border border-rule bg-card px-3 py-2 text-sm" /><span className="text-xs text-ink-faint py-2">{requests.length} hasil</span><Btn variant={view==="list"?"primary":"secondary"} size="sm" onClick={()=> setView(view==="list"?"calendar":"list")}>{view==="list"?"Kalender":"List"}</Btn></div>
       {view==="calendar" && (
@@ -119,7 +210,7 @@ export default function AdminCutiPage() {
             <h2 className="font-semibold">Daftar Pengajuan</h2>
             <div className="flex items-center gap-3">
               <span className="tnum text-xs text-ink-faint">
-                {requests.filter((r) => r.status === "pending").length} pending
+                {requests.filter((r) => r.status === "pending" || r.status === "spv_approved").length} pending
               </span>
             </div>
           </header>
@@ -156,14 +247,16 @@ export default function AdminCutiPage() {
                     <div className="text-sm">
                       <p className="tnum">{fmtDateRangeID(r.startDate, r.endDate)}</p>
                     </div>
-                    {(r.status === "approved" || r.status === "rejected" || r.status === "cancelled") && (
+                    {(r.status === "approved" || r.status === "rejected" || r.status === "cancelled" || r.status === "spv_approved") && (
                       <Stamp kind={
                         r.status === "approved" ? "approved" :
                         r.status === "rejected" ? "rejected" :
+                        r.status === "spv_approved" ? "pending" :
                         "neutral"
                       }>
                         {r.status === "approved" ? "Disetujui" :
                          r.status === "rejected" ? "Ditolak" :
+                         r.status === "spv_approved" ? "Approved by SPV" :
                          "Dibatalkan"}
                       </Stamp>
                     )}
@@ -188,25 +281,24 @@ export default function AdminCutiPage() {
         {/* Panel samping */}
         <aside className="space-y-6">
           <section className="border border-rule bg-card">
-            <header className="border-b border-rule px-5 py-3.5">
-              <h2 className="font-semibold">Kebijakan Saldo</h2>
+            <header className="flex items-center justify-between border-b border-rule px-5 py-3.5">
+              <h2 className="font-semibold">Info Saldo</h2>
+              {me && isHr(me.user.role) && (
+                <IconBtn label="Edit alokasi saldo" icon={Pencil} onClick={openEditSaldo} />
+              )}
             </header>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-rule text-left text-xs tracking-wide text-ink-faint uppercase">
                   <th className="px-5 py-2 font-semibold">Jenis Cuti</th>
-                  <th className="py-2 pr-2 text-right font-semibold">Alokasi</th>
-                  <th className="px-5 py-2 text-right font-semibold">Berbayar</th>
+                  <th className="px-5 py-2 text-right font-semibold">Alokasi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-ledger/60">
                 {data.leaveTypes.map((t) => (
                   <tr key={t.id}>
                     <td className="px-5 py-2.5">{t.name}</td>
-                    <td className="tnum py-2.5 pr-2 text-right">{t.allocationDays} hr</td>
-                    <td className="px-5 py-2.5 text-right">
-                      <Stamp kind={t.paid ? "approved" : "neutral"}>{t.paid ? "Paid" : "Unpaid"}</Stamp>
-                    </td>
+                    <td className="tnum px-5 py-2.5 text-right">{t.allocationDays} hr</td>
                   </tr>
                 ))}
               </tbody>
@@ -253,6 +345,58 @@ export default function AdminCutiPage() {
           </section>
         </aside>
       </div>
+
+      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Pengajuan Cuti Baru">
+        <div className="space-y-3">
+          <Field label="Jenis Cuti">
+            <Select value={addTypeId} onChange={(e) => setAddTypeId(e.target.value)}>
+              {data.leaveTypes.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </Select>
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Mulai">
+              <Input type="date" value={addStart} onChange={(e) => setAddStart(e.target.value)} />
+            </Field>
+            <Field label="Selesai">
+              <Input type="date" value={addEnd} onChange={(e) => setAddEnd(e.target.value)} min={addStart || undefined} />
+            </Field>
+          </div>
+          <Field label="Alasan">
+            <Textarea value={addReason} onChange={(e) => setAddReason(e.target.value)} placeholder="Contoh: acara keluarga di luar kota…" />
+          </Field>
+          {addError && (
+            <p role="alert" className="text-xs font-medium text-stamp-deep">{addError}</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Btn variant="secondary" onClick={() => setShowAdd(false)}>Batal</Btn>
+            <Btn onClick={submitAdd}>Kirim Pengajuan</Btn>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit Alokasi Saldo">
+        <div className="space-y-3">
+          <Field label="Jenis Cuti">
+            <Select value={editTypeId} onChange={(e) => onEditTypeChange(e.target.value)}>
+              {data.leaveTypes.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Alokasi (hari)">
+            <Input type="number" min={1} value={editDays} onChange={(e) => setEditDays(Number(e.target.value))} />
+          </Field>
+          {editError && (
+            <p role="alert" className="text-xs font-medium text-stamp-deep">{editError}</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Btn variant="secondary" onClick={() => setEditOpen(false)}>Batal</Btn>
+            <Btn onClick={saveSaldo}>Simpan</Btn>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }

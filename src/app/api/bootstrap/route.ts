@@ -16,6 +16,7 @@ export async function GET() {
     workLocations: d.workLocations,
     shifts: d.shifts,
     leaveTypes: d.leaveTypes,
-    announcements: d.announcements,
+    // layar login publik: hanya pengumuman lintas cabang
+    announcements: d.announcements.filter((a) => !a.branchId),
   });
 }

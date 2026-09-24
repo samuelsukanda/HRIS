@@ -1,5 +1,5 @@
 import { pool } from "@/db/client";
-import { nextId, writeAudit } from "@/lib/server/state";
+import { creatorBranchId, nextId, writeAudit } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
 
 import { isHr } from "@/lib/roles";
@@ -20,6 +20,15 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, error: "Skor harus 1–5." }, { status: 400 });
   }
 
+  const targetR = await pool.query(`SELECT name, branch_id FROM employees WHERE id=$1`, [employeeId]);
+  if (targetR.rows.length === 0) return Response.json({ ok: false, error: "Karyawan tidak ditemukan." }, { status: 404 });
+  if (user.role === "hr") {
+    const myBranch = await creatorBranchId(user.employee_id);
+    if (myBranch && targetR.rows[0].branch_id && targetR.rows[0].branch_id !== myBranch) {
+      return Response.json({ ok: false, error: "Karyawan milik cabang lain." }, { status: 403 });
+    }
+  }
+
   const id = await nextId("performance_reviews", "PRF");
   await pool.query(
     `INSERT INTO performance_reviews (id,employee_id,reviewer_id,period,score,strengths,improvements,goals,status,created_at)
@@ -28,7 +37,6 @@ export async function POST(req: Request) {
   );
 
   const empR = await pool.query(`SELECT name FROM employees WHERE id=$1`, [user.employee_id]);
-  const targetR = await pool.query(`SELECT name FROM employees WHERE id=$1`, [employeeId]);
   await writeAudit({
     actorId: user.id, actorName: empR.rows[0]?.name ?? user.employee_id,
     action: "Performance review submitted", targetType: "performance_review", targetId: id,

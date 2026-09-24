@@ -20,6 +20,14 @@ export async function POST(req: Request) {
       if (r.rows.length === 0) continue;
       const ex = r.rows[0];
       if (ex.status === "approved" || ex.status === "rejected") continue;
+      if (u.role === "hr") {
+        const br = await client.query(
+          `SELECT branch_id FROM employees WHERE id = $1 OR id = $2`,
+          [u.employee_id, ex.employee_id],
+        );
+        const branches = new Set(br.rows.map((x) => x.branch_id as string | null).filter(Boolean));
+        if (branches.size !== 1) continue;
+      }
 
       const approvals = (ex.approvals ?? []) as { level: string; byName: string; at: string; approved: boolean }[];
       const updated = [...approvals, { level: "hr", byName: approver, at: new Date().toISOString(), approved: approve }];

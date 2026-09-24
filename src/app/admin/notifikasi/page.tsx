@@ -31,7 +31,7 @@ export default function AdminNotificationsPage() {
     dispatch({ type: "MARK_NOTIFICATION_READ", id });
   }
   function markAllRead() {
-    for (const n of notifs) dispatch({ type: "MARK_NOTIFICATION_READ", id: n.id });
+    void dispatch({ type: "MARK_ALL_NOTIFICATIONS_READ", userId: currentUser(state)?.user.id ?? "" });
   }
   function remove(id: string) {
     void dispatch({ type: "DELETE_NOTIFICATION", id });

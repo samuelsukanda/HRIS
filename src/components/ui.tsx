@@ -27,7 +27,7 @@ export function StatusStamp({ status }: { status: string }) {
     early_leave: ["rejected", "Early Leave"],
     high: ["rejected", "High Risk"],
     pending: ["pending", "Pending"],
-    spv_approved: ["pending", "Menunggu Manager"],
+    spv_approved: ["pending", "Approved by SPV"],
     review: ["pending", "Review"],
     leave: ["neutral", "Leave"],
     sick: ["neutral", "Sick"],

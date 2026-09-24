@@ -149,15 +149,6 @@ export default function MyReimbursements() {
               {r.attachmentUrl && (
                 <p className="mt-1 text-xs"><a href={r.attachmentUrl} target="_blank" rel="noreferrer" className="text-official underline">Lihat lampiran</a></p>
               )}
-              {r.approvals.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {r.approvals.map((a, i) => (
-                    <span key={i} className={`inline-block rounded px-1.5 py-0.5 text-[10px] ${a.approved ? "bg-official/10 text-official" : "bg-stamp/10 text-stamp"}`}>
-                      {a.level}: {a.approved ? "✓" : "✗"}
-                    </span>
-                  ))}
-                </div>
-              )}
             </li>
           ))}
         </ul>

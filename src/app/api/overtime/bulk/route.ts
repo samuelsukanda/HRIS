@@ -31,7 +31,9 @@ export async function POST(req: Request) {
           const mu = await client.query(`SELECT id FROM users WHERE employee_id=$1`, [ot.manager_id]);
           if (mu.rows[0]) await writeNotification({ userId: mu.rows[0].id, title: "Lembur Perlu Persetujuan Manager", body: `Pengajuan lembur menunggu persetujuan Anda`, type: "approval", link: "/admin/lembur" });
         }
-      } else if (ot.manager_id && u.employee_id === ot.manager_id && (ot.status === "spv_approved" || ot.status === "pending")) {
+      }
+      // Tahap 2: Manager (dari pending hanya jika tanpa SPV, atau dari spv_approved)
+      else if (ot.manager_id && u.employee_id === ot.manager_id && (ot.status === "spv_approved" || (ot.status === "pending" && !ot.spv_id))) {
         const newStatus = approve ? "approved" : "rejected";
         await client.query(`UPDATE overtime_requests SET status=$1, decided_by=$2 WHERE id=$3`, [newStatus, approver, id]);
         await writeAudit({ actorId: u.id, actorName: approver, action: "Manager approved overtime", targetType: "overtime_request", targetId: id, detail: newStatus, before: "spv_approved", after: newStatus, at: new Date().toISOString() });

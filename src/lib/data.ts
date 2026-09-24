@@ -485,6 +485,10 @@ export const leaveRequests: LeaveRequest[] = [
   { id: "LRV-003", employeeId: "EMP-012", typeId: "LV-CT", startDate: iso(10), endDate: iso(14), days: 5, reason: "Liburan tahunan keluarga.", status: "pending", submittedAt: new Date(Date.now() - 43_200_000).toISOString() },
   { id: "LRV-004", employeeId: "EMP-018", typeId: "LV-KH", startDate: iso(-7), endDate: iso(-7), days: 1, reason: "Mengurus administrasi kependudukan.", status: "approved", submittedAt: new Date(Date.now() - 8 * 86_400_000).toISOString(), decidedBy: "Samuel Hartono", decidedAt: new Date(Date.now() - 7.5 * 86_400_000).toISOString() },
   { id: "LRV-005", employeeId: "EMP-008", typeId: "LV-UP", startDate: iso(-4), endDate: iso(-4), days: 1, reason: "Urusan pribadi tanpa cuti tahunan tersisa bulan ini.", status: "rejected", submittedAt: new Date(Date.now() - 6 * 86_400_000).toISOString(), decidedBy: "Samuel Hartono", decidedAt: new Date(Date.now() - 5 * 86_400_000).toISOString() },
+  // Subang — isi berbeda dari pusat
+  { id: "LRV-006", employeeId: "EMP-025", typeId: "LV-CT", startDate: iso(5), endDate: iso(7), days: 3, reason: "Menghadiri acara keluarga di Purwakarta.", status: "pending", submittedAt: new Date(Date.now() - 6 * 3_600_000).toISOString() },
+  { id: "LRV-007", employeeId: "EMP-026", typeId: "LV-SK", startDate: iso(-2), endDate: iso(-2), days: 1, reason: "Flu berat, lampiran surat dokter Puskesmas Subang.", status: "approved", submittedAt: new Date(Date.now() - 3 * 86_400_000).toISOString(), decidedBy: "Melati Puspita", decidedAt: new Date(Date.now() - 2.5 * 86_400_000).toISOString() },
+  { id: "LRV-008", employeeId: "EMP-024", typeId: "LV-PT", startDate: iso(12), endDate: iso(16), days: 5, reason: "Cuti pendampingan istri melahirkan.", status: "pending", submittedAt: new Date(Date.now() - 2 * 86_400_000).toISOString() },
 ];
 
 // ── Lembur ───────────────────────────────────────────────────────────
@@ -493,6 +497,9 @@ export const overtimeRequests: OvertimeRequest[] = [
   { id: "OTR-002", employeeId: "EMP-013", date: iso(0), start: "23:00", end: "02:00", hours: 3, reason: "Cover shift rekan yang sakit.", status: "pending", submittedAt: new Date(Date.now() - 7_200_000).toISOString() },
   { id: "OTR-003", employeeId: "EMP-008", date: iso(-3), start: "17:00", end: "19:30", hours: 2.5, reason: "Stock opname gudang cabang.", status: "approved", submittedAt: new Date(Date.now() - 4 * 86_400_000).toISOString(), decidedBy: "Ratna Wijaya" },
   { id: "OTR-004", employeeId: "EMP-014", date: iso(1), start: "22:00", end: "23:00", hours: 1, reason: "Handover pasien rawat inap.", status: "pending", submittedAt: new Date(Date.now() - 3_600_000).toISOString() },
+  // Subang
+  { id: "OTR-005", employeeId: "EMP-025", date: iso(-1), start: "17:30", end: "20:00", hours: 2.5, reason: "Input data pelanggan walk-in setelah jam layanan.", status: "pending", submittedAt: new Date(Date.now() - 5 * 3_600_000).toISOString() },
+  { id: "OTR-006", employeeId: "EMP-023", date: iso(-4), start: "18:00", end: "19:00", hours: 1, reason: "Briefing tamu korporat dari kantor pusat.", status: "approved", submittedAt: new Date(Date.now() - 5 * 86_400_000).toISOString(), decidedBy: "Bambang Prakoso" },
 ];
 
 // ── Audit log awal ───────────────────────────────────────────────────
@@ -509,9 +516,16 @@ export function buildAuditLogs(): AuditLogEntry[] {
 export const auditLogs = buildAuditLogs();
 
 export const announcements: Announcement[] = [
-  { id: "ANC-001", title: "Town Hall Q3 — Jumat 14:00", body: "Seluruh karyawan Kantor Pusat diundang di Aula Lantai 5. Cabang bergabung via video conference.", category: "acara", date: iso(-1) },
-  { id: "ANC-002", title: "Kebijakan baru: Check-in window", body: "Mulai bulan ini window check-in adalah ±2 jam dari jam mulai shift. Di luar window memerlukan approval supervisor.", category: "kebijakan", date: iso(-3) },
-  { id: "ANC-003", title: "Libur Nasional 17 Agustus", body: "Kantor pusat dan seluruh cabang tutup. Shift darurat klinik diumumkan terpisah oleh koordinator medis.", category: "libur", date: iso(-5) },
+  // Kantor pusat (BR-JKT)
+  { id: "ANC-001", title: "Town Hall Q3 — Jumat 14:00", body: "Seluruh staf Kantor Pusat diundang di Aula Lantai 5 Menara Sudirman. Doorprize untuk divisi dengan kehadiran tertinggi.", category: "acara", date: iso(-1), branchId: "BR-JKT" },
+  { id: "ANC-002", title: "Renovasi Lantai 3 — Mulai Senin", body: "Area Finance & IT dipindah sementara ke Lantai 4. Estimasi renovasi 10 hari kerja; meeting room M3 ditutup.", category: "pengumuman", date: iso(-2), branchId: "BR-JKT" },
+  { id: "ANC-003", title: "Kebijakan baru: Check-in window", body: "Mulai bulan ini window check-in adalah ±2 jam dari jam mulai shift. Di luar window memerlukan approval supervisor.", category: "kebijakan", date: iso(-3) },
+  // Cabang Subang (BR-SBG) — isi berbeda dari pusat
+  { id: "ANC-004", title: "Rapat Koordinasi Cabang Subang", body: "Seluruh staf Subang wajib hadir di Ruang Rapat Kantor Cabang, Senin pukul 08:30. Agenda: target kuartal dan SLA layanan pelanggan.", category: "acara", date: iso(-1), branchId: "BR-SBG" },
+  { id: "ANC-005", title: "Operasional: Libur Pasar Subang", body: "Kantor Cabang Subang tutup penuh pada hari pasar besar sesuai kalender daerah. Shift piket diumumkan supervisor Sari Wulandari.", category: "libur", date: iso(-4), branchId: "BR-SBG" },
+  { id: "ANC-006", title: "SOP baru layanan walk-in Subang", body: "Mulai pekan ini antrean walk-in memakai nomor antrian digital. Staf wajib update status di dashboard cabang setiap 30 menit.", category: "kebijakan", date: iso(-6), branchId: "BR-SBG" },
+  // Lintas cabang
+  { id: "ANC-007", title: "Libur Nasional 17 Agustus", body: "Kantor pusat dan seluruh cabang tutup. Shift darurat klinik diumumkan terpisah oleh koordinator medis.", category: "libur", date: iso(-5) },
 ];
 
 // ── Phase 3-4: Reimbursement ──────────────────────────────────────
@@ -519,6 +533,10 @@ export const reimbursements: Reimbursement[] = [
   { id: "RBM-001", employeeId: "EMP-003", category: "transport", amount: 285000, description: "Grab ke客户 meeting di Sudirman", status: "approved", submittedAt: new Date(Date.now() - 3 * 86_400_000).toISOString(), approvals: [{ level: "spv", byName: "Budi Santoso", at: new Date(Date.now() - 2.5 * 86_400_000).toISOString(), approved: true }, { level: "manager", byName: "Samuel Hartono", at: new Date(Date.now() - 2 * 86_400_000).toISOString(), approved: true }] },
   { id: "RBM-002", employeeId: "EMP-005", category: "equipment", amount: 1500000, description: "Keyboard mechanical untuk work from home", status: "pending", submittedAt: new Date(Date.now() - 86_400_000).toISOString(), approvals: [] },
   { id: "RBM-003", employeeId: "EMP-008", category: "meal", amount: 85000, description: "Makan siang saat lembur deployment", status: "spv_approved", submittedAt: new Date(Date.now() - 2 * 86_400_000).toISOString(), approvals: [{ level: "spv", byName: "Joko Susilo", at: new Date(Date.now() - 86_400_000).toISOString(), approved: true }] },
+  // Subang — beda dari pusat
+  { id: "RBM-004", employeeId: "EMP-025", category: "transport", amount: 120000, description: "Ongkos angkot rute Subang–Purwakarta untuk kunjungan pelanggan.", status: "pending", submittedAt: new Date(Date.now() - 4 * 3_600_000).toISOString(), approvals: [] },
+  { id: "RBM-005", employeeId: "EMP-024", category: "meal", amount: 65000, description: "Konsumsi rapat koordinasi cabang sampai malam.", status: "spv_approved", submittedAt: new Date(Date.now() - 26 * 3_600_000).toISOString(), approvals: [{ level: "spv", byName: "Sari Wulandari", at: new Date(Date.now() - 20 * 3_600_000).toISOString(), approved: true }] },
+  { id: "RBM-006", employeeId: "EMP-026", category: "other", amount: 45000, description: "Pulsa paket data untuk update dashboard antrian cabang.", status: "approved", submittedAt: new Date(Date.now() - 5 * 86_400_000).toISOString(), approvals: [{ level: "spv", byName: "Bambang Prakoso", at: new Date(Date.now() - 4 * 86_400_000).toISOString(), approved: true }, { level: "hr", byName: "Melati Puspita", at: new Date(Date.now() - 3.5 * 86_400_000).toISOString(), approved: true }] },
 ];
 
 // ── Phase 3-4: Recruitment ────────────────────────────────────────
@@ -526,6 +544,9 @@ export const jobPostings: JobPosting[] = [
   { id: "JOB-001", title: "Frontend Developer", departmentId: "DP-IT", description: "Mengembangkan UI aplikasi internal dengan React/Next.js.", requirements: "React, TypeScript, 2+ tahun pengalaman.", salaryRange: "8jt - 14jt", status: "open", createdAt: new Date(Date.now() - 14 * 86_400_000).toISOString() },
   { id: "JOB-002", title: "Perawat Senior", departmentId: "DP-MED", description: "Memberikan asuhan keperawatan pasien rawat inap.", requirements: "STR aktif, 3+ tahun pengalaman, minimal D3 Keperawatan.", salaryRange: "6jt - 10jt", status: "open", createdAt: new Date(Date.now() - 7 * 86_400_000).toISOString() },
   { id: "JOB-003", title: "Staff Administrasi HR", departmentId: "DP-HR", description: "Mengelola data karyawan, cuti, dan payroll.", requirements: "S1 HR/Manajemen, mahir Excel, teliti.", salaryRange: "5jt - 7jt", status: "closed", createdAt: new Date(Date.now() - 30 * 86_400_000).toISOString() },
+  // Subang (dept DP-SBG)
+  { id: "JOB-004", title: "Staf Layanan Cabang Subang", departmentId: "DP-SBG", description: "Melayani walk-in pelanggan dan input data antrian di Kantor Cabang Subang.", requirements: "SMA/SMK minimal, domisili Subang/Purwakarta, mahir Excel.", salaryRange: "4,5jt - 6jt", status: "open", createdAt: new Date(Date.now() - 5 * 86_400_000).toISOString() },
+  { id: "JOB-005", title: "Admin Keuangan Cabang", departmentId: "DP-SBG", description: "Pembukuan kas cabang dan rekonsiliasi harian.", requirements: "D3/S1 Akuntansi, pengalaman 1 tahun diutamakan.", salaryRange: "5jt - 7jt", status: "open", createdAt: new Date(Date.now() - 2 * 86_400_000).toISOString() },
 ];
 
 export const candidates: Candidate[] = [
@@ -533,13 +554,20 @@ export const candidates: Candidate[] = [
   { id: "CAN-002", jobPostingId: "JOB-001", name: "Anisa Putri", email: "anisa.putri@email.com", phone: "081234567891", status: "screening", appliedAt: new Date(Date.now() - 8 * 86_400_000).toISOString() },
   { id: "CAN-003", jobPostingId: "JOB-002", name: "Drg. Maya Sari", email: "maya.sari@email.com", phone: "081234567892", status: "offer", appliedAt: new Date(Date.now() - 5 * 86_400_000).toISOString(), notes: "STR aktif, 5 tahun pengalaman." },
   { id: "CAN-004", jobPostingId: "JOB-003", name: "Febri Wijaya", email: "febri.w@email.com", phone: "081234567893", status: "hired", appliedAt: new Date(Date.now() - 25 * 86_400_000).toISOString() },
+  // Pelamar lowongan Subang
+  { id: "CAN-005", jobPostingId: "JOB-004", name: "Dedi Supriyadi", email: "dedi.s@email.com", phone: "081298765401", status: "screening", appliedAt: new Date(Date.now() - 4 * 86_400_000).toISOString(), notes: "Domisili Ngamprah, pengalaman frontline 2 tahun." },
+  { id: "CAN-006", jobPostingId: "JOB-004", name: "Wulan Safitri", email: "wulan.s@email.com", phone: "081298765402", status: "interview", appliedAt: new Date(Date.now() - 3 * 86_400_000).toISOString() },
+  { id: "CAN-007", jobPostingId: "JOB-005", name: "Hendra Kusnadi", email: "hendra.k@email.com", phone: "081298765403", status: "applied", appliedAt: new Date(Date.now() - 36 * 3_600_000).toISOString() },
 ];
 
 // ── Phase 3-4: Training ───────────────────────────────────────────
 export const trainings: Training[] = [
-  { id: "TRN-001", title: "Cyber Security Awareness", provider: "PT SecureTech", description: "Pelatihan keamanan siber dasar untuk seluruh karyawan.", startDate: iso(5), endDate: iso(5), maxParticipants: 50, status: "upcoming" },
-  { id: "TRN-002", title: "Pelayanan Pelanggan yang Baik", provider: "HR Internal", description: "Workshop soft skill pelayanan pelanggan untuk tim operasional.", startDate: iso(-7), endDate: iso(-7), maxParticipants: 20, status: "completed" },
+  { id: "TRN-001", title: "Cyber Security Awareness", provider: "PT SecureTech", description: "Pelatihan keamanan siber dasar lintas cabang via hybrid di Menara Sudirman.", startDate: iso(5), endDate: iso(5), maxParticipants: 50, status: "upcoming" },
+  { id: "TRN-002", title: "Pelayanan Pelanggan yang Baik", provider: "HR Internal", description: "Workshop soft skill pelayanan pelanggan untuk tim operasional pusat.", startDate: iso(-7), endDate: iso(-7), maxParticipants: 20, status: "completed", branchId: "BR-JKT" },
   { id: "TRN-003", title: "Basic Life Support", provider: "RS Mitra Keluarga", description: "Pelatihan BLS dan CPR untuk staf medis.", startDate: iso(12), endDate: iso(13), maxParticipants: 15, status: "upcoming" },
+  // Subang — beda dari pusat
+  { id: "TRN-004", title: "SOP Walk-in & Antrian Digital Cabang", provider: "HR Cabang Subang", description: "Pelatihan internal staf Subang: nomor antrian, SLA respon, dan eskalasi ke kantor pusat.", startDate: iso(3), endDate: iso(3), maxParticipants: 12, status: "upcoming", branchId: "BR-SBG" },
+  { id: "TRN-005", title: "Keselamatan Kerja Area Gudang Subang", provider: "Disnaker Subang", description: "SIO ringkas untuk staf gudang & logistik Cabang Subang.", startDate: iso(-10), endDate: iso(-10), maxParticipants: 10, status: "completed", branchId: "BR-SBG" },
 ];
 
 export const trainingEnrollments: TrainingEnrollment[] = [
@@ -548,16 +576,24 @@ export const trainingEnrollments: TrainingEnrollment[] = [
   { id: "TRE-003", trainingId: "TRN-002", employeeId: "EMP-008", status: "completed", enrolledAt: new Date(Date.now() - 10 * 86_400_000).toISOString() },
   { id: "TRE-004", trainingId: "TRN-002", employeeId: "EMP-009", status: "completed", enrolledAt: new Date(Date.now() - 10 * 86_400_000).toISOString() },
   { id: "TRE-005", trainingId: "TRN-003", employeeId: "EMP-012", status: "enrolled", enrolledAt: new Date(Date.now() - 86_400_000).toISOString() },
+  { id: "TRE-006", trainingId: "TRN-004", employeeId: "EMP-025", status: "enrolled", enrolledAt: new Date(Date.now() - 2 * 86_400_000).toISOString() },
+  { id: "TRE-007", trainingId: "TRN-004", employeeId: "EMP-026", status: "enrolled", enrolledAt: new Date(Date.now() - 86_400_000).toISOString() },
+  { id: "TRE-008", trainingId: "TRN-005", employeeId: "EMP-024", status: "completed", enrolledAt: new Date(Date.now() - 12 * 86_400_000).toISOString() },
+  { id: "TRE-009", trainingId: "TRN-005", employeeId: "EMP-025", status: "completed", enrolledAt: new Date(Date.now() - 12 * 86_400_000).toISOString() },
 ];
 
 // ── Phase 3-4: Assets ─────────────────────────────────────────────
 export const assets: Asset[] = [
-  { id: "AST-001", name: "MacBook Pro 14 inch", category: "laptop", serialNumber: "MBP-2024-001", purchaseDate: "2024-01-15", status: "assigned" },
-  { id: "AST-002", name: "iPhone 15 Pro", category: "phone", serialNumber: "IPH-2024-001", purchaseDate: "2024-03-10", status: "assigned" },
-  { id: "AST-003", name: "Dell Monitor 27 inch", category: "monitor", serialNumber: "DEL-2024-001", purchaseDate: "2024-02-20", status: "assigned" },
+  { id: "AST-001", name: "MacBook Pro 14 inch", category: "laptop", serialNumber: "MBP-2024-001", purchaseDate: "2024-01-15", status: "assigned", branchId: "BR-JKT" },
+  { id: "AST-002", name: "iPhone 15 Pro", category: "phone", serialNumber: "IPH-2024-001", purchaseDate: "2024-03-10", status: "assigned", branchId: "BR-JKT" },
+  { id: "AST-003", name: "Dell Monitor 27 inch", category: "monitor", serialNumber: "DEL-2024-001", purchaseDate: "2024-02-20", status: "assigned", branchId: "BR-JKT" },
   { id: "AST-004", name: "Laptop ASUS VivoBook", category: "laptop", serialNumber: "ASU-2024-001", purchaseDate: "2024-06-01", status: "available" },
-  { id: "AST-005", name: "Meja Kerja Ergonomis", category: "furniture", serialNumber: "FRN-2024-001", purchaseDate: "2024-04-15", status: "assigned" },
+  { id: "AST-005", name: "Meja Kerja Ergonomis", category: "furniture", serialNumber: "FRN-2024-001", purchaseDate: "2024-04-15", status: "assigned", branchId: "BR-JKT" },
   { id: "AST-006", name: "Toyota Avanza", category: "vehicle", serialNumber: "VHL-2023-001", purchaseDate: "2023-08-01", status: "maintenance" },
+  // Subang — beda dari pusat
+  { id: "AST-007", name: "Printer Epson L3210 Cabang", category: "other", serialNumber: "EPS-SBG-001", purchaseDate: "2024-09-01", status: "available", brand: "Epson", model: "L3210", notes: "Unit cetak laporan antrian harian.", branchId: "BR-SBG" },
+  { id: "AST-008", name: "Laptop Lenovo ThinkPad E14", category: "laptop", serialNumber: "LNV-SBG-001", purchaseDate: "2025-01-20", status: "assigned", brand: "Lenovo", model: "ThinkPad E14", branchId: "BR-SBG" },
+  { id: "AST-009", name: "Kursi Rapat Subang", category: "furniture", serialNumber: "FRN-SBG-001", purchaseDate: "2024-11-05", status: "available", notes: "Set 6 kursi ruang rapat cabang.", branchId: "BR-SBG" },
 ];
 
 export const assetAssignments: AssetAssignment[] = [
@@ -565,6 +601,8 @@ export const assetAssignments: AssetAssignment[] = [
   { id: "AA-002", assetId: "AST-002", employeeId: "EMP-001", assignedAt: new Date(Date.now() - 45 * 86_400_000).toISOString() },
   { id: "AA-003", assetId: "AST-003", employeeId: "EMP-005", assignedAt: new Date(Date.now() - 30 * 86_400_000).toISOString() },
   { id: "AA-004", assetId: "AST-005", employeeId: "EMP-004", assignedAt: new Date(Date.now() - 20 * 86_400_000).toISOString() },
+  { id: "AA-005", assetId: "AST-008", employeeId: "EMP-026", assignedAt: new Date(Date.now() - 15 * 86_400_000).toISOString() },
+  { id: "AA-006", assetId: "AST-007", employeeId: "EMP-025", assignedAt: new Date(Date.now() - 10 * 86_400_000).toISOString() },
 ];
 
 // ── Phase 3-4: Performance ────────────────────────────────────────
@@ -572,6 +610,9 @@ export const performanceReviews: PerformanceReview[] = [
   { id: "PRF-001", employeeId: "EMP-005", reviewerId: "EMP-001", period: "2026-Q1", score: 4, strengths: "Problem solving kuat, proaktif dalam team.", improvements: "Perlu improve komunikasi non-teknis.", goals: "Lead project migration Q2.", status: "final", createdAt: new Date(Date.now() - 60 * 86_400_000).toISOString() },
   { id: "PRF-002", employeeId: "EMP-008", reviewerId: "EMP-002", period: "2026-Q1", score: 3, strengths: "Konsisten hadir, teliti dalam administrasi.", improvements: "Perlu lebih cepat dalam处理 dokumen.", goals: "Otomasi proses manual yang berulang.", status: "final", createdAt: new Date(Date.now() - 55 * 86_400_000).toISOString() },
   { id: "PRF-003", employeeId: "EMP-012", reviewerId: "EMP-011", period: "2026-Q2", score: 0, strengths: "", improvements: "", goals: "", status: "draft", createdAt: new Date(Date.now() - 5 * 86_400_000).toISOString() },
+  // Subang — beda dari pusat
+  { id: "PRF-004", employeeId: "EMP-025", reviewerId: "EMP-023", period: "2026-Q1", score: 4, strengths: "Cepat tanggap antrean walk-in, komunikasi warga lokal kuat.", improvements: "Perlu dokumentasi kas harian lebih rapi.", goals: "Turunkan waktu respon antrian di bawah 5 menit.", status: "final", createdAt: new Date(Date.now() - 40 * 86_400_000).toISOString() },
+  { id: "PRF-005", employeeId: "EMP-026", reviewerId: "EMP-023", period: "2026-Q2", score: 0, strengths: "", improvements: "", goals: "", status: "draft", createdAt: new Date(Date.now() - 2 * 86_400_000).toISOString() },
 ];
 
 // ── Phase 3-4: Notifications ──────────────────────────────────────
@@ -579,6 +620,12 @@ export const notifications: Notification[] = [
   { id: "NTF-001", userId: "USR-001", title: "Pengajuan reimbursement pending", body: "Budi Santoso mengajukan reimbursement transport Rp285.000.", type: "approval", read: false, createdAt: new Date(Date.now() - 86_400_000).toISOString(), link: "/admin" },
   { id: "NTF-002", userId: "USR-001", title: "Cuti menunggu persetujuan", body: "Budi Santoso mengajukan cuti 3 hari mulai " + iso(6) + ".", type: "approval", read: false, createdAt: new Date(Date.now() - 43_200_000).toISOString(), link: "/admin/cuti" },
   { id: "NTF-003", userId: "USR-003", title: "Reimbursement disetujui", body: "Reimbursement transport Rp285.000 telah disetujui.", type: "info", read: true, createdAt: new Date(Date.now() - 2 * 86_400_000).toISOString() },
+  // Cabang Subang
+  { id: "NTF-004", userId: "USR-007", title: "Pengajuan cuti Rudi Hartawan", body: "Cuti tahunan 3 hari menunggu persetujuan HR Cabang Subang.", type: "approval", read: false, createdAt: new Date(Date.now() - 6 * 3_600_000).toISOString(), link: "/admin/cuti" },
+  { id: "NTF-005", userId: "USR-007", title: "Reimburse angkot pelanggan", body: "Rudi Hartawan mengajukan transport Rp120.000 rute Subang–Purwakarta.", type: "approval", read: false, createdAt: new Date(Date.now() - 4 * 3_600_000).toISOString(), link: "/admin/reimbursements" },
+  { id: "NTF-006", userId: "USR-004", title: "Lembur menunggu keputusan", body: "Rudi Hartawan mengajukan lembur 2,5 jam input data pelanggan.", type: "approval", read: false, createdAt: new Date(Date.now() - 5 * 3_600_000).toISOString(), link: "/admin/lembur" },
+  { id: "NTF-007", userId: "USR-007", title: "Pelamar baru lowongan Subang", body: "Wulan Safitri masuk tahap interview Staf Layanan Cabang Subang.", type: "info", read: false, createdAt: new Date(Date.now() - 3 * 86_400_000).toISOString(), link: "/admin/rekrutmen" },
+  { id: "NTF-008", userId: "USR-006", title: "Pelatihan antrian digital", body: "Anda terdaftar di pelatihan SOP Walk-in & Antrian Digital Cabang.", type: "info", read: false, createdAt: new Date(Date.now() - 2 * 86_400_000).toISOString(), link: "/app/pelatihan" },
 ];
 
 export function seedData(): HrisData {

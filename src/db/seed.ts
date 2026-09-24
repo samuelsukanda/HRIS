@@ -153,8 +153,8 @@ async function main() {
     );
 
   for (const a of d.announcements as Announcement[])
-    await q(`INSERT INTO announcements (id,title,body,category,date) VALUES ($1,$2,$3,$4,$5)`, [
-      a.id, a.title, a.body, a.category, a.date,
+    await q(`INSERT INTO announcements (id,title,body,category,date,branch_id) VALUES ($1,$2,$3,$4,$5,$6)`, [
+      a.id, a.title, a.body, a.category, a.date, a.branchId ?? null,
     ]);
 
   for (const r of d.reimbursements as Reimbursement[])
@@ -180,9 +180,9 @@ async function main() {
 
   for (const t of d.trainings as Training[])
     await q(
-      `INSERT INTO trainings (id,title,provider,description,start_date,end_date,max_participants,status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-      [t.id, t.title, t.provider, t.description, t.startDate, t.endDate, t.maxParticipants, t.status],
+      `INSERT INTO trainings (id,title,provider,description,start_date,end_date,max_participants,status,branch_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [t.id, t.title, t.provider, t.description, t.startDate, t.endDate, t.maxParticipants, t.status, t.branchId ?? null],
     );
 
   for (const e of d.trainingEnrollments as TrainingEnrollment[])
@@ -194,9 +194,9 @@ async function main() {
 
   for (const a of d.assets as Asset[])
     await q(
-      `INSERT INTO assets (id,name,category,serial_number,purchase_date,status)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
-      [a.id, a.name, a.category, a.serialNumber, a.purchaseDate, a.status],
+      `INSERT INTO assets (id,name,category,serial_number,purchase_date,status,brand,model,purchase_price,notes,branch_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [a.id, a.name, a.category, a.serialNumber, a.purchaseDate, a.status, a.brand ?? null, a.model ?? null, a.purchasePrice ?? null, a.notes ?? null, a.branchId ?? null],
     );
 
   for (const a of d.assetAssignments as AssetAssignment[])

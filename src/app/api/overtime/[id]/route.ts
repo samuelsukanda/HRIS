@@ -47,8 +47,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     return Response.json({ ok: true, status: newStatus });
   }
 
-  // Tahap 2: Manager (bisa dari pending jika tidak ada SPV, atau dari spv_approved)
+  // Tahap 2: Manager (dari pending hanya jika tanpa SPV, atau dari spv_approved)
   if (ot.manager_id && user.employee_id === ot.manager_id) {
+    if (ot.status === "pending" && ot.spv_id) {
+      return Response.json({ ok: false, error: "Menunggu persetujuan SPV." }, { status: 409 });
+    }
     if (ot.status !== "spv_approved" && ot.status !== "pending") return Response.json({ ok: false, error: "Sudah diproses." }, { status: 409 });
     const newStatus = body.approve ? "approved" : "rejected";
     await pool.query(`UPDATE overtime_requests SET status=$1, decided_by=$2 WHERE id=$3`, [newStatus, approverName, id]);

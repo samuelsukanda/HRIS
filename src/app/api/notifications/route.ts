@@ -13,7 +13,12 @@ export async function PATCH(req: Request) {
   if (!user) return Response.json({ ok: false }, { status: 401 });
   const body = await req.json() as { markAll?: boolean; id?: string };
   if (body.markAll) {
-    await pool.query(`UPDATE notifications SET read=true WHERE user_id=$1`, [user.id]);
+    // super admin melihat SEMUA notifikasi perusahaan → tandai semua, bukan hanya miliknya
+    if (user.role === "super_admin") {
+      await pool.query(`UPDATE notifications SET read=true`);
+    } else {
+      await pool.query(`UPDATE notifications SET read=true WHERE user_id=$1`, [user.id]);
+    }
   } else if (body.id) {
     await pool.query(`UPDATE notifications SET read=true WHERE id=$1 AND user_id=$2`, [body.id, user.id]);
   }

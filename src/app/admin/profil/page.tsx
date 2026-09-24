@@ -142,19 +142,19 @@ export default function AdminProfile() {
 function AdminPasswordChange() {
   const [cur, setCur] = useState("");
   const [nw, setNw] = useState("");
-  const [msg, setMsg] = useState<string | null>(null);
   async function submit() {
-    setMsg(null);
     const r = await fetch("/api/auth/change-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ currentPassword: cur, newPassword: nw }),
     });
     const j = await r.json().catch(() => ({}));
-    setMsg(j.ok ? "Password berhasil diganti." : (j.error ?? "Gagal."));
     if (j.ok) {
       setCur("");
       setNw("");
+      toastOk("Password berhasil diganti.");
+    } else {
+      toastErr(j.error ?? "Gagal mengganti password.");
     }
   }
   return (
@@ -170,7 +170,6 @@ function AdminPasswordChange() {
         <Btn onClick={submit} disabled={!cur || nw.length < 8}>
           Simpan Password
         </Btn>
-        {msg && <p className="text-xs text-ink-soft">{msg}</p>}
       </div>
     </section>
   );

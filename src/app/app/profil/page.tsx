@@ -345,13 +345,12 @@ export default function EmployeeProfile() {
 }
 
 function PasswordChange(){
-  const [cur,setCur]=useState(""); const [nw,setNw]=useState(""); const [msg,setMsg]=useState<string|null>(null);
+  const [cur,setCur]=useState(""); const [nw,setNw]=useState("");
   async function submit(){
-    setMsg(null);
     const r = await fetch("/api/auth/change-password",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({currentPassword:cur,newPassword:nw})});
     const j = await r.json().catch(()=> ({}));
-    setMsg(j.ok ? "Password berhasil diganti." : (j.error ?? "Gagal."));
-    if(j.ok){ setCur(""); setNw(""); }
+    if(j.ok){ setCur(""); setNw(""); toastOk("Password berhasil diganti."); }
+    else toastErr(j.error ?? "Gagal mengganti password.");
   }
   return (
     <section className="mt-6 border border-rule bg-card p-4">
@@ -360,7 +359,6 @@ function PasswordChange(){
         <Field label="Password Lama"><Input type="password" value={cur} onChange={e=> setCur(e.target.value)} /></Field>
         <Field label="Password Baru (min 8)"><Input type="password" value={nw} onChange={e=> setNw(e.target.value)} /></Field>
         <Btn onClick={submit} disabled={!cur||nw.length<8}>Simpan Password</Btn>
-        {msg && <p className="text-xs text-ink-soft">{msg}</p>}
       </div>
     </section>
   );

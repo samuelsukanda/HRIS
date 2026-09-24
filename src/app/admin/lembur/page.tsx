@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Clock, X } from "@phosphor-icons/react";
-import { Btn, EmptyState, PageHead, Pager, StatusStamp } from "@/components/ui";
+import { Check, Clock, Plus, X } from "@phosphor-icons/react";
+import { Btn, EmptyState, Field, Input, Modal, PageHead, Pager, StatusStamp, Textarea } from "@/components/ui";
 import { toastOk } from "@/lib/swal";
 import { fmtDateShortID } from "@/lib/format";
 import { currentUser, todayISO, useHris } from "@/lib/store";
@@ -11,18 +11,35 @@ export default function AdminLemburPage() {
   const { state, dispatch } = useHris();
   const { data } = state;
   const me = currentUser(state);
-  const myEmpId = me?.employee.id;
 
-  function isSpvFor(empId: string) {
-    if (!myEmpId) return false;
-    const emp = data.employees.find((e) => e.id === empId);
-    return emp?.spvId === myEmpId;
+  function getApprovalLevel(emp: { spvId?: string; managerId?: string }): "spv" | "manager" | null {
+    if (!me) return null;
+    if (emp.spvId === me.employee.id) return "spv";
+    if (emp.managerId === me.employee.id) return "manager";
+    return null;
   }
 
-  function isManagerFor(empId: string) {
-    if (!myEmpId) return false;
-    const emp = data.employees.find((e) => e.id === empId);
-    return emp?.managerId === myEmpId;
+  function canDecideOvertime(r: { status: string; employeeId: string }): boolean {
+    if (!me) return false;
+    const emp = data.employees.find((e) => e.id === r.employeeId);
+    if (!emp) return false;
+    const level = getApprovalLevel(emp);
+    if (!level) return false;
+    if (level === "spv" && r.status === "pending") return true;
+    if (level === "manager" && r.status === "spv_approved") return true;
+    if (level === "manager" && r.status === "pending" && !emp.spvId) return true;
+    return false;
+  }
+
+  /** Pending hanya terlihat oleh SPV-nya (HR/super admin tetap lihat semua). */
+  function canSeeOvertime(r: { status: string; employeeId: string }): boolean {
+    if (r.status !== "pending") return true;
+    if (me?.user.role === "hr" || me?.user.role === "super_admin") return true;
+    const emp = data.employees.find((e) => e.id === r.employeeId);
+    if (!emp || !me) return false;
+    if (emp.spvId === me.employee.id) return true;
+    if (!emp.spvId && emp.managerId === me.employee.id) return true;
+    return false;
   }
 
   const monthPrefix = todayISO().slice(0, 7);
@@ -30,13 +47,20 @@ export default function AdminLemburPage() {
     (r) => r.status === "approved" && r.date.startsWith(monthPrefix),
   );
   const otHours = approvedThisMonth.reduce((s, r) => s + r.hours, 0);
-  const pending = data.overtimeRequests.filter((r) => r.status === "pending" || r.status === "spv_approved");
+  const pending = data.overtimeRequests.filter((r) => canSeeOvertime(r) && (r.status === "pending" || r.status === "spv_approved"));
 
   const nameOf = (id: string) => data.employees.find((e) => e.id === id)?.name ?? id;
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const LIMIT = 10;
-  const filtered = data.overtimeRequests.filter(r=> !q.trim() || `${nameOf(r.employeeId)} ${r.reason}`.toLowerCase().includes(q.toLowerCase()));
+  const filtered = data.overtimeRequests
+    .filter((r) => canSeeOvertime(r))
+    .filter((r) => !q.trim() || `${nameOf(r.employeeId)} ${r.reason}`.toLowerCase().includes(q.toLowerCase()))
+    .sort(
+      (a, b) =>
+        ((a.status === "pending" || a.status === "spv_approved") ? 0 : 1) -
+        ((b.status === "pending" || b.status === "spv_approved") ? 0 : 1),
+    );
   const paged = filtered.slice((page - 1) * LIMIT, page * LIMIT);
 
   function decide(id: string, approve: boolean) {
@@ -45,11 +69,61 @@ export default function AdminLemburPage() {
     toastOk(approve ? "Lembur disetujui" : "Lembur ditolak");
   }
 
+  // Tambah pengajuan untuk diri sendiri (tanpa pilih karyawan)
+  const [showAdd, setShowAdd] = useState(false);
+  const [addDate, setAddDate] = useState(todayISO());
+  const [addStart, setAddStart] = useState("18:00");
+  const [addEnd, setAddEnd] = useState("20:00");
+  const [addReason, setAddReason] = useState("");
+  const [addError, setAddError] = useState<string | null>(null);
+
+  function openAdd() {
+    setAddDate(todayISO());
+    setAddStart("18:00");
+    setAddEnd("20:00");
+    setAddReason("");
+    setAddError(null);
+    setShowAdd(true);
+  }
+
+  function submitAdd() {
+    setAddError(null);
+    if (!me) return;
+    if (!addDate || !addStart || !addEnd) return setAddError("Lengkapi tanggal dan jam.");
+    if (addEnd <= addStart) return setAddError("Jam selesai harus setelah jam mulai.");
+    if (addReason.trim().length < 10) return setAddError("Alasan minimal satu kalimat.");
+    const sh = Number(addStart.slice(0, 2)), eh = Number(addEnd.slice(0, 2));
+    const sm = Number(addStart.slice(3)), em = Number(addEnd.slice(3));
+    const hours = Math.round(((eh * 60 + em) - (sh * 60 + sm)) / 60 * 10) / 10;
+    if (hours <= 0) return setAddError("Durasi lembur tidak valid.");
+    dispatch({
+      type: "SUBMIT_OVERTIME",
+      request: {
+        id: `OT-${String(data.overtimeRequests.length + 100).padStart(3, "0")}`,
+        employeeId: me.employee.id,
+        date: addDate,
+        start: addStart,
+        end: addEnd,
+        hours,
+        reason: addReason.trim(),
+        status: "pending",
+        submittedAt: new Date().toISOString(),
+      },
+    });
+    setShowAdd(false);
+    toastOk("Pengajuan lembur dikirim");
+  }
+
   return (
     <>
       <PageHead
         title="Lembur"
         sub="Kelola pengajuan lembur dan pantau rekap jam lembur karyawan."
+        action={
+          me ? (
+            <Btn icon={Plus} onClick={openAdd}>Pengajuan</Btn>
+          ) : undefined
+        }
       />
 
       <div>
@@ -121,9 +195,7 @@ export default function AdminLemburPage() {
                           <StatusStamp status={r.status} />
                         </td>
                         <td className="px-5 py-3">
-                          {(r.status === "pending" && isSpvFor(r.employeeId)) ||
-                          (r.status === "pending" && isManagerFor(r.employeeId)) ||
-                          (r.status === "spv_approved" && isManagerFor(r.employeeId)) ? (
+                          {canDecideOvertime(r) ? (
                             <div className="flex items-center justify-end gap-1.5">
                               <Btn variant="official" size="sm" icon={Check} onClick={() => decide(r.id, true)}>
                                 Setujui
@@ -145,6 +217,32 @@ export default function AdminLemburPage() {
           </section>
           <Pager page={page} total={filtered.length} limit={LIMIT} onChange={setPage} />
       </div>
+
+      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Pengajuan Lembur Baru">
+        <div className="space-y-3">
+          <Field label="Tanggal">
+            <Input type="date" value={addDate} onChange={(e) => setAddDate(e.target.value)} />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Mulai">
+              <Input type="time" value={addStart} onChange={(e) => setAddStart(e.target.value)} />
+            </Field>
+            <Field label="Selesai">
+              <Input type="time" value={addEnd} onChange={(e) => setAddEnd(e.target.value)} />
+            </Field>
+          </div>
+          <Field label="Alasan">
+            <Textarea value={addReason} onChange={(e) => setAddReason(e.target.value)} placeholder="Contoh: deploy rilis mendesak..." />
+          </Field>
+          {addError && (
+            <p role="alert" className="text-xs font-medium text-stamp-deep">{addError}</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Btn variant="secondary" onClick={() => setShowAdd(false)}>Batal</Btn>
+            <Btn onClick={submitAdd}>Kirim Pengajuan</Btn>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }

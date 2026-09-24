@@ -1,5 +1,5 @@
 import { pool } from "@/db/client";
-import { writeAudit } from "@/lib/server/state";
+import { creatorBranchId, writeAudit } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
 
 import { isHr } from "@/lib/roles";
@@ -15,8 +15,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   if (!status) return Response.json({ ok: false, error: "Status wajib diisi." }, { status: 400 });
 
-  const r = await pool.query(`SELECT * FROM candidates WHERE id=$1`, [id]);
+  const r = await pool.query(
+    `SELECT c.*, d.branch_id FROM candidates c
+     JOIN job_postings j ON j.id = c.job_posting_id
+     LEFT JOIN departments d ON d.id = j.department_id
+     WHERE c.id=$1`,
+    [id],
+  );
   if (r.rows.length === 0) return Response.json({ ok: false }, { status: 404 });
+  if (user.role === "hr") {
+    const myBranch = await creatorBranchId(user.employee_id);
+    if (myBranch && r.rows[0].branch_id && r.rows[0].branch_id !== myBranch) {
+      return Response.json({ ok: false, error: "Pelamar milik cabang lain." }, { status: 403 });
+    }
+  }
 
   const old = r.rows[0];
   await pool.query(

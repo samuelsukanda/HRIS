@@ -214,6 +214,7 @@ export interface Announcement {
   body: string;
   category: "pengumuman" | "kebijakan" | "libur" | "acara";
   date: string;
+  branchId?: string;
 }
 
 export interface HrisData {
@@ -299,6 +300,7 @@ export interface Training {
   endDate: string;
   maxParticipants: number;
   status: "upcoming" | "ongoing" | "completed";
+  branchId?: string;
 }
 
 export interface TrainingEnrollment {
@@ -320,6 +322,7 @@ export interface Asset {
   model?: string;
   purchasePrice?: number;
   notes?: string;
+  branchId?: string;
 }
 
 export interface AssetAssignment {

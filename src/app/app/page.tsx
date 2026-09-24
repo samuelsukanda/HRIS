@@ -21,7 +21,7 @@ export default function EmployeeHome() {
   const attToday = me ? data.attendance.find((a) => a.employeeId === me.employee.id && a.date === today) : null;
   const myLeave = me ? data.leaveRequests.filter((r) => r.employeeId === me.employee.id) : [];
   const pendingMine = myLeave.filter((r) => r.status === "pending").length;
-  const annual = data.leaveTypes[0];
+  const annual = data.leaveTypes.find((t) => /annual/i.test(t.name)) ?? data.leaveTypes[0];
   const annualBal = annual
     ? leaveBalance(annual.allocationDays, myLeave.filter((r) => r.typeId === annual.id))
     : { remaining: 0, allocation: 0, used: 0, pending: 0 };

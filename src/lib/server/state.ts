@@ -151,6 +151,7 @@ export async function loadHrisData(): Promise<HrisData> {
     })),
     announcements: annsR.rows.map((r): Announcement => ({
       id: r.id, title: r.title, body: r.body, category: r.category, date: isoDate(r.date),
+      branchId: r.branch_id ?? undefined,
     })),
     reimbursements: reimbR.rows.map((r): Reimbursement => ({
       id: r.id, employeeId: r.employee_id, category: r.category, amount: r.amount,
@@ -171,6 +172,7 @@ export async function loadHrisData(): Promise<HrisData> {
       id: r.id, title: r.title, provider: r.provider, description: r.description,
       startDate: isoDate(r.start_date), endDate: isoDate(r.end_date),
       maxParticipants: r.max_participants, status: r.status,
+      branchId: r.branch_id ?? undefined,
     })),
     trainingEnrollments: enrollR.rows.map((r): TrainingEnrollment => ({
       id: r.id, trainingId: r.training_id, employeeId: r.employee_id,
@@ -181,6 +183,7 @@ export async function loadHrisData(): Promise<HrisData> {
       purchaseDate: isoDate(r.purchase_date), status: r.status,
       brand: r.brand ?? undefined, model: r.model ?? undefined,
       purchasePrice: r.purchase_price ?? undefined, notes: r.notes ?? undefined,
+      branchId: r.branch_id ?? undefined,
     })),
     assetAssignments: assignR.rows.map((r): AssetAssignment => ({
       id: r.id, assetId: r.asset_id, employeeId: r.employee_id,
@@ -211,12 +214,45 @@ export async function loadHrisData(): Promise<HrisData> {
   };
 }
 
+/** Konten cabang: null = seluruh perusahaan; selain itu hanya terlihat di cabangnya. */
+function visibleInBranch<T extends { branchId?: string }>(arr: T[], branchId: string | undefined | null): T[] {
+  return arr.filter((x) => !x.branchId || !branchId || x.branchId === branchId);
+}
+
+export async function creatorBranchId(employeeId: string): Promise<string | null> {
+  const r = await pool.query(`SELECT branch_id FROM employees WHERE id=$1`, [employeeId]);
+  return r.rows[0]?.branch_id ?? null;
+}
+
+/** Notifikasi ke semua user aktif di cabang (HR + karyawan); branchId null = seluruh perusahaan. */
+export async function notifySameBranch(
+  branchId: string | null,
+  excludeUserId: string,
+  n: { title: string; body: string; type: "approval" | "info" | "reminder"; link?: string },
+) {
+  const r = branchId
+    ? await pool.query(
+        `SELECT DISTINCT u.id FROM users u
+         JOIN employees e ON e.id = u.employee_id
+         WHERE u.active = true AND e.branch_id = $1 AND u.id <> $2`,
+        [branchId, excludeUserId],
+      )
+    : await pool.query(`SELECT id FROM users WHERE active = true AND id <> $1`, [excludeUserId]);
+  for (const row of r.rows) await writeNotification({ userId: row.id, ...n });
+}
+
 /** Karyawan hanya melihat data miliknya; manager/supervisor hanya timnya; hr hanya cabangnya. */
 export function scopeForUser(data: HrisData, user: User | null): HrisData {
   if (!user) return data;
 
   if (user.role === "employee") {
     const own = <T extends { employeeId: string }>(arr: T[]) => arr.filter((x) => x.employeeId === user.employeeId);
+    const meEmp = data.employees.find((e) => e.id === user.employeeId);
+    const branchId = meEmp?.branchId;
+    const visibleJobs = data.jobPostings.filter((j) => {
+      const dept = data.departments.find((d) => d.id === j.departmentId);
+      return !dept?.branchId || !branchId || dept.branchId === branchId;
+    });
     return {
       ...data,
       // direktori minimal: tanpa NIK/gaji/bank/kontak/wajah
@@ -240,6 +276,10 @@ export function scopeForUser(data: HrisData, user: User | null): HrisData {
       assetRequests: own(data.assetRequests),
       notifications: data.notifications.filter((n) => n.userId === user.id),
       auditLogs: [],
+      announcements: visibleInBranch(data.announcements, branchId),
+      trainings: visibleInBranch(data.trainings, branchId),
+      assets: visibleInBranch(data.assets, branchId),
+      jobPostings: visibleJobs,
     };
   }
 
@@ -255,6 +295,12 @@ export function scopeForUser(data: HrisData, user: User | null): HrisData {
     }
     if (allowed.size > 0) {
       const inScope = <T extends { employeeId: string }>(arr: T[]) => arr.filter((x) => allowed.has(x.employeeId));
+      const branchId = me?.branchId;
+      const deptIds = new Set(
+        data.departments.filter((d) => !branchId || d.branchId === branchId).map((d) => d.id),
+      );
+      const visibleJobs = data.jobPostings.filter((j) => deptIds.has(j.departmentId));
+      const visibleJobIds = new Set(visibleJobs.map((j) => j.id));
       return {
         ...data,
         employees: data.employees.filter((e) => allowed.has(e.id)),
@@ -263,7 +309,18 @@ export function scopeForUser(data: HrisData, user: User | null): HrisData {
         leaveRequests: inScope(data.leaveRequests),
         overtimeRequests: inScope(data.overtimeRequests),
         shiftSwaps: inScope(data.shiftSwaps),
+        reimbursements: inScope(data.reimbursements),
         notifications: data.notifications.filter((n) => n.userId === user.id),
+        announcements: visibleInBranch(data.announcements, branchId),
+        trainings: visibleInBranch(data.trainings, branchId),
+        assets: visibleInBranch(data.assets, branchId),
+        jobPostings: visibleJobs,
+        candidates: data.candidates.filter((c) => visibleJobIds.has(c.jobPostingId)),
+        departments: user.role === "hr" ? data.departments.filter((d) => deptIds.has(d.id)) : data.departments,
+        trainingEnrollments: user.role === "hr" ? inScope(data.trainingEnrollments) : data.trainingEnrollments,
+        assetAssignments: user.role === "hr" ? inScope(data.assetAssignments) : data.assetAssignments,
+        performanceReviews: user.role === "hr" ? inScope(data.performanceReviews) : data.performanceReviews,
+        assetRequests: user.role === "hr" ? inScope(data.assetRequests) : data.assetRequests,
       };
     }
   }

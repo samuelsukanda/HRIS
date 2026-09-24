@@ -155,6 +155,7 @@ CREATE TABLE IF NOT EXISTS announcements (
   category TEXT NOT NULL,
   date     DATE NOT NULL
 );
+ALTER TABLE announcements ADD COLUMN IF NOT EXISTS branch_id TEXT;
 
 -- Fase D: payroll
 CREATE TABLE IF NOT EXISTS payroll_runs (
@@ -219,6 +220,7 @@ CREATE TABLE IF NOT EXISTS trainings (
   max_participants  INTEGER NOT NULL,
   status            TEXT NOT NULL DEFAULT 'upcoming'
 );
+ALTER TABLE trainings ADD COLUMN IF NOT EXISTS branch_id TEXT;
 
 CREATE TABLE IF NOT EXISTS training_enrollments (
   id           TEXT PRIMARY KEY,
@@ -241,6 +243,7 @@ ALTER TABLE assets ADD COLUMN IF NOT EXISTS brand TEXT;
 ALTER TABLE assets ADD COLUMN IF NOT EXISTS model TEXT;
 ALTER TABLE assets ADD COLUMN IF NOT EXISTS purchase_price INTEGER;
 ALTER TABLE assets ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS branch_id TEXT;
 
 CREATE TABLE IF NOT EXISTS asset_assignments (
   id           TEXT PRIMARY KEY,

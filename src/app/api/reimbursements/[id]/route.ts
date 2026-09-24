@@ -20,6 +20,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return Response.json({ ok: false, error: "Reimbursement sudah diputuskan." }, { status: 409 });
   }
 
+  // HR cabang lain tidak boleh memproses pengajuan di luar cabangnya (super_admin bebas)
+  if (user.role === "hr") {
+    const brR = await pool.query(
+      `SELECT e.branch_id FROM employees e WHERE e.id = $1 OR e.id = $2`,
+      [user.employee_id, existing.employee_id],
+    );
+    const branches = new Set(brR.rows.map((x) => x.branch_id as string | null).filter(Boolean));
+    if (branches.size !== 1) {
+      return Response.json({ ok: false, error: "Pengajuan ini bukan dari cabang Anda." }, { status: 403 });
+    }
+  }
+
   const empR = await pool.query(`SELECT name FROM employees WHERE id=$1`, [user.employee_id]);
   const actorName = empR.rows[0]?.name ?? user.employee_id;
 
