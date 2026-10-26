@@ -36,9 +36,9 @@ Aturan pakai:
 
 ## Bentuk & Garis
 
-- Radius: kartu 6px (`--radius-card`), kontrol 4px (`--radius-control`). Tanpa pill.
+- Radius: gunakan utility Tailwind yang konsisten; tanpa token radius global.
 - Border hairline `rule` di mana-mana; tanpa drop shadow besar. Elevasi dari garis, bukan bayangan.
-- `.ledger-rule`: hairline ganda pemisah baris bergaya buku kas.
+- Garis pemisah memakai border utility dan token warna ledger.
 - Ikon: Phosphor duotone untuk identitas, regular untuk fungsional.
 
 ## Gerak
@@ -59,7 +59,7 @@ Aturan pakai:
 
 ## Pola Halaman
 
-- **Admin desktop**: sidebar kiri (grup nav mono uppercase), konten max-w-6xl, PageHead di atas setiap modul, tabel dengan header mono uppercase kecil dan baris ledger-rule.
+- **Admin desktop**: sidebar kiri (grup nav mono uppercase), konten max-w-6xl, PageHead di atas setiap modul, tabel dengan header mono uppercase kecil dan garis ledger.
 - **Employee mobile-web**: max-w-lg tengah, bottom nav 5 item, kartu shift + tombol CHECK-IN besar di home, alur absensi bernomor tahap 01–07.
 
 ## Aksesibilitas

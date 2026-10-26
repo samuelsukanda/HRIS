@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-delegated: Next.js 15 (App Router, TypeScript), Tailwind v4, motion, @phosphor-icons/react — dipilih karena satu codebase untuk Admin Web + Employee Mobile-Web (PWA-style) dengan mock data layer yang siap diganti backend Laravel/PostgreSQL di kemudian hari.
+delegated: Next.js 16 App Router, TypeScript, Tailwind v4, motion, @phosphor-icons/react, PostgreSQL.
 
 ## Users
 
@@ -35,12 +35,13 @@ HRIS menggantikan proses HR manual (Excel, absensi fisik, approval WhatsApp) dal
 
 ## Capabilities and Constraints
 
-- **MVP (tahap ini):** Auth & RBAC demo, Dashboard (HR/Manager/Employee), Organization & Work Location (radius editor), Employee management, Attendance Engine (GPS→Geofence→Face sim→Liveness sim→Schedule→Risk score), Shift & Roster, Leave (saldo/pengajuan/approval), Overtime, Reports+CSV export, Audit Log, Attendance Review admin.
-- **Biometrik disimulasikan realistis:** kamera asli via getUserMedia; skor face/liveness dihasilkan pipeline simulasi deterministik; arsitektur siap diganti vendor SDK (on-device atau server-side).
-- **Tersedia penuh (sebelumnya ditunda, kini terhubung di navigasi):** Payroll, Rekrutmen, Performa, Pelatihan, Aset, Reimbursement.
-- **Ditunda:** offline mode; aplikasi native (Flutter).
+- **MVP (tahap ini):** Auth & RBAC, Dashboard (HR/Manager/Employee), Organization & Work Location, Employee management, Attendance Engine (GPS→Geofence→Face→Liveness→Schedule→Risk score), Shift & Roster, Leave, Overtime, Reports, Audit Log, dan Attendance Review.
+- **Data:** PostgreSQL; seed demo dapat dijalankan ulang secara eksplisit.
+- **Biometrik:** kamera asli via getUserMedia dan face-api lokal; descriptor disimpan terenkripsi.
+- **Tersedia:** Payroll, Rekrutmen, Performa, Pelatihan, Aset, Reimbursement.
+- **Ditunda:** offline mode dan aplikasi native.
 - Pesan error absensi harus spesifik dan edukatif (jarak aktual vs radius, checklist wajah), bukan "attendance failed".
-- Mock data layer TypeScript bertipe sesuai entitas PRD §61; API route tipis sebagai seam pengganti backend.
+- Data dan API route PostgreSQL menjadi sumber kebenaran; seed data hanya untuk demo lokal.
 
 ## Brand Commitments
 

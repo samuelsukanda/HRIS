@@ -1,8 +1,10 @@
 import { pool } from "@/db/client";
-import { creatorBranchId, writeAudit } from "@/lib/server/state";
+import { writeAudit } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
 
 import { isHr } from "@/lib/roles";
+
+const CANDIDATE_STATUSES = new Set(["applied", "screening", "interview", "offer", "hired", "rejected"]);
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser();
@@ -13,7 +15,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const body = await req.json();
   const { status, notes } = body as { status: string; notes?: string };
 
-  if (!status) return Response.json({ ok: false, error: "Status wajib diisi." }, { status: 400 });
+  if (typeof status !== "string" || !CANDIDATE_STATUSES.has(status)) return Response.json({ ok: false, error: "Status tidak valid." }, { status: 400 });
 
   const r = await pool.query(
     `SELECT c.*, d.branch_id FROM candidates c
@@ -24,7 +26,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   );
   if (r.rows.length === 0) return Response.json({ ok: false }, { status: 404 });
   if (user.role === "hr") {
-    const myBranch = await creatorBranchId(user.employee_id);
+    const myBranch = user.branch_id;
     if (myBranch && r.rows[0].branch_id && r.rows[0].branch_id !== myBranch) {
       return Response.json({ ok: false, error: "Pelamar milik cabang lain." }, { status: 403 });
     }
@@ -36,9 +38,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     [status, notes ?? null, id],
   );
 
-  const empR = await pool.query(`SELECT name FROM employees WHERE id=$1`, [user.employee_id]);
   await writeAudit({
-    actorId: user.id, actorName: empR.rows[0]?.name ?? user.employee_id,
+    actorId: user.id, actorName: user.name,
     action: "Candidate status updated", targetType: "candidate", targetId: id,
     detail: `${old.name}: ${old.status} → ${status}`,
     before: old.status, after: status, at: new Date().toISOString(),

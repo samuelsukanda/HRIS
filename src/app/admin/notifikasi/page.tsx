@@ -41,7 +41,7 @@ export default function AdminNotificationsPage() {
     <>
       <PageHead
         title="Notifikasi"
-        sub="Seluruh pemberitahuan di seluruh perusahaan, termasuk untuk karyawan."
+        sub="Pemberitahuan yang tersimpan untuk akun Anda."
         action={
           notifs.some((n) => !n.read) ? (
             <Btn variant="secondary" size="sm" onClick={markAllRead}>

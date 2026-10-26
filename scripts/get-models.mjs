@@ -1,5 +1,5 @@
 // Unduh model face-api ke public/models — jalankan: node scripts/get-models.mjs
-import { mkdir, writeFile, readFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 const BASE = "https://raw.githubusercontent.com/vladmandic/face-api/master/model";

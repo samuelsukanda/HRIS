@@ -1,12 +1,12 @@
 import { pool } from "@/db/client";
 import { getSessionUser } from "@/lib/server/session";
 
-/** GET /api/payroll/runs — daftar run payroll (HR saja). */
+/** GET /api/payroll/runs — daftar run payroll (super admin saja). */
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return Response.json({ ok: false }, { status: 401 });
-  if (!["hr", "super_admin"].includes(user.role)) {
-    return Response.json({ ok: false, error: "Hanya HR." }, { status: 403 });
+  if (user.role !== "super_admin") {
+    return Response.json({ ok: false, error: "Hanya super admin." }, { status: 403 });
   }
   const r = await pool.query(
     `SELECT p.*, COUNT(s.id)::int AS slips FROM payroll_runs p

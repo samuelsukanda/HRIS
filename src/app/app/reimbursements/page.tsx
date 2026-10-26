@@ -4,7 +4,9 @@ import { useMemo, useState } from "react";
 import { Ticket, X } from "@phosphor-icons/react";
 import { Btn, EmptyState, PageHead, Stamp } from "@/components/ui";
 import { toastOk } from "@/lib/swal";
+import { uploadFile } from "@/lib/upload";
 import { currentUser, useHris } from "@/lib/store";
+import type { Reimbursement } from "@/lib/types";
 
 const STATUS_KIND: Record<string, "pending" | "approved" | "rejected" | "neutral"> = {
   pending: "pending",
@@ -43,7 +45,7 @@ export default function MyReimbursements() {
       request: {
         id: `RBM-${String(data.reimbursements.length + 1).padStart(3, "0")}`,
         employeeId: me.employee.id,
-        category: category as never,
+        category: category as Reimbursement["category"],
         amount: Number(amount),
         description: description.trim(),
         status: "pending",
@@ -111,16 +113,13 @@ export default function MyReimbursements() {
                 <input type="file" accept=".jpg,.jpeg,.png,.pdf" className="sr-only" onChange={async e=> {
                 const f=e.target.files?.[0];
                 if(!f) return;
-                if(f.size>2*1024*1024){ setUploadErr("File max 2MB"); return; }
                 setUploadErr(null);
                 setFileName(f.name);
-                const fd=new FormData(); fd.append("file", f);
                 try {
-                  const r=await fetch("/api/uploads",{method:"POST",body:fd});
-                  const j=await r.json() as {ok:boolean;url?:string;error?:string};
-                  if(j.ok && j.url){ setAttachmentUrl(j.url); }
-                  else setUploadErr(j.error ?? "Upload gagal.");
-                } catch { setUploadErr("Upload gagal. Coba lagi."); }
+                  setAttachmentUrl(await uploadFile(f));
+                } catch (error) {
+                  setUploadErr(error instanceof Error ? error.message : "Upload gagal.");
+                }
                 e.target.value="";
               }} />
               </label>

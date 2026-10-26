@@ -250,7 +250,7 @@ export default function AdminAset() {
                       {a.assignment && (
                         <Btn variant="ghost" size="sm" onClick={() => doReturn(a.assignment!.id)}>Return</Btn>
                       )}
-                      <IconBtn label={`Edit ${a.name}`} icon={Pencil} onClick={() => startEdit(a as any)} />
+                      <IconBtn label={`Edit ${a.name}`} icon={Pencil} onClick={() => startEdit(a)} />
                       <IconBtn label={`Hapus ${a.name}`} icon={Trash} onClick={() => handleDelete(a.id)} className="hover:text-stamp" />
                     </div>
                   </td>
@@ -289,7 +289,7 @@ export default function AdminAset() {
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Kategori">
-              <Select value={category} onChange={(e) => setCategory(e.target.value as any)}>
+              <Select value={category} onChange={(e) => setCategory(e.target.value as typeof category)}>
                 <option value="laptop">Laptop</option>
                 <option value="monitor">Monitor</option>
                 <option value="phone">Phone</option>

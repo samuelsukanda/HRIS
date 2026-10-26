@@ -14,7 +14,7 @@ export async function PATCH(req: Request) {
   const u = await getSessionUser(); if (!u) return Response.json({ ok: false }, { status: 401 });
   if (!isHr(u.role)) return Response.json({ ok: false }, { status: 403 });
   const body = await req.json() as Record<string, string>;
-  const actor = (await pool.query(`SELECT name FROM employees WHERE id=$1`, [u.employee_id])).rows[0]?.name ?? u.employee_id;
+  const actor = u.name;
   const ALLOWED_KEYS = new Set(["wfh_gps", "wfh_face", "wfh_liveness", "checkin_window", "ot_mode", "ot_flat_rate", "alpha_mode", "alpha_flat_rate"]);
   const entries = Object.entries(body).filter(([k]) => ALLOWED_KEYS.has(k));
   if (entries.length === 0) return Response.json({ ok: false, error: "Key tidak dikenal." }, { status: 400 });

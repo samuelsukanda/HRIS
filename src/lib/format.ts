@@ -1,11 +1,11 @@
 // Formatter Indonesia untuk HRIS
 
 const HARI = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
-const BULAN = [
+export const BULAN = [
   "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
   "Jul", "Agu", "Sep", "Okt", "Nov", "Des",
 ];
-const BULAN_LONG = [
+export const BULAN_LONG = [
   "Januari", "Februari", "Maret", "April", "Mei", "Juni",
   "Juli", "Agustus", "September", "Oktober", "November", "Desember",
 ];
@@ -22,16 +22,15 @@ export function toLocalISO(d: Date): string {
   return `${y}-${m}-${dd}`;
 }
 
-/** Unduh string CSV (dengan BOM agar Excel baca UTF-8) sebagai file. */
-export function downloadCsv(filename: string, header: string[], rows: unknown[][]): void {
-  const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const csv = "﻿" + [header.join(","), ...rows.map((r) => r.map(esc).join(","))].join("\r\n");
-  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+export function isCalendarDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+export function inclusiveDays(start: string, end: string): number {
+  if (!isCalendarDate(start) || !isCalendarDate(end) || end < start) return 0;
+  return Math.floor((Date.parse(`${end}T00:00:00.000Z`) - Date.parse(`${start}T00:00:00.000Z`)) / 86_400_000) + 1;
 }
 
 export function addDays(iso: string, n: number): string {
@@ -72,12 +71,6 @@ function toDateLong(v: string | Date): Date {
 export function fmtDateLongID(v: string | Date): string {
   const d = toDateLong(v);
   return `${d.getDate()} ${BULAN_LONG[d.getMonth()]} ${d.getFullYear()}`;
-}
-
-/** "25 September 2026 18:00" — untuk timestamp keputusan dsb. */
-export function fmtDateTimeLongID(v: string | Date): string {
-  const d = toDateLong(v);
-  return `${fmtDateLongID(d)} ${fmtClock(d)}`;
 }
 
 function fmtClock(d: Date): string {

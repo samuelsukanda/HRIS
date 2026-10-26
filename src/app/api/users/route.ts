@@ -1,4 +1,5 @@
 import { pool } from "@/db/client";
+import { canManageAccount } from "@/lib/server/access";
 import { nextId, writeAudit } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
 import { hashPassword, randomPassword } from "@/lib/server/auth";
@@ -22,8 +23,11 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, error: "Hanya super_admin yang dapat membuat super_admin." }, { status: 403 });
   }
 
-  const emp = await pool.query(`SELECT id, name, email FROM employees WHERE id=$1`, [employeeId]);
+  const emp = await pool.query(`SELECT id, name, email, branch_id FROM employees WHERE id=$1`, [employeeId]);
   if (!emp.rows.length) return Response.json({ ok: false, error: "Karyawan tidak ditemukan." }, { status: 404 });
+  if (!canManageAccount({ id: u.id, employeeId: u.employee_id, role: u.role as Role, branchId: u.branch_id }, { role, employeeId }, emp.rows[0].branch_id)) {
+    return Response.json({ ok: false, error: "Karyawan berada di luar cabang Anda." }, { status: 403 });
+  }
   const email = String(emp.rows[0].email ?? "").trim();
   if (!email) return Response.json({ ok: false, error: "Karyawan belum memiliki email — lengkapi data karyawan dahulu." }, { status: 400 });
 
@@ -39,7 +43,7 @@ export async function POST(req: Request) {
     [userId, email, employeeId, role, hashPassword(password)],
   );
 
-  const actor = (await pool.query(`SELECT name FROM employees WHERE id=$1`, [u.employee_id])).rows[0]?.name ?? u.employee_id;
+  const actor = u.name;
   await writeAudit({
     actorId: u.id, actorName: actor, action: "User created", targetType: "user", targetId: userId,
     detail: `${emp.rows[0].name} (${employeeId}) — ${role}`, at: new Date().toISOString(),

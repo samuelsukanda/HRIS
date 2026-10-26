@@ -9,7 +9,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!u) return Response.json({ ok: false }, { status: 401 });
   if (!isHr(u.role)) return Response.json({ ok: false, error: "Hanya HR yang dapat memutuskan permintaan aset." }, { status: 403 });
   const { id } = await params;
-  const { approve } = await req.json() as { approve: boolean };
+  const body = await req.json() as { approve?: unknown } | null;
+  if (!body || typeof body.approve !== "boolean") return Response.json({ ok: false, error: "Parameter tidak valid." }, { status: 400 });
+  const approve = body.approve;
 
   const r = await pool.query(
     `SELECT ar.*, e.name emp_name
@@ -18,11 +20,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   );
   if (!r.rows.length) return Response.json({ ok: false }, { status: 404 });
   const req0 = r.rows[0];
+  if (req0.employee_id === u.employee_id) return Response.json({ ok: false, error: "Tidak dapat menyetujui permintaan sendiri." }, { status: 403 });
+  if (u.role === "hr") {
+    const branchResult = await pool.query(
+      `SELECT branch_id FROM employees WHERE id = $1 OR id = $2`,
+      [u.employee_id, req0.employee_id],
+    );
+    const branches = new Set(branchResult.rows.map((row) => row.branch_id as string | null).filter(Boolean));
+    if (branches.size !== 1) return Response.json({ ok: false, error: "Permintaan ini bukan dari cabang Anda." }, { status: 403 });
+  }
   if (req0.status !== "pending" && req0.status !== "spv_approved") {
     return Response.json({ ok: false, error: "Sudah diproses." }, { status: 409 });
   }
 
-  const approver = (await pool.query(`SELECT name FROM employees WHERE id=$1`, [u.employee_id])).rows[0]?.name ?? u.employee_id;
+  const approver = u.name;
 
   const newStatus = approve ? "approved" : "rejected";
   await pool.query(`UPDATE asset_requests SET status=$1, decided_by=$2 WHERE id=$3`, [newStatus, approver, id]);

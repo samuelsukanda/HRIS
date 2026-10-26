@@ -1,5 +1,5 @@
 import { pool } from "@/db/client";
-import { creatorBranchId, nextId, writeAudit } from "@/lib/server/state";
+import { nextId, writeAudit } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
 
 export async function POST(req: Request) {
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   );
   if (jobR.rows.length === 0) return Response.json({ ok: false, error: "Lowongan tidak ditemukan." }, { status: 404 });
   if (user.role === "hr") {
-    const myBranch = await creatorBranchId(user.employee_id);
+    const myBranch = user.branch_id;
     if (myBranch && jobR.rows[0].branch_id && jobR.rows[0].branch_id !== myBranch) {
       return Response.json({ ok: false, error: "Lowongan milik cabang lain." }, { status: 403 });
     }
@@ -33,9 +33,8 @@ export async function POST(req: Request) {
     [id, jobPostingId, name, email, phone],
   );
 
-  const empR = await pool.query(`SELECT name FROM employees WHERE id=$1`, [user.employee_id]);
   await writeAudit({
-    actorId: user.id, actorName: empR.rows[0]?.name ?? user.employee_id,
+    actorId: user.id, actorName: user.name,
     action: "Candidate applied", targetType: "candidate", targetId: id,
     detail: `${name} → ${jobPostingId}`, at: new Date().toISOString(),
   });

@@ -1,14 +1,12 @@
 "use client";
 
-// Ekspor .xlsx asli (SheetJS) — import dinamis agar tidak membebani bundle awal.
-export async function exportExcel(filename: string, header: string[], rows: unknown[][]): Promise<void> {
-  const XLSX = await import("xlsx");
-  const name = filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`;
-  const ws = XLSX.utils.aoa_to_sheet([header, ...rows.map((r) => r.map((v) => v ?? ""))]);
-  ws["!cols"] = header.map((h, i) => ({
-    wch: Math.max(h.length + 2, ...rows.slice(0, 200).map((r) => String(r[i] ?? "").length + 2)),
-  }));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Data");
-  XLSX.writeFile(wb, name);
+export function exportCsv(filename: string, header: string[], rows: unknown[][]): void {
+  const escape = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+  const csv = "﻿" + [header, ...rows].map((row) => row.map(escape).join(",")).join("\r\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename.endsWith(".csv") ? filename : `${filename}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
 }

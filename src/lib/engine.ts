@@ -1,5 +1,6 @@
 // Mesin validasi attendance HRIS — fungsi murni sesuai PRD §10–§17, §45, §57
-import type { AttendanceStatus, Shift, StageResult } from "./types";
+import { toLocalISO } from "./format";
+import type { AttendanceRecord, AttendanceStatus, HrisData, Shift, StageResult } from "./types";
 
 // ── Geofence (PRD §11) ────────────────────────────────────────────────
 const EARTH_R = 6_371_000;
@@ -45,9 +46,36 @@ export function hmToMin(hm: string): number {
   return h * 60 + m;
 }
 
-export function minToHm(min: number): string {
-  const m = ((min % 1440) + 1440) % 1440;
-  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+export interface ActiveAttendanceContext {
+  date: string;
+  shift: Shift | null;
+  attendance: AttendanceRecord | null;
+}
+
+export function activeAttendanceContext(
+  data: Pick<HrisData, "roster" | "shifts" | "attendance">,
+  employeeId: string,
+  now = new Date(),
+): ActiveAttendanceContext {
+  const today = toLocalISO(now);
+  const yesterdayDate = new Date(now);
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterday = toLocalISO(yesterdayDate);
+  const shiftFor = (date: string) => {
+    const entry = data.roster.find((r) => r.employeeId === employeeId && r.date === date);
+    return entry?.shiftId ? data.shifts.find((s) => s.id === entry.shiftId) ?? null : null;
+  };
+  const currentShift = shiftFor(today);
+  const previousOvernight = shiftFor(yesterday);
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const overnightActive = previousOvernight?.crossesMidnight === true && nowMinutes < hmToMin(previousOvernight.end);
+  const openOvernightAttendance = previousOvernight?.crossesMidnight === true
+    ? data.attendance.find((a) => a.employeeId === employeeId && a.date === yesterday && a.checkInAt && !a.checkOutAt)
+    : undefined;
+  const date = openOvernightAttendance ? yesterday : currentShift ? today : overnightActive ? yesterday : today;
+  const shift = openOvernightAttendance ? previousOvernight : currentShift ?? (overnightActive ? previousOvernight : null);
+  const attendance = openOvernightAttendance ?? data.attendance.find((a) => a.employeeId === employeeId && a.date === date) ?? null;
+  return { date, shift, attendance };
 }
 
 export interface CheckInClassification {
@@ -56,11 +84,12 @@ export interface CheckInClassification {
 }
 
 export function classifyCheckIn(
-  shift: Pick<Shift, "start" | "graceMinutes">,
+  shift: Pick<Shift, "start" | "graceMinutes"> & Partial<Pick<Shift, "end" | "crossesMidnight">>,
   checkInAt: Date,
 ): CheckInClassification {
   const scheduled = hmToMin(shift.start);
-  const actual = checkInAt.getHours() * 60 + checkInAt.getMinutes();
+  let actual = checkInAt.getHours() * 60 + checkInAt.getMinutes();
+  if (shift.crossesMidnight && shift.end && actual < hmToMin(shift.end)) actual += 1440;
   const diff = actual - scheduled;
   if (diff <= -1) return { kind: "early", lateMinutes: 0 };
   if (diff === 0 || (diff > 0 && diff <= shift.graceMinutes))
@@ -189,10 +218,13 @@ export interface LeaveBalanceView {
 
 export function leaveBalance(
   allocationDays: number,
-  requests: { status: string; days: number }[],
+  requests: { status: string; days: number; startDate?: string }[],
+  year = new Date().getFullYear(),
 ): LeaveBalanceView {
-  const used = requests.filter((r) => r.status === "approved").reduce((s, r) => s + r.days, 0);
-  const pending = requests.filter((r) => r.status === "pending").reduce((s, r) => s + r.days, 0);
+  const currentYear = String(year);
+  const current = requests.filter((r) => !r.startDate || r.startDate.slice(0, 4) === currentYear);
+  const used = current.filter((r) => r.status === "approved").reduce((s, r) => s + r.days, 0);
+  const pending = current.filter((r) => r.status === "pending" || r.status === "spv_approved").reduce((s, r) => s + r.days, 0);
   return { allocation: allocationDays, used, pending, remaining: allocationDays - used - pending };
 }
 

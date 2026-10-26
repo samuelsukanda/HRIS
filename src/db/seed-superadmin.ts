@@ -7,6 +7,7 @@ const EMAIL = process.env.SUPERADMIN_EMAIL ?? "superadmin@hrissmart.id";
 const PASSWORD = process.env.SUPERADMIN_PASSWORD ?? "SuperAdmin123!";
 
 async function main() {
+  if (process.env.NODE_ENV === "production" && !process.env.SUPERADMIN_PASSWORD) throw new Error("SUPERADMIN_PASSWORD is required");
   await applySchema();
   const q = async (text: string, values?: unknown[]) => pool.query(text, values);
 
@@ -49,6 +50,7 @@ async function main() {
        employee_id = EXCLUDED.employee_id,
        role = 'super_admin',
        password_hash = EXCLUDED.password_hash,
+       session_version = users.session_version + 1,
        active = true`,
     [USER_ID, EMP_ID, EMAIL, hashPassword(PASSWORD)],
   );

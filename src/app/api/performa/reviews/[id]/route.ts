@@ -1,5 +1,5 @@
 import { pool } from "@/db/client";
-import { creatorBranchId, writeAudit } from "@/lib/server/state";
+import { writeAudit } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
 
 import { isHr } from "@/lib/roles";
@@ -18,7 +18,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   );
   if (r.rows.length === 0) return Response.json({ ok: false }, { status: 404 });
   if (user.role === "hr") {
-    const myBranch = await creatorBranchId(user.employee_id);
+    const myBranch = user.branch_id;
     if (myBranch && r.rows[0].branch_id && r.rows[0].branch_id !== myBranch) {
       return Response.json({ ok: false, error: "Review milik cabang lain." }, { status: 403 });
     }
@@ -26,9 +26,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   await pool.query(`UPDATE performance_reviews SET status='final' WHERE id=$1`, [id]);
 
-  const empR = await pool.query(`SELECT name FROM employees WHERE id=$1`, [user.employee_id]);
   await writeAudit({
-    actorId: user.id, actorName: empR.rows[0]?.name ?? user.employee_id,
+    actorId: user.id, actorName: user.name,
     action: "Performance review finalized", targetType: "performance_review", targetId: id,
     detail: `Review ${r.rows[0].period} finalized`, after: "final", at: new Date().toISOString(),
   });

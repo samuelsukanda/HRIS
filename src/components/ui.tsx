@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import Image from "next/image";
 import { X } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
@@ -108,7 +108,7 @@ export function Avatar({ name, src, size = 36 }: { name: string; src?: string; s
       className="inline-flex shrink-0 items-center justify-center overflow-hidden border border-ledger bg-paper font-mono font-medium text-ink-soft"
       style={{ width: size, height: size, fontSize: size * 0.34 }}
     >
-      {src ? <img src={src} alt="" className="h-full w-full object-cover" /> : initials(name)}
+      {src ? <Image src={src} alt="" width={size} height={size} unoptimized className="h-full w-full object-cover" /> : initials(name)}
     </span>
   );
 }

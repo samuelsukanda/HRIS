@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, UsersThree, Pencil, Trash } from "@phosphor-icons/react";
+import { UsersThree, Pencil, Trash } from "@phosphor-icons/react";
 import { Btn, EmptyState, Field, IconBtn, Input, Modal, PageHead, Pager, Select, Stamp, Textarea } from "@/components/ui";
 import { useHris } from "@/lib/store";
 import { confirmDelete, toastOk } from "@/lib/swal";
-import type { JobPosting } from "@/lib/types";
+import type { Candidate, JobPosting } from "@/lib/types";
 
 const CANDIDATE_STATUS: Record<string, { label: string; kind: "pending" | "approved" | "rejected" | "neutral" }> = {
   applied: { label: "Applied", kind: "neutral" },
@@ -75,8 +75,8 @@ export default function AdminRekrutmen() {
     setRequirements(""); setStatus("open"); setEditId(null); setShowForm(false);
   }
 
-  function updateCandidateStatus(id: string, status: string) {
-    dispatch({ type: "UPDATE_CANDIDATE", id, status: status as never });
+  function updateCandidateStatus(id: string, status: Candidate["status"]) {
+    dispatch({ type: "UPDATE_CANDIDATE", id, status });
   }
 
   function startEdit(jp: JobPosting) {
@@ -157,7 +157,7 @@ export default function AdminRekrutmen() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Stamp kind={jp.status === "open" ? "approved" : "neutral"}>{jp.status === "open" ? "Open" : "Closed"}</Stamp>
-                    <IconBtn label={`Edit ${jp.title}`} icon={Pencil} onClick={() => startEdit(jp as any)} />
+                    <IconBtn label={`Edit ${jp.title}`} icon={Pencil} onClick={() => startEdit(jp)} />
                     <IconBtn label={`Hapus ${jp.title}`} icon={Trash} onClick={() => handleDelete(jp.id)} />
                   </div>
                 </div>
@@ -215,7 +215,7 @@ export default function AdminRekrutmen() {
                       <td className="px-3 py-3 text-xs text-ink-soft">{c.email}</td>
                       <td className="px-3 py-3 text-center"><Stamp kind={CANDIDATE_STATUS[c.status]?.kind ?? "neutral"}>{CANDIDATE_STATUS[c.status]?.label}</Stamp></td>
                       <td className="px-3 py-3 text-center">
-                        <Select value={c.status} onChange={(e) => updateCandidateStatus(c.id, e.target.value)} aria-label="Ubah status" className="border border-rule bg-card px-2 py-1 text-xs">
+                        <Select value={c.status} onChange={(e) => updateCandidateStatus(c.id, e.target.value as Candidate["status"])} aria-label="Ubah status" className="border border-rule bg-card px-2 py-1 text-xs">
                           {Object.entries(CANDIDATE_STATUS).map(([k, v]) => (
                             <option key={k} value={k}>{v.label}</option>
                           ))}

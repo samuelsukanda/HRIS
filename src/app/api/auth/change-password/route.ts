@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, error: "Password lama salah." }, { status: 403 });
   }
 
-  await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [hashPassword(newPassword), user.id]);
+  await pool.query(`UPDATE users SET password_hash = $1, session_version=session_version+1 WHERE id = $2`, [hashPassword(newPassword), user.id]);
 
   await writeAudit({
     actorId: user.id, actorName: user.name,

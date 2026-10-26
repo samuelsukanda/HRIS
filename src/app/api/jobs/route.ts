@@ -1,5 +1,5 @@
 import { pool } from "@/db/client";
-import { creatorBranchId, nextId, notifySameBranch, writeAudit } from "@/lib/server/state";
+import { nextId, notifySameBranch, writeAudit } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
 
 import { isHr } from "@/lib/roles";
@@ -7,7 +7,7 @@ import { isHr } from "@/lib/roles";
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return Response.json({ ok: false }, { status: 401 });
-  const branchId = user.role === "super_admin" ? null : await creatorBranchId(user.employee_id);
+  const branchId = user.role === "super_admin" ? null : user.branch_id;
   const r = branchId
     ? await pool.query(
         `SELECT j.* FROM job_postings j
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   if (!isHr(user.role)) return Response.json({ ok: false }, { status: 403 });
   const body = await req.json() as Record<string,string>;
   const title = body.title;
-  const myBranch = user.role === "super_admin" ? null : await creatorBranchId(user.employee_id);
+  const myBranch = user.role === "super_admin" ? null : user.branch_id;
   let departmentId = body.departmentId ?? body.department;
   if (!departmentId) {
     const f = myBranch
@@ -49,8 +49,7 @@ export async function POST(req: Request) {
   const id = await nextId("job_postings", "JOB");
   await pool.query(`INSERT INTO job_postings (id,title,department_id,description,requirements,salary_range,status,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())`,
     [id, title, departmentId, description, requirements, salaryRange, status]);
-  const empR = await pool.query(`SELECT name FROM employees WHERE id=$1`, [user.employee_id]);
-  const actorName = empR.rows[0]?.name ?? user.employee_id;
+  const actorName = user.name;
   await writeAudit({ actorId: user.id, actorName, action: "Job posting created", targetType: "job_posting", targetId: id, detail: title, at: new Date().toISOString() });
   await notifySameBranch(myBranch, user.id, {
     title: "Lowongan Baru",

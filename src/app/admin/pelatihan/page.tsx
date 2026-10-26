@@ -117,7 +117,7 @@ export default function AdminPelatihan() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Stamp kind={STATUS_KIND[t.status as TrainingStatus] ?? "neutral"}>{t.status}</Stamp>
-                  <IconBtn label={`Edit ${t.title}`} icon={Pencil} onClick={() => startEdit(t as any)} />
+                  <IconBtn label={`Edit ${t.title}`} icon={Pencil} onClick={() => startEdit(t)} />
                   <IconBtn label={`Hapus ${t.title}`} icon={Trash} onClick={() => handleDelete(t.id)} />
                 </div>
               </div>

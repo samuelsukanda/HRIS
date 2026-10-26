@@ -19,6 +19,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (existing.status === "approved" || existing.status === "rejected") {
     return Response.json({ ok: false, error: "Reimbursement sudah diputuskan." }, { status: 409 });
   }
+  if (existing.employee_id === user.employee_id) {
+    return Response.json({ ok: false, error: "Tidak dapat memutuskan reimbursement sendiri." }, { status: 403 });
+  }
 
   // HR cabang lain tidak boleh memproses pengajuan di luar cabangnya (super_admin bebas)
   if (user.role === "hr") {
@@ -32,8 +35,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
   }
 
-  const empR = await pool.query(`SELECT name FROM employees WHERE id=$1`, [user.employee_id]);
-  const actorName = empR.rows[0]?.name ?? user.employee_id;
+  const actorName = user.name;
 
   const approvals = (existing.approvals ?? []) as { level: string; byName: string; at: string; approved: boolean }[];
   const updatedApprovals = [...approvals, { level: "hr", byName: actorName, at: new Date().toISOString(), approved: approve }];

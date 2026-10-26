@@ -8,18 +8,23 @@ export async function POST(req: Request) {
   if (!u) return Response.json({ ok: false }, { status: 401 });
   if (!isHr(u.role)) return Response.json({ ok: false, error: "Hanya HR yang dapat memproses reimbursement." }, { status: 403 });
 
-  const { ids, approve } = await req.json() as { ids: string[]; approve: boolean; level?: string };
-  if (!ids?.length) return Response.json({ ok: false }, { status: 400 });
+  const body = await req.json() as { ids?: unknown; approve?: unknown } | null;
+  if (!body || !Array.isArray(body.ids) || body.ids.length === 0 || body.ids.some((id) => typeof id !== "string") || typeof body.approve !== "boolean") {
+    return Response.json({ ok: false }, { status: 400 });
+  }
+  const ids = body.ids as string[];
+  const approve = body.approve;
 
-  const approver = (await pool.query(`SELECT name FROM employees WHERE id=$1`, [u.employee_id])).rows[0]?.name ?? u.employee_id;
+  const approver = u.name;
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     for (const id of ids) {
-      const r = await client.query(`SELECT * FROM reimbursements WHERE id=$1`, [id]);
+      const r = await client.query(`SELECT * FROM reimbursements WHERE id=$1 FOR UPDATE`, [id]);
       if (r.rows.length === 0) continue;
       const ex = r.rows[0];
       if (ex.status === "approved" || ex.status === "rejected") continue;
+      if (ex.employee_id === u.employee_id) continue;
       if (u.role === "hr") {
         const br = await client.query(
           `SELECT branch_id FROM employees WHERE id = $1 OR id = $2`,

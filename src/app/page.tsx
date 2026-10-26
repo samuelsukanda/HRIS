@@ -2,19 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { GlobeSimple, ShieldCheck } from "@phosphor-icons/react";
+import { ShieldCheck } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { currentUser, useHris } from "@/lib/store";
 import { alertAccountDisabled } from "@/lib/swal";
-
-const DEMO_ACCOUNTS = [
-  { email: "superadmin@hrissmart.id", password: "SuperAdmin123!", name: "Super Admin", role: "Super Admin", desc: "Akses penuh termasuk audit log dan pengelolaan akun super admin." },
-  { email: "samuel.hartono@hrissmart.id", password: "demo1234", name: "Samuel Hartono", role: "HR", desc: "Dashboard HR penuh, review absensi & risiko fraud, kelola karyawan, approval cuti/lembur." },
-  { email: "melati.puspita@hrissmart.id", password: "demo1234", name: "Melati Puspita", role: "HR Cabang", desc: "Staf HR Cabang Subang — kelola karyawan & urusan HR cabang." },
-  { email: "bambang.prakoso@hrissmart.id", password: "demo1234", name: "Bambang Prakoso", role: "Manajer", desc: "Pimpinan Cabang Subang — approve cuti tahap akhir setelah SPV." },
-  { email: "sari.wulandari@hrissmart.id", password: "demo1234", name: "Sari Wulandari", role: "SPV", desc: "Supervisor Cabang Subang — persetujuan pertama cuti subordinate." },
-  { email: "rudi.hartawan@hrissmart.id", password: "demo1234", name: "Rudi Hartawan", role: "Karyawan", desc: "Karyawan Cabang Subang — check-in, pengajuan cuti, lihat shift & saldo." },
-];
 
 export default function LoginPage() {
   const { state, login } = useHris();
@@ -123,39 +114,6 @@ export default function LoginPage() {
               {busy ? "Memeriksa…" : "Masuk"}
             </button>
           </form>
-
-          <motion.div initial="hidden" animate="visible" variants={{ hidden:{}, visible:{ transition:{ staggerChildren:0.07, delayChildren:0.2 }}}} className="mt-8">
-            <p className="mb-2 font-mono text-[11px] tracking-widest text-ink-faint uppercase">Akun demo — klik untuk masuk</p>
-            <div className="space-y-2">
-              {DEMO_ACCOUNTS.map((r) => (
-                <motion.button
-                  key={r.email}
-                  variants={{ hidden:{ opacity:0, y:8 }, visible:{ opacity:1, y:0, transition:{ type:"spring", stiffness:100, damping:20 }}}}
-                  whileHover={{ y:-1 }} whileTap={{ scale:0.98 }}
-disabled={busy}
-                  onClick={() => {
-                    setEmail(r.email);
-                    setPassword(r.password);
-                    void doLogin(r.email, r.password);
-                  }}
-                  className="group w-full cursor-pointer border border-rule bg-card p-3.5 text-left shadow-[0_8px_24px_-16px_rgba(0,0,0,0.12)] hover:border-official focus-visible:border-official disabled:opacity-60"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-semibold tracking-tight">{r.name}</span>
-                    <span className="font-mono text-[11px] tracking-widest text-stamp uppercase group-hover:text-official">
-                      {r.role} →
-                    </span>
-                  </div>
-                  <p className="mt-0.5 text-xs leading-snug text-ink-soft">{r.desc}</p>
-                </motion.button>
-              ))}
-            </div>
-          </motion.div>
-
-          <p className="mt-8 flex items-start gap-2 text-xs leading-relaxed text-ink-faint">
-            <GlobeSimple size={14} weight="light" className="mt-0.5 shrink-0" />
-            Akses lokasi dan kamera hanya aktif saat Anda melakukan absensi dan tidak digunakan untuk pelacakan di luar proses tersebut.
-          </p>
         </div>
       </section>
     </main>

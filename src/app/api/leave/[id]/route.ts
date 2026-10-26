@@ -1,4 +1,5 @@
 import { pool } from "@/db/client";
+import { canApproveEmployee } from "@/lib/server/access";
 import { getSessionUser } from "@/lib/server/session";
 import { writeAudit, writeNotification } from "@/lib/server/state";
 import { fmtDateLongID } from "@/lib/format";
@@ -36,13 +37,23 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     return Response.json({ ok: true, status: "cancelled" });
   }
 
-  if (approve === undefined) return Response.json({ ok: false, error: "Parameter tidak valid." }, { status: 400 });
+  if (typeof approve !== "boolean") return Response.json({ ok: false, error: "Parameter tidak valid." }, { status: 400 });
+  if (req0.employee_id === user.employee_id) return Response.json({ ok: false, error: "Tidak dapat menyetujui pengajuan sendiri." }, { status: 403 });
 
-  const approverR = await pool.query(`SELECT name FROM employees WHERE id = $1`, [user.employee_id]);
-  const approverName = approverR.rows[0]?.name ?? user.employee_id;
+  const actor = { id: user.id, employeeId: user.employee_id, role: user.role, branchId: user.branch_id };
+  const target = { id: req0.employee_id, branchId: req0.branch_id, spvId: req0.spv_id, managerId: req0.manager_id };
+  const canSupervisorApprove = canApproveEmployee(actor, target, "supervisor");
+  const canManagerApprove = canApproveEmployee(actor, target, "manager");
+  if (!canSupervisorApprove && !canManagerApprove) return Response.json({ ok: false, error: "Anda bukan atasan pengajuan ini." }, { status: 403 });
+  const isSuperAdmin = user.role === "super_admin";
+  const supervisorStage = canSupervisorApprove && (!isSuperAdmin || (req0.status === "pending" && Boolean(req0.spv_id)));
+  const managerStage = canManagerApprove && (!isSuperAdmin || req0.status === "spv_approved" || (req0.status === "pending" && !req0.spv_id));
+  if (isSuperAdmin && !supervisorStage && !managerStage) return Response.json({ ok: false, error: "Sudah diproses." }, { status: 409 });
+
+  const approverName = user.name;
 
   // Tahap 1: SPV approve → spv_approved
-  if (req0.spv_id && user.employee_id === req0.spv_id) {
+  if (supervisorStage) {
     if (req0.status !== "pending") return Response.json({ ok: false, error: "Sudah diproses." }, { status: 409 });
     const newStatus = approve ? "spv_approved" : "rejected";
     await pool.query(`UPDATE leave_requests SET status=$1, decided_by=$2, decided_at=$3 WHERE id=$4`, [
@@ -81,7 +92,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   }
 
   // Tahap 2: Manager (dari pending hanya jika tanpa SPV, atau dari spv_approved)
-  if (req0.manager_id && user.employee_id === req0.manager_id) {
+  if (managerStage) {
     if (req0.status === "pending" && req0.spv_id) {
       return Response.json({ ok: false, error: "Menunggu persetujuan SPV." }, { status: 409 });
     }

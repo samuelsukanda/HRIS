@@ -25,19 +25,17 @@ export async function POST(req: Request) {
 
   const body = (await req.json()) as CheckOutBody;
   const now = new Date();
-  const date = toLocalISO(now);
-  const attId = `ATT-${date.replaceAll("-", "")}-${user.employee_id}`;
-
   const r = await pool.query(
     `SELECT a.*, e.name emp_name, e.face_descriptor, w.latitude lat, w.longitude lng, w.radius_m,
-            s.start_time shift_start, s.end_time shift_end
+            s.start_time shift_start, s.end_time shift_end, s.crosses_midnight
      FROM attendance a
      JOIN employees e ON e.id = a.employee_id
      JOIN work_locations w ON w.id = e.work_location_id
      LEFT JOIN roster ro ON ro.employee_id = a.employee_id AND ro.date = a.date
      LEFT JOIN shifts s ON s.id = ro.shift_id
-     WHERE a.id = $1`,
-    [attId],
+     WHERE a.employee_id = $1 AND a.check_in_at IS NOT NULL AND a.check_out_at IS NULL
+     ORDER BY a.date DESC LIMIT 1`,
+    [user.employee_id],
   );
   const rec = r.rows[0];
   if (!rec || !rec.check_in_at) {
@@ -47,8 +45,7 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, error: "Sudah check-out.", code: "duplicate" }, { status: 409 });
   }
 
-  // WFH ikut sesi check-in: bila check-in WFH (distanceM<0), geofence dilewati
-  const isWfh = body.wfh === true || (rec.check_in_snap && (rec.check_in_snap as { distanceM?: number }).distanceM === -1);
+  const isWfh = rec.check_in_snap?.distanceM === -1;
   const geo = isWfh
     ? { pass: true, distanceM: -1, maxRadiusM: rec.radius_m }
     : checkGeofence({ latitude: body.latitude, longitude: body.longitude }, {
@@ -70,10 +67,13 @@ export async function POST(req: Request) {
 
   const nowMin = now.getHours() * 60 + now.getMinutes();
   const endMin = rec.shift_end ? hmToMin(rec.shift_end) : null;
-  const earlyLeave = endMin !== null && nowMin < endMin - 60;
+  const attendanceDate = rec.date instanceof Date ? toLocalISO(rec.date) : String(rec.date).slice(0, 10);
+  const dayOffset = toLocalISO(now) > attendanceDate ? 1440 : 0;
+  const shiftEndMinutes = endMin === null ? null : endMin + (rec.crosses_midnight ? 1440 : 0);
+  const earlyLeave = shiftEndMinutes !== null && nowMin + dayOffset < shiftEndMinutes - 60;
 
   // Verifikasi wajah 1:1 server-side
-  const stored = rec.face_descriptor ? decryptDescriptor(rec.face_descriptor as any) : null;
+  const stored = rec.face_descriptor ? decryptDescriptor(rec.face_descriptor) : null;
   if (!stored) {
     return Response.json({ ok: false, code: "face_not_registered", title: "Wajah belum terdaftar.", lines: ["Daftarkan wajah lewat menu Profil."] }, { status: 422 });
   }
@@ -82,6 +82,9 @@ export async function POST(req: Request) {
   }
   const faceDistance = descriptorDistance(body.descriptor, stored);
   const faceMatch = faceDistance < 0.5;
+  if (body.mockLocation || !body.livenessPassed || !faceMatch) {
+    return Response.json({ ok: false, code: "verification_rejected", title: "Check-out tidak dapat diproses.", lines: ["Lokasi, liveness, atau verifikasi wajah gagal."] }, { status: 422 });
+  }
 
   const snap = {
     at: now.toISOString(),
@@ -113,7 +116,7 @@ export async function POST(req: Request) {
     `UPDATE attendance SET check_out_at = $1, check_out_snap = $2,
        status = CASE WHEN $3 THEN 'early_leave' ELSE status END
      WHERE id = $4`,
-    [now, JSON.stringify(snap), earlyLeave, attId],
+    [now, JSON.stringify(snap), earlyLeave, rec.id],
   );
 
   await writeAudit({
@@ -121,10 +124,10 @@ export async function POST(req: Request) {
     actorName: rec.emp_name,
     action: "Checked out",
     targetType: "attendance",
-    targetId: attId,
+    targetId: rec.id,
     detail: `Check-out · jarak ${geo.distanceM} m${earlyLeave ? " · pulang awal" : ""}`,
     at: snap.at,
   });
 
-  return Response.json({ ok: true, id: attId, checkOutAt: snap.at, snap, status: earlyLeave ? "early_leave" : rec.status });
+  return Response.json({ ok: true, id: rec.id, checkOutAt: snap.at, snap, status: earlyLeave ? "early_leave" : rec.status });
 }

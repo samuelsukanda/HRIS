@@ -20,7 +20,7 @@ export function loadFaceApi(): Promise<typeof faceapi> {
   return loadPromise;
 }
 
-export function detectorOptions() {
+function detectorOptions() {
   return new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
 }
 
@@ -35,27 +35,6 @@ export async function detectDescriptor(
     .withFaceDescriptor();
   if (!res) return null;
   return { descriptor: Array.from(res.descriptor), detection: res.detection };
-}
-
-export interface EyeAspect {
-  ear: number;
-}
-
-/** Eye Aspect Ratio dari landmark 68 — dipakai untuk deteksi kedipan. */
-export function earFromLandmarks(positions: { x: number; y: number }[], side: "left" | "right"): number {
-  const off = side === "left" ? 36 : 42;
-  const p = (i: number) => positions[off + i];
-  const d = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
-  const horizontal = d(p(0), p(3));
-  if (!horizontal) return 0;
-  return (d(p(1), p(5)) + d(p(2), p(4))) / (2 * horizontal);
-}
-
-export async function detectEar(input: HTMLVideoElement): Promise<number> {
-  const api = await loadFaceApi();
-  const res = await api.detectSingleFace(input, detectorOptions()).withFaceLandmarks();
-  if (!res) return 0;
-  return (earFromLandmarks(res.landmarks.positions, "left") + earFromLandmarks(res.landmarks.positions, "right")) / 2;
 }
 
 export interface LivenessFrame {

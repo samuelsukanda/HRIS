@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Download, LockSimpleOpen, Play } from "@phosphor-icons/react";
 import { Btn, EmptyState, Input, PageHead, Stamp } from "@/components/ui";
-import { fmtRupiah } from "@/lib/format";
-import { exportExcel } from "@/lib/excel";
+import { fmtRupiah, toLocalISO } from "@/lib/format";
+import { exportCsv as exportCsvFile } from "@/lib/excel";
 import type { PayrollBreakdown } from "@/lib/payroll";
 
 interface RunSummary {
@@ -27,7 +27,7 @@ interface RunDetail {
 export default function AdminPayroll() {
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [detail, setDetail] = useState<RunDetail | null>(null);
-  const [period, setPeriod] = useState(() => new Date().toISOString().slice(0, 7));
+  const [period, setPeriod] = useState(() => toLocalISO(new Date()).slice(0, 7));
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -96,8 +96,8 @@ export default function AdminPayroll() {
 
   function exportCsv() {
     if (!detail) return;
-    void exportExcel(
-      `payroll-${detail.run.period}.xlsx`,
+    void exportCsvFile(
+      `payroll-${detail.run.period}.csv`,
       ["ID", "Nama", "Dept", "Terjadwal", "Hadir", "Alpha", "Bruto", "BPJS Kes", "BPJS JHT", "PPH21", "Net"],
       detail.slips.map((s) => [
         s.employeeId, s.name, s.dept ?? "-", s.breakdown.scheduledDays, s.breakdown.attendedDays,
@@ -122,7 +122,7 @@ export default function AdminPayroll() {
         sub="Kelola perhitungan gaji berdasarkan kehadiran tervalidasi dan lembur yang telah disetujui."
         action={
           <Btn variant="secondary" icon={Download} onClick={exportCsv} disabled={!detail}>
-            Export Excel
+            Export CSV
           </Btn>
         }
       />

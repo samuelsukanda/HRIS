@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  activeAttendanceContext,
   checkGeofence,
   classifyCheckIn,
   computeRisk,
@@ -53,6 +54,13 @@ describe("jam", () => {
   it("tepat waktu dan dalam grace period tidak dihitung terlambat", () => {
     expect(classifyCheckIn({ start: "07:00", graceMinutes: 10 }, new Date(2026, 7, 26, 7, 0)).kind).toBe("on_time");
     expect(classifyCheckIn({ start: "07:00", graceMinutes: 10 }, new Date(2026, 7, 26, 7, 9)).kind).toBe("grace");
+  });
+
+  it("menghitung shift malam relatif terhadap jam setelah tengah malam", () => {
+    expect(classifyCheckIn({ start: "23:00", end: "07:00", crossesMidnight: true, graceMinutes: 15 }, new Date(2026, 7, 27, 0, 30))).toEqual({
+      kind: "late",
+      lateMinutes: 90,
+    });
   });
 });
 
@@ -141,13 +149,43 @@ describe("pipeline validasi (PRD §80 skenario)", () => {
 });
 
 describe("cuti & lembur", () => {
-  it("saldo = alokasi − used − pending", () => {
+  it("menahan saldo untuk pending dan spv_approved", () => {
     const b = leaveBalance(12, [
       { status: "approved", days: 4 },
       { status: "pending", days: 1 },
+      { status: "spv_approved", days: 2 },
       { status: "rejected", days: 3 },
     ]);
-    expect(b).toEqual({ allocation: 12, used: 4, pending: 1, remaining: 7 }); // contoh PRD §22
+    expect(b).toEqual({ allocation: 12, used: 4, pending: 3, remaining: 5 });
+  });
+
+  it("mereset saldo pada awal tahun kalender", () => {
+    const year = new Date().getFullYear();
+    const b = leaveBalance(12, [
+      { status: "approved", days: 4, startDate: `${year}-01-10` },
+      { status: "pending", days: 1, startDate: `${year}-02-10` },
+      { status: "spv_approved", days: 2, startDate: `${year}-03-10` },
+      { status: "approved", days: 3, startDate: `${year - 1}-12-10` },
+    ], year);
+    expect(b).toEqual({ allocation: 12, used: 4, pending: 3, remaining: 5 });
+  });
+
+  it("memilih roster dan attendance shift malam aktif setelah tengah malam", () => {
+    const context = activeAttendanceContext({
+      roster: [
+        { id: "EMP-1-2026-09-24", employeeId: "EMP-1", date: "2026-09-24", shiftId: "S-NIGHT" },
+        { id: "EMP-1-2026-09-25", employeeId: "EMP-1", date: "2026-09-25", shiftId: "S-DAY" },
+      ],
+      shifts: [
+        { id: "S-NIGHT", name: "Malam", start: "23:00", end: "07:00", graceMinutes: 15, crossesMidnight: true },
+        { id: "S-DAY", name: "Pagi", start: "09:00", end: "17:00", graceMinutes: 15, crossesMidnight: false },
+      ],
+      attendance: [{ id: "ATT-NIGHT", employeeId: "EMP-1", date: "2026-09-24", checkInAt: "2026-09-24T23:00:00.000Z", status: "present", riskScore: 5, verificationStatus: "valid", corrections: [] }],
+    }, "EMP-1", new Date(2026, 8, 25, 0, 30));
+
+    expect(context.date).toBe("2026-09-24");
+    expect(context.shift?.id).toBe("S-NIGHT");
+    expect(context.attendance?.id).toBe("ATT-NIGHT");
   });
 
   it("lembur ikut rumus payroll 1/173", async () => {

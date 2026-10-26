@@ -10,7 +10,6 @@ import type {
   AttendanceRecord,
   AuditLogEntry,
   Candidate,
-  Employee,
   HrisData,
   JobPosting,
   LeaveRequest,
@@ -25,7 +24,7 @@ import type {
   WorkLocation,
 } from "./types";
 import { seedData } from "./data";
-import { alertAccountDisabled, showTempPassword, toastErr, toastOk } from "./swal";
+import { alertAccountDisabled, toastErr, toastOk } from "./swal";
 
 export interface SessionUser {
   userId: string;
@@ -39,8 +38,6 @@ interface State {
 
 type Action =
   | { type: "HYDRATE"; state: State }
-  | { type: "LOGIN"; userId: string }
-  | { type: "LOGOUT" }
   | { type: "CHECK_IN"; record: AttendanceRecord }
   | { type: "CHECK_OUT"; attendanceId: string; snapshot: AttendanceRecord["checkOutSnap"] }
   | { type: "SUBMIT_LEAVE"; request: LeaveRequest }
@@ -52,7 +49,6 @@ type Action =
   | { type: "UPDATE_SELF_PHOTO"; employeeId: string; photoUrl: string | null }
   | { type: "SUBMIT_REIMBURSEMENT"; request: Reimbursement }
   | { type: "DECIDE_REIMBURSEMENT"; id: string; level: "hr"; approve: boolean; byName: string }
-  | { type: "APPLY_CANDIDATE"; candidate: Candidate }
   | { type: "UPDATE_CANDIDATE"; id: string; status: Candidate["status"]; notes?: string }
   | { type: "ENROLL_TRAINING"; enrollment: TrainingEnrollment }
   | { type: "CANCEL_ENROLLMENT"; id: string }
@@ -66,9 +62,6 @@ type Action =
   | { type: "CREATE_ANNOUNCEMENT"; announcement: { id: string; title: string; body: string; category: "pengumuman" | "kebijakan" | "libur" | "acara"; date: string } }
   | { type: "UPDATE_ANNOUNCEMENT"; id: string; title?: string; body?: string; category?: "pengumuman" | "kebijakan" | "libur" | "acara"; date?: string }
   | { type: "DELETE_ANNOUNCEMENT"; id: string }
-  | { type: "ADD_NOTIFICATION"; notification: { id: string; userId: string; title: string; body: string; type: "approval" | "info" | "reminder"; read: boolean; createdAt: string; link?: string } }
-  | { type: "CREATE_EMPLOYEE"; employee: Employee }
-  | { type: "UPDATE_EMPLOYEE"; id: string; data: Partial<Employee> }
   | { type: "DELETE_EMPLOYEE"; id: string }
   | { type: "CREATE_SHIFT"; shift: Shift }
   | { type: "UPDATE_SHIFT"; id: string; data: Partial<Shift> }
@@ -85,9 +78,6 @@ type Action =
   | { type: "CREATE_ASSET"; asset: Asset }
   | { type: "UPDATE_ASSET"; id: string; data: Partial<Asset> }
   | { type: "DELETE_ASSET"; id: string }
-  | { type: "BULK_DECIDE_LEAVE"; ids: string[]; approve: boolean; byName: string }
-  | { type: "BULK_DECIDE_OVERTIME"; ids: string[]; approve: boolean; byName: string }
-  | { type: "BULK_DECIDE_REIMBURSEMENT"; ids: string[]; approve: boolean; level: "hr" }
   | { type: "CANCEL_LEAVE"; id: string }
   | { type: "CANCEL_OVERTIME"; id: string }
   | { type: "CREATE_LOCATION"; location: WorkLocation }
@@ -110,13 +100,6 @@ function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "HYDRATE":
       return action.state;
-    case "LOGIN": {
-      const loginUser = state.data.users.find((u) => u.id === action.userId);
-      if (!loginUser) return state;
-      return { ...state, session: { userId: action.userId, employeeId: loginUser.employeeId } };
-    }
-    case "LOGOUT":
-      return { ...state, session: null };
     case "CHECK_IN":
       return {
         ...state,
@@ -389,8 +372,6 @@ function reducer(state: State, action: Action): State {
         ),
       };
     }
-    case "APPLY_CANDIDATE":
-      return { ...state, data: { ...state.data, candidates: [action.candidate, ...state.data.candidates] } };
     case "UPDATE_CANDIDATE":
       return {
         ...state,
@@ -517,7 +498,7 @@ function reducer(state: State, action: Action): State {
         data: {
           ...state.data,
           announcements: state.data.announcements.map((a) =>
-            a.id === action.id ? { ...a, ...(action.title && { title: action.title }), ...(action.body && { body: action.body }), ...(action.category && { category: action.category as never }), ...(action.date && { date: action.date }) } : a
+            a.id === action.id ? { ...a, ...(action.title && { title: action.title }), ...(action.body && { body: action.body }), ...(action.category && { category: action.category }), ...(action.date && { date: action.date }) } : a
           ),
         },
       };
@@ -529,18 +510,6 @@ function reducer(state: State, action: Action): State {
           announcements: state.data.announcements.filter((a) => a.id !== action.id),
         },
       };
-    case "ADD_NOTIFICATION":
-      return {
-        ...state,
-        data: {
-          ...state.data,
-          notifications: [action.notification, ...state.data.notifications],
-        },
-      };
-    case "CREATE_EMPLOYEE":
-      return { ...state, data: { ...state.data, employees: [...state.data.employees, action.employee] } };
-    case "UPDATE_EMPLOYEE":
-      return { ...state, data: { ...state.data, employees: state.data.employees.map((e) => (e.id === action.id ? { ...e, ...action.data } : e)) } };
     case "DELETE_EMPLOYEE":
       return { ...state, data: { ...state.data, employees: state.data.employees.map((e) => (e.id === action.id ? { ...e, status: "inactive" as const } : e)) } };
     case "CREATE_SHIFT":
@@ -573,50 +542,6 @@ function reducer(state: State, action: Action): State {
       return { ...state, data: { ...state.data, assets: state.data.assets.map((a) => (a.id === action.id ? { ...a, ...action.data } : a)) } };
     case "DELETE_ASSET":
       return { ...state, data: { ...state.data, assets: state.data.assets.filter((a) => a.id !== action.id) } };
-    case "BULK_DECIDE_LEAVE":
-      return { ...state, data: { ...state.data, leaveRequests: state.data.leaveRequests.map((l) => {
-        if (!action.ids.includes(l.id)) return l;
-        const emp = state.data.employees.find((e) => e.id === l.employeeId);
-        const isSpv = emp && state.session?.employeeId && emp.spvId === state.session.employeeId;
-        const isMgr = emp && state.session?.employeeId && emp.managerId === state.session.employeeId;
-        let next: LeaveRequest["status"];
-        if (!action.approve) {
-          next = "rejected";
-        } else if (isSpv && l.status === "pending") {
-          next = "spv_approved";
-        } else if (isMgr && l.status === "spv_approved") {
-          next = "approved";
-        } else {
-          next = "approved";
-        }
-        return { ...l, status: next, decidedBy: action.byName };
-      }) } };
-    case "BULK_DECIDE_OVERTIME":
-      return { ...state, data: { ...state.data, overtimeRequests: state.data.overtimeRequests.map((o) => {
-        if (!action.ids.includes(o.id)) return o;
-        const emp = state.data.employees.find((e) => e.id === o.employeeId);
-        const isSpv = emp && state.session?.employeeId && emp.spvId === state.session.employeeId;
-        const isMgr = emp && state.session?.employeeId && emp.managerId === state.session.employeeId;
-        let next: OvertimeRequest["status"];
-        if (!action.approve) {
-          next = "rejected";
-        } else if (isSpv && o.status === "pending") {
-          next = "spv_approved";
-        } else if (isMgr && o.status === "spv_approved") {
-          next = "approved";
-        } else if (isMgr && o.status === "pending" && !emp?.spvId) {
-          next = "approved";
-        } else {
-          next = "approved";
-        }
-        return { ...o, status: next, decidedBy: action.byName };
-      }) } };
-    case "BULK_DECIDE_REIMBURSEMENT":
-      return { ...state, data: { ...state.data, reimbursements: state.data.reimbursements.map((r) => {
-        if (!action.ids.includes(r.id)) return r;
-        const entry: ApprovalEntry = { level: action.level, byName: "", at: new Date().toISOString(), approved: action.approve };
-        return { ...r, status: action.approve ? "approved" as const : "rejected" as const, approvals: [...r.approvals, entry] };
-      }) } };
     case "CANCEL_LEAVE":
       return { ...state, data: { ...state.data, leaveRequests: state.data.leaveRequests.map((l) => (l.id === action.id ? { ...l, status: "cancelled" as const } : l)) } };
     case "CANCEL_OVERTIME":
@@ -730,11 +655,9 @@ async function syncAction(a: Action): Promise<boolean> {
     case "UPDATE_SELF_PHOTO":
       return (await postJSON("/api/profile-photo", { photoUrl: a.photoUrl }, "PATCH")).r.ok;
     case "SUBMIT_REIMBURSEMENT":
-      return (await postJSON("/api/reimbursements", { category: a.request.category, amount: a.request.amount, description: a.request.description })).r.ok;
+      return (await postJSON("/api/reimbursements", { category: a.request.category, amount: a.request.amount, description: a.request.description, attachmentUrl: a.request.attachmentUrl })).r.ok;
     case "DECIDE_REIMBURSEMENT":
       return (await postJSON(`/api/reimbursements/${a.id}`, { level: a.level, approve: a.approve }, "PATCH")).r.ok;
-    case "APPLY_CANDIDATE":
-      return (await postJSON("/api/rekrutmen/candidates", { jobPostingId: a.candidate.jobPostingId, name: a.candidate.name, email: a.candidate.email, phone: a.candidate.phone })).r.ok;
     case "UPDATE_CANDIDATE":
       return (await postJSON(`/api/rekrutmen/candidates/${a.id}`, { status: a.status, notes: a.notes }, "PATCH")).r.ok;
     case "ENROLL_TRAINING":
@@ -755,13 +678,6 @@ async function syncAction(a: Action): Promise<boolean> {
       return (await postJSON(`/api/announcements/${a.id}`, { ...(a.title && { title: a.title }), ...(a.body && { body: a.body }), ...(a.category && { category: a.category }), ...(a.date && { date: a.date }) }, "PATCH")).r.ok;
     case "DELETE_ANNOUNCEMENT":
       return (await postJSON(`/api/announcements/${a.id}`, {}, "DELETE")).r.ok;
-    case "CREATE_EMPLOYEE": {
-      const { j } = await postJSON("/api/employees", { name: a.employee.name, email: a.employee.email, phone: a.employee.phone, nik: a.employee.nik, role: "employee", departmentId: a.employee.departmentId, positionId: a.employee.positionId, branchId: a.employee.branchId, workLocationId: a.employee.workLocationId, employmentType: a.employee.employmentType, base_salary: a.employee.baseSalary, allowance: a.employee.allowance, join_date: a.employee.joinDate });
-      if (typeof j.tempPassword === "string") void showTempPassword(a.employee.email, j.tempPassword);
-      return true;
-    }
-    case "UPDATE_EMPLOYEE":
-      return (await postJSON(`/api/employees/${a.id}`, a.data, "PATCH")).r.ok;
     case "DELETE_EMPLOYEE":
       return (await postJSON(`/api/employees/${a.id}`, {}, "DELETE")).r.ok;
     case "CREATE_SHIFT":
@@ -794,12 +710,6 @@ async function syncAction(a: Action): Promise<boolean> {
       return (await postJSON(`/api/assets/${a.id}`, a.data, "PATCH")).r.ok;
     case "DELETE_ASSET":
       return (await postJSON(`/api/assets/${a.id}`, {}, "DELETE")).r.ok;
-    case "BULK_DECIDE_LEAVE":
-      return (await postJSON(`/api/leave/bulk`, { ids: a.ids, approve: a.approve }, "POST")).r.ok;
-    case "BULK_DECIDE_OVERTIME":
-      return (await postJSON(`/api/overtime/bulk`, { ids: a.ids, approve: a.approve }, "POST")).r.ok;
-    case "BULK_DECIDE_REIMBURSEMENT":
-      return (await postJSON(`/api/reimbursements/bulk`, { ids: a.ids, approve: a.approve, level: a.level }, "POST")).r.ok;
     case "CANCEL_LEAVE":
       return (await postJSON(`/api/leave/${a.id}`, { cancel: true }, "PATCH")).r.ok;
     case "CANCEL_OVERTIME":

@@ -1,4 +1,5 @@
 import { pool } from "@/db/client";
+import { canManageEmployee } from "@/lib/server/access";
 import { writeAudit, writeNotification } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
 import { isHr } from "@/lib/roles";
@@ -9,7 +10,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const { id } = await params;
   const r = await pool.query(
-    `SELECT a.* FROM asset_assignments a WHERE a.id = $1`,
+    `SELECT a.*, e.branch_id AS employee_branch_id, e.spv_id, e.manager_id
+     FROM asset_assignments a JOIN employees e ON e.id = a.employee_id WHERE a.id = $1`,
     [id],
   );
   if (r.rows.length === 0) return Response.json({ ok: false }, { status: 404 });
@@ -17,8 +19,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const asgn = r.rows[0];
   if (asgn.returned_at) return Response.json({ ok: false, error: "Sudah dikembalikan." }, { status: 409 });
 
-  const empR = await pool.query(`SELECT name FROM employees WHERE id=$1`, [user.employee_id]);
-  const actorName = empR.rows[0]?.name ?? user.employee_id;
+  const actorName = user.name;
   const assetR = await pool.query(`SELECT name FROM assets WHERE id=$1`, [asgn.asset_id]);
   const assetName = assetR.rows[0]?.name ?? asgn.asset_id;
 
@@ -28,7 +29,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     await pool.query(`UPDATE asset_assignments SET return_requested_at=NOW() WHERE id=$1`, [id]);
     await writeAudit({ actorId: user.id, actorName, action: "Asset return requested", targetType: "asset_assignment", targetId: id, detail: `${assetName} — menunggu konfirmasi HR`, at: new Date().toISOString() });
     // Notifikasi ke HR
-    const hrs = await pool.query(`SELECT id FROM users WHERE role IN ('hr','super_admin') AND active=true`);
+    const hrs = await pool.query(
+      `SELECT u.id FROM users u JOIN employees e ON e.id=u.employee_id
+       WHERE u.role='hr' AND u.active=true AND e.branch_id=$1`,
+      [asgn.employee_branch_id],
+    );
     for (const h of hrs.rows) {
       await writeNotification({ userId: h.id, title: "Permintaan Pengembalian Aset", body: `${actorName} mengajukan pengembalian ${assetName}.`, type: "approval", link: "/admin/aset" });
     }
@@ -37,6 +42,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   // HR: konfirmasi pengembalian
   if (isHr(user.role)) {
+    if (!canManageEmployee({ id: user.id, employeeId: user.employee_id, role: user.role, branchId: user.branch_id }, { id: asgn.employee_id, branchId: asgn.employee_branch_id, spvId: asgn.spv_id, managerId: asgn.manager_id })) {
+      return Response.json({ ok: false, error: "Aset berada di luar cabang Anda." }, { status: 403 });
+    }
     await pool.query(`UPDATE asset_assignments SET returned_at=NOW(), return_requested_at=NULL WHERE id=$1`, [id]);
     await pool.query(`UPDATE assets SET status='available' WHERE id=$1`, [asgn.asset_id]);
     await writeAudit({ actorId: user.id, actorName, action: "Asset returned", targetType: "asset_assignment", targetId: id, detail: `${assetName} returned`, at: new Date().toISOString() });

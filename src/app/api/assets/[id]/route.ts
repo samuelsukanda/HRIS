@@ -1,12 +1,12 @@
 import { pool } from "@/db/client";
-import { creatorBranchId, writeAudit } from "@/lib/server/state";
+import { writeAudit } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
 
 import { isHr } from "@/lib/roles";
 
-async function assertBranchAccess(user: { role: string; employee_id: string }, rowBranch: string | null) {
+async function assertBranchAccess(user: { role: string; employee_id: string; branch_id: string }, rowBranch: string | null) {
   if (user.role === "super_admin") return null;
-  const mine = await creatorBranchId(user.employee_id);
+  const mine = user.branch_id;
   if (rowBranch && mine && rowBranch !== mine) {
     return Response.json({ ok: false, error: "Aset milik cabang lain." }, { status: 403 });
   }
@@ -31,8 +31,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const price = (body.purchasePrice ?? body.purchase_price) as number | undefined;
   await pool.query(`UPDATE assets SET name=COALESCE($1,name), category=COALESCE($2,category), brand=COALESCE($3,brand), model=COALESCE($4,model), serial_number=COALESCE($5,serial_number), purchase_date=COALESCE($6,purchase_date), purchase_price=COALESCE($7,purchase_price), status=COALESCE($8,status), notes=COALESCE($9,notes) WHERE id=$10`,
     [body.name ?? null, body.category ?? null, body.brand ?? null, body.model ?? null, serial ?? null, pdate ?? null, price ?? null, body.status ?? null, body.notes ?? null, id]);
-  const empR = await pool.query(`SELECT name FROM employees WHERE id=$1`, [user.employee_id]);
-  await writeAudit({ actorId: user.id, actorName: empR.rows[0]?.name ?? user.employee_id, action: "Asset updated", targetType: "asset", targetId: id, detail: body.name || r.rows[0].name, at: new Date().toISOString() });
+  await writeAudit({ actorId: user.id, actorName: user.name, action: "Asset updated", targetType: "asset", targetId: id, detail: body.name || r.rows[0].name, at: new Date().toISOString() });
   return Response.json({ ok: true });
 }
 
@@ -67,7 +66,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   } finally {
     client.release();
   }
-  const empR = await pool.query(`SELECT name FROM employees WHERE id=$1`, [user.employee_id]);
-  await writeAudit({ actorId: user.id, actorName: empR.rows[0]?.name ?? user.employee_id, action: "Asset deleted", targetType: "asset", targetId: id, detail: r.rows[0]?.name ?? id, at: new Date().toISOString() });
+  await writeAudit({ actorId: user.id, actorName: user.name, action: "Asset deleted", targetType: "asset", targetId: id, detail: r.rows[0]?.name ?? id, at: new Date().toISOString() });
   return Response.json({ ok: true });
 }

@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 declare global {
-  // eslint-disable-next-line no-var
   var __hrisPool: Pool | undefined;
 }
 

@@ -15,10 +15,10 @@ import {
   WarningCircle,
 } from "@phosphor-icons/react";
 import { Btn, EmptyState, Stamp } from "@/components/ui";
-import { checkGeofence, passiveLiveness } from "@/lib/engine";
+import { activeAttendanceContext, checkGeofence, passiveLiveness } from "@/lib/engine";
 import { fmtClockFromDate } from "@/lib/format";
-import { detectDescriptor, loadFaceApi, sampleLivenessFrames } from "@/lib/face";
-import { ApiError, currentUser, rosterShiftFor, todayISO, useHris } from "@/lib/store";
+import { loadFaceApi, sampleLivenessFrames } from "@/lib/face";
+import { ApiError, currentUser, useHris } from "@/lib/store";
 
 function deviceId(): string {
   // ID stabil per browser (localStorage) agar daftar perangkat bermakna;
@@ -65,9 +65,10 @@ export default function AttendancePage() {
   const { state, submitCheckIn, submitCheckOut } = useHris();
   const router = useRouter();
   const me = currentUser(state);
-  const today = todayISO();
+  const now = new Date();
 
   const [phase, setPhase] = useState<"intro" | "running" | "success" | "error">("intro");
+  const [operation, setOperation] = useState<"in" | "out">("in");
   const [stepIdx, setStepIdx] = useState(-1);
   const [error, setError] = useState<AppError | null>(null);
   const [faceScoreShown, setFaceScoreShown] = useState(0);
@@ -76,22 +77,17 @@ export default function AttendancePage() {
   const streamRef = useRef<MediaStream | null>(null);
   const canceledRef = useRef(false);
 
-  const attToday = state.data.attendance.find((a) => a.employeeId === me?.employee.id && a.date === today);
-  const shift = me ? rosterShiftFor(state.data, me.employee.id, today) : null;
+  const attendanceContext = me ? activeAttendanceContext(state.data, me.employee.id, now) : null;
+  const attToday = attendanceContext?.attendance ?? null;
+  const attendanceDate = attendanceContext?.date ?? "";
+  const shift = attendanceContext?.shift ?? null;
   const location = state.data.workLocations.find((w) => w.id === me?.employee.workLocationId);
   const wfhPolicy = state.data.settings;
   const [isWfh, setIsWfh] = useState(false);
-  const [testMode, setTestMode] = useState(false);
-  // mode test: paksa alur check-in ulang tanpa harus check-out dulu
-  const [forceIn, setForceIn] = useState(false);
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- baca flag sekali saat mount
-  useEffect(() => {
-    void fetch("/api/attendance/test-mode")
-      .then((r) => r.json())
-      .then((j) => setTestMode(!!(j as { testMode?: boolean }).testMode))
-      .catch(() => undefined);
-  }, []);
-  const mode: "in" | "out" = forceIn || !attToday?.checkInAt || attToday?.checkOutAt ? "in" : "out";
+  const wfhAllowed = Boolean(location?.allowedTypes.includes("wfh"));
+  const useWfh = wfhAllowed && isWfh;
+  const wfhGpsRequired = wfhPolicy.wfh_gps === "WAJIB";
+  const mode: "in" | "out" = !attToday?.checkInAt || attToday?.checkOutAt ? "in" : "out";
   const verb = mode === "in" ? "Check In" : "Check Out";
 
   const stopCamera = useCallback(() => {
@@ -161,10 +157,10 @@ export default function AttendancePage() {
       // 01 — Autentikasi & perangkat terikat
       await runStep(0);
 
-      // 02 — GPS (dilewati untuk WFH — lokasi tidak direkam)
+      // 02 — GPS sesuai policy WFH
       await runStep(1);
       let coords: { latitude: number; longitude: number; accuracyM: number };
-      if (isWfh) {
+      if (useWfh && !wfhGpsRequired) {
         coords = { latitude: 0, longitude: 0, accuracyM: 0 };
         await sleep(250);
       } else {
@@ -191,7 +187,7 @@ export default function AttendancePage() {
 
       // 03 — Geofence (dilewati untuk WFH — policy server yang menentukan)
       await runStep(2);
-      if (!isWfh) {
+      if (!useWfh) {
       const point = { latitude: coords.latitude, longitude: coords.longitude };
       const geo = checkGeofence(point, office);
       if (!geo.pass) {
@@ -271,9 +267,9 @@ export default function AttendancePage() {
       // 05–06 — Verifikasi 1:1 & verdict oleh server
       await runStep(4);
 
-      // 06 — Jadwal & aturan, lalu verdict server (dilewati bila mode test)
+      // 06 — Jadwal & aturan, lalu verdict server
       await runStep(5);
-      if (!shift && !testMode) {
+      if (!shift) {
         setPhase("error");
         setError({
           title: "Tidak ada jadwal hari ini.",
@@ -293,12 +289,13 @@ export default function AttendancePage() {
         livenessPassed: live.passed,
         deviceId: deviceId(),
         deviceName: deviceName(),
-        wfh: isWfh,
+        wfh: useWfh,
       };
 
-      // Verdict ditentukan server (geofence, risk, pipeline) — anti-fraud nyata
+      const submittedMode = mode;
+      setOperation(submittedMode);
       let score = 96;
-      if (mode === "in") {
+      if (submittedMode === "in") {
         const rec = await submitCheckIn(payload);
         const dist = rec.checkInSnap?.faceDistance ?? 0.04;
         score = Math.max(0, Math.min(100, Math.round((1 - dist) * 100)));
@@ -306,7 +303,6 @@ export default function AttendancePage() {
         const res = await submitCheckOut(payload);
         const dist = res.snap.faceDistance ?? 0.04;
         score = Math.max(0, Math.min(100, Math.round((1 - dist) * 100)));
-        setForceIn(false);
       }
       setFaceScoreShown(score);
       setPhase("success");
@@ -329,33 +325,11 @@ export default function AttendancePage() {
     <>
       <h1 className="mb-1 flex items-center gap-2 text-xl font-bold tracking-tight">
         {verb}
-        {testMode && (
-          <span className="rounded bg-stamp px-2 py-0.5 font-mono text-[10px] tracking-widest text-white uppercase">
-            Mode Test
-          </span>
-        )}
       </h1>
       <p className="mb-4 text-sm text-ink-soft">
         {shift ? `${shift.name} · ${shift.start}–${shift.end}` : "Hari libur"} ·{" "}
         {location.name.split("—")[0]?.trim()} ({location.radiusM} m)
       </p>
-
-      {testMode && attToday?.checkInAt && !forceIn && phase === "intro" && (
-        <button
-          onClick={() => setForceIn(true)}
-          className="btn-press mb-4 w-full cursor-pointer rounded-[4px] border border-dashed border-stamp/50 bg-stamp/5 px-4 py-2.5 text-sm font-semibold text-stamp-deep hover:bg-stamp/10"
-        >
-          Ulangi Check In (Tes)
-        </button>
-      )}
-      {testMode && forceIn && phase === "intro" && (
-        <button
-          onClick={() => setForceIn(false)}
-          className="mb-4 cursor-pointer text-xs text-ink-faint underline underline-offset-2 hover:text-ink"
-        >
-          Kembali ke alur normal
-        </button>
-      )}
 
       {phase === "intro" && <Intro />}
       {phase === "running" && (
@@ -452,24 +426,16 @@ export default function AttendancePage() {
 
     if (mode === "in" && attToday?.checkInAt) {
       // Sudah check-in tapi state belum sinkron (mis. refresh) → tampilkan ringkas.
-      // Kecuali mode test paksa ulang: tampilkan juga tombol mulai agar bisa check-in lagi.
       return (
-        <>
-          <section className="border border-rule bg-card p-5">
-            <div className="flex items-center justify-between">
-              <p className="font-semibold">Sudah check-in</p>
-              <Stamp kind={attToday.status === "late" ? "rejected" : "approved"}>{attToday.status}</Stamp>
-            </div>
-            <p className="tnum mt-2 text-sm text-ink-soft">
-              Tercatat {fmtClockFromDate(new Date(attToday.checkInAt))} · risk {attToday.riskScore}/100
-            </p>
-          </section>
-          {testMode && forceIn && (
-            <div className="mt-4">
-              <StartCard />
-            </div>
-          )}
-        </>
+        <section className="border border-rule bg-card p-5">
+          <div className="flex items-center justify-between">
+            <p className="font-semibold">Sudah check-in</p>
+            <Stamp kind={attToday.status === "late" ? "rejected" : "approved"}>{attToday.status}</Stamp>
+          </div>
+          <p className="tnum mt-2 text-sm text-ink-soft">
+            Tercatat {fmtClockFromDate(new Date(attToday.checkInAt))} · risk {attToday.riskScore}/100
+          </p>
+        </section>
       );
     }
 
@@ -504,28 +470,30 @@ export default function AttendancePage() {
             kebijakan privasi dan setiap aktivitas absensi tercatat dalam audit log.
           </p>
           <ul className="tnum mt-4 space-y-1 text-xs text-ink-faint">
-            <li>· Lokasi hanya diambil saat absensi onsite.</li>
+            <li>· Lokasi diambil saat absensi onsite atau WFH mewajibkan GPS.</li>
             <li>· Tidak ada pelacakan lokasi secara pasif.</li>
             <li>· Data verifikasi wajah tersimpan secara terenkripsi.</li>
           </ul>
-          <div className="mt-4 flex items-center justify-between gap-3 border border-dashed border-rule bg-paper px-3 py-2.5">
-            <div>
-              <p className="text-sm font-semibold">Mode WFH</p>
-              <p className="text-xs text-ink-soft">
-                GPS {wfhPolicy.wfh_gps ?? "TIDAK WAJIB"} · Face {wfhPolicy.wfh_face ?? "WAJIB"} · Liveness {wfhPolicy.wfh_liveness ?? "WAJIB"}
-              </p>
+          {wfhAllowed && (
+            <div className="mt-4 flex items-center justify-between gap-3 border border-dashed border-rule bg-paper px-3 py-2.5">
+              <div>
+                <p className="text-sm font-semibold">Mode WFH</p>
+                <p className="text-xs text-ink-soft">
+                  GPS {wfhPolicy.wfh_gps ?? "TIDAK WAJIB"} · Face {wfhPolicy.wfh_face ?? "WAJIB"} · Liveness {wfhPolicy.wfh_liveness ?? "WAJIB"}
+                </p>
+              </div>
+              <button
+                role="switch"
+                aria-checked={useWfh}
+                onClick={() => setIsWfh((v) => !v)}
+                className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors ${useWfh ? "bg-official" : "bg-ledger"}`}
+              >
+                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${useWfh ? "left-[22px]" : "left-0.5"}`} />
+              </button>
             </div>
-            <button
-              role="switch"
-              aria-checked={isWfh}
-              onClick={() => setIsWfh((v) => !v)}
-              className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors ${isWfh ? "bg-official" : "bg-ledger"}`}
-            >
-              <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${isWfh ? "left-[22px]" : "left-0.5"}`} />
-            </button>
-          </div>
+          )}
           <Btn className="mt-5 w-full py-3 text-base" onClick={() => run()}>
-            Mulai {verb}{isWfh ? " (WFH)" : ""}
+            Mulai {verb}{useWfh ? " (WFH)" : ""}
           </Btn>
         </div>
       </section>
@@ -533,20 +501,22 @@ export default function AttendancePage() {
   }
 
   function SuccessScreen() {
-    const rec = state.data.attendance.find((a) => a.employeeId === emp.id && a.date === today);
-    const snap = mode === "in" ? rec?.checkInSnap : rec?.checkOutSnap;
+    const rec = state.data.attendance.find((a) => a.employeeId === emp.id && a.date === attendanceDate && (operation === "in" ? a.checkInAt : a.checkOutAt));
+    const snap = operation === "in" ? rec?.checkInSnap : rec?.checkOutSnap;
+    const valid = rec?.verificationStatus === "valid";
+    const operationVerb = operation === "in" ? "Check In" : "Check Out";
     return (
       <section aria-live="polite" className="text-center">
         <div className="stamp-check mx-auto mt-4 mb-6 flex h-24 w-fit items-center justify-center px-6">
-          <Stamp kind="approved">
-            <SealCheck size={15} weight="bold" /> {verb} Valid
+          <Stamp kind={valid ? "approved" : "pending"}>
+            <SealCheck size={15} weight="bold" /> {operationVerb} {valid ? "Valid" : "Review"}
           </Stamp>
         </div>
         <p className="tnum text-3xl font-bold tracking-tight">
           {snap ? fmtClockFromDate(new Date(snap.at)) : "—"}
         </p>
         <p className="mt-1 text-sm text-ink-soft">
-          {rec?.status === "late" ? "Tercatat TERLAMBAT — sesuai aturan toleransi absensi." : "Status: Present"}
+          {rec?.status === "late" ? "Tercatat TERLAMBAT — sesuai aturan toleransi absensi." : valid ? "Status: Present" : "Status: Menunggu review HR"}
         </p>
 
         <ul className="mt-6 space-y-1 text-left">

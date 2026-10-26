@@ -1,13 +1,13 @@
 import { pool } from "@/db/client";
-import { creatorBranchId, writeAudit } from "@/lib/server/state";
+import { writeAudit } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
 
 import { isHr } from "@/lib/roles";
 
 /** HR non-super hanya boleh sentuh konten cabangnya sendiri (branch null = milik super_admin). */
-async function assertBranchAccess(user: { role: string; employee_id: string }, rowBranch: string | null) {
+async function assertBranchAccess(user: { role: string; employee_id: string; branch_id: string }, rowBranch: string | null) {
   if (user.role === "super_admin") return null;
-  const mine = await creatorBranchId(user.employee_id);
+  const mine = user.branch_id;
   if (rowBranch && mine && rowBranch !== mine) {
     return Response.json({ ok: false, error: "Pengumuman milik cabang lain." }, { status: 403 });
   }
@@ -36,9 +36,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     [title ?? null, content ?? null, category ?? null, date ?? null, id],
   );
 
-  const empR = await pool.query(`SELECT name FROM employees WHERE id=$1`, [user.employee_id]);
   await writeAudit({
-    actorId: user.id, actorName: empR.rows[0]?.name ?? user.employee_id,
+    actorId: user.id, actorName: user.name,
     action: "Announcement updated", targetType: "announcement", targetId: id,
     detail: title ?? r.rows[0].title, at: new Date().toISOString(),
   });
@@ -59,9 +58,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   await pool.query(`DELETE FROM announcements WHERE id=$1`, [id]);
 
-  const empR = await pool.query(`SELECT name FROM employees WHERE id=$1`, [user.employee_id]);
   await writeAudit({
-    actorId: user.id, actorName: empR.rows[0]?.name ?? user.employee_id,
+    actorId: user.id, actorName: user.name,
     action: "Announcement deleted", targetType: "announcement", targetId: id,
     detail: r.rows[0].title, at: new Date().toISOString(),
   });

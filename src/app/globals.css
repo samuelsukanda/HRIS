@@ -38,9 +38,6 @@
   --font-sans: var(--font-libre-franklin), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-spline-sans-mono), ui-monospace, monospace;
 
-  /* Bentuk konsisten: cetakan tajam — kartu 6px, kontrol 4px, tanpa pill */
-  --radius-card: 6px;
-  --radius-control: 4px;
 }
 
 :root {
@@ -90,16 +87,6 @@ textarea {
 .tnum {
   font-variant-numeric: tabular-nums;
   font-family: var(--font-mono);
-}
-
-/* Baris ledger: hairline ganda seperti buku kas */
-.ledger-rule {
-  background-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent calc(100% - 1px),
-    var(--color-ledger) 100%
-  );
 }
 
 /* Stempel: cap tinta miring pada rekaman tervalidasi */

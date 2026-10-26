@@ -3,14 +3,13 @@
 import { useState } from "react";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import { Btn, EmptyState, Input, PageHead, Pager, Select } from "@/components/ui";
-import { exportExcel } from "@/lib/excel";
+import { exportCsv as exportCsvFile } from "@/lib/excel";
 import { useHris } from "@/lib/store";
-
-const MONS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+import { BULAN } from "@/lib/format";
 
 function fmtStamp(iso: string): string {
   const d = new Date(iso);
-  return `${String(d.getDate()).padStart(2, "0")} ${MONS[d.getMonth()]} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${String(d.getDate()).padStart(2, "0")} ${BULAN[d.getMonth()]} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 const COLS = "grid-cols-[110px_160px_190px_160px_1fr] gap-x-4";
@@ -37,8 +36,8 @@ export default function AdminAuditPage() {
   });
   const paged = logs.slice((page - 1) * LIMIT, page * LIMIT);
   function exportCsv(){
-    void exportExcel(
-      `audit-${from||"all"}-${to||"all"}.xlsx`,
+    void exportCsvFile(
+      `audit-${from||"all"}-${to||"all"}.csv`,
       ["Waktu","User","Action","Target","Detail","Before","After"],
       logs.map(e=> [e.at,e.actorName,e.action,`${e.targetType}#${e.targetId}`,e.detail,e.before??"",e.after??""]),
     );
@@ -64,7 +63,7 @@ export default function AdminAuditPage() {
             {actions.map((a) => <option key={a} value={a}>{a}</option>)}
           </Select>
         </div>
-        <Btn variant="secondary" size="sm" onClick={exportCsv}>Export Excel</Btn>
+        <Btn variant="secondary" size="sm" onClick={exportCsv}>Export CSV</Btn>
       </div>
 
       <section className="border border-rule bg-card">

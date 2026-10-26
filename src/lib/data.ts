@@ -3,7 +3,6 @@ import { checkGeofence, runValidationPipeline } from "./engine";
 import { toLocalISO } from "./format";
 import type {
   Announcement,
-  ApprovalEntry,
   Asset,
   AssetAssignment,
   AttendanceRecord,
@@ -97,7 +96,7 @@ export const workLocations: WorkLocation[] = [
     latitude: -6.2,
     longitude: 106.816666,
     radiusM: 100,
-    allowedTypes: ["onsite"],
+    allowedTypes: ["onsite", "wfh"],
   },
   {
     id: "WL-BDG",
@@ -106,7 +105,7 @@ export const workLocations: WorkLocation[] = [
     latitude: -6.921,
     longitude: 107.607,
     radiusM: 150,
-    allowedTypes: ["onsite"],
+    allowedTypes: ["onsite", "wfh"],
   },
   {
     id: "WL-SBY",
@@ -115,7 +114,7 @@ export const workLocations: WorkLocation[] = [
     latitude: -7.2635,
     longitude: 112.7502,
     radiusM: 75,
-    allowedTypes: ["onsite"],
+    allowedTypes: ["onsite", "wfh"],
   },
   {
     id: "WL-SBG",
@@ -124,7 +123,7 @@ export const workLocations: WorkLocation[] = [
     latitude: -6.5274346,
     longitude: 107.7913394,
     radiusM: 100,
-    allowedTypes: ["onsite"],
+    allowedTypes: ["onsite", "wfh"],
   },
 ];
 
@@ -185,7 +184,7 @@ export function buildEmployees(): Employee[] {
     const joinYear = 2019 + (i % 6);
     return {
       id: `EMP-${num}`,
-      nik: `31${String(7201000000000 + i * 7919).slice(0, 14)}`,
+      nik: `31${String(72010000000000 + i * 7919).slice(0, 14)}`,
       name: def.name,
       gender: def.gender,
       birthPlace: KOTA_LAHIR[i % KOTA_LAHIR.length]!,
@@ -258,22 +257,22 @@ export const roster = buildRoster();
 function makeSnapshot(
   office: WorkLocation,
   opts: {
-    hourOffsetMin: number; // menit dari mulai shift
     distanceM?: number;
     mockLocation?: boolean;
     faceScore?: number;
     livenessPassed?: boolean;
     accuracyM?: number;
-    deviceChanged?: boolean;
-    at?: Date;
+     deviceChanged?: boolean;
+     wfh?: boolean;
+     at?: Date;
   },
 ): VerificationSnapshot {
   const at = opts.at ?? new Date();
-  const lat = office.latitude + ((opts.distanceM ?? 30 + rnd() * 40) / 111_320) * (rnd() > 0.5 ? 1 : -1);
-  const lng =
-    office.longitude +
-    ((opts.distanceM ?? 30 + rnd() * 40) / (111_320 * Math.cos((office.latitude * Math.PI) / 180))) *
-      (rnd() > 0.5 ? 1 : -1);
+  const distance = opts.distanceM ?? 30 + rnd() * 40;
+  const lat = opts.wfh ? office.latitude + 0.02 : office.latitude + (distance / 111_320) * (rnd() > 0.5 ? 1 : -1);
+  const lng = opts.wfh
+    ? office.longitude + 0.02
+    : office.longitude + (distance / (111_320 * Math.cos((office.latitude * Math.PI) / 180))) * (rnd() > 0.5 ? 1 : -1);
   return {
     at: at.toISOString(),
     latitude: lat,
@@ -297,8 +296,9 @@ function finalizeSnapshot(
   office: WorkLocation,
   hasSchedule: boolean,
   withinWindow: boolean,
+  wfh = false,
 ): VerificationSnapshot {
-  const geo = checkGeofence(snap, office);
+  const geo = wfh ? { pass: true, distanceM: -1, maxRadiusM: office.radiusM } : checkGeofence(snap, office);
   const pipeline = runValidationPipeline({
     authenticated: true,
     deviceTrusted: snap.deviceId !== "DEV-UNKNOWN-77",
@@ -342,8 +342,11 @@ export function buildAttendance(): AttendanceRecord[] {
       let status: AttendanceRecord["status"] = "present";
       let verificationStatus: AttendanceRecord["verificationStatus"] = "valid";
       let rejectionReason: string | undefined;
-      let riskScore = 6 + Math.floor(rnd() * 10);
-      let snapIn: VerificationSnapshot | undefined;
+       let riskScore = 6 + Math.floor(rnd() * 10);
+       let snapIn: VerificationSnapshot | undefined;
+       const baseHour = parseInt(shift.start.slice(0, 2), 10);
+       const at = new Date(d);
+       at.setHours(baseHour, parseInt(shift.start.slice(3, 5), 10), 20 + Math.floor(rnd() * 30), 0);
 
       if (!isToday) {
         if (craftKey.endsWith("EMP-009") && off === -3) {
@@ -353,7 +356,7 @@ export function buildAttendance(): AttendanceRecord[] {
           rejectionReason = "Mock location terdeteksi — absensi ditolak";
           riskScore = 82;
           snapIn = finalizeSnapshot(
-            makeSnapshot(office, { hourOffsetMin: 5, distanceM: 60, mockLocation: true }),
+            makeSnapshot(office, { at, distanceM: 60, mockLocation: true }),
             office,
             true,
             true,
@@ -362,10 +365,10 @@ export function buildAttendance(): AttendanceRecord[] {
           // Di luar radius → ditolak (PRD §80 skenario 2)
           status = "absent";
           verificationStatus = "rejected";
-          rejectionReason = "Anda berada 350 m dari lokasi kerja — melebihi radius 100 m";
+           rejectionReason = `Anda berada 350 m dari lokasi kerja — melebihi radius ${office.radiusM} m`;
           riskScore = 64;
           snapIn = finalizeSnapshot(
-            makeSnapshot(office, { hourOffsetMin: 12, distanceM: 350 }),
+            makeSnapshot(office, { at, distanceM: 350 }),
             office,
             true,
             true,
@@ -377,7 +380,7 @@ export function buildAttendance(): AttendanceRecord[] {
           rejectionReason = "Presentation attack terdeteksi — foto/video tidak dapat diproses";
           riskScore = 91;
           snapIn = finalizeSnapshot(
-            makeSnapshot(office, { hourOffsetMin: 3, livenessPassed: false }),
+            makeSnapshot(office, { at, livenessPassed: false }),
             office,
             true,
             true,
@@ -402,23 +405,20 @@ export function buildAttendance(): AttendanceRecord[] {
       // Snapshot check-in untuk hadir/late/wfh — termasuk hari ini
       if (["present", "late", "wfh"].includes(status)) {
         const lateMin = status === "late" ? 12 + Math.floor(rnd() * 55) : Math.floor(rnd() * 8) - 15;
-        const baseHour = parseInt(shift.start.slice(0, 2), 10);
-        const at = new Date(d);
-        at.setHours(baseHour, parseInt(shift.start.slice(3, 5), 10) + lateMin, 20 + Math.floor(rnd() * 30), 0);
-        if (isToday && at.getTime() > Date.now()) continue; // shift belum mulai — belum absen
+        at.setMinutes(parseInt(shift.start.slice(3, 5), 10) + lateMin);
+        if (isToday && at.getTime() > Date.now()) continue;
         snapIn = finalizeSnapshot(
           makeSnapshot(office, {
-            hourOffsetMin: lateMin,
             at,
+            wfh: status === "wfh",
             deviceChanged: rnd() < 0.04,
             faceScore: rnd() < 0.05 ? 0.78 : undefined,
-            distanceM: status === "wfh" ? undefined : undefined,
           }),
           office,
           true,
           true,
+          status === "wfh",
         );
-        if (status === "wfh") snapIn = { ...snapIn, distanceM: -1 };
         if (snapIn.deviceId === "DEV-UNKNOWN-77") riskScore = Math.max(riskScore, 58);
         if (snapIn.faceScore < 0.85) {
           riskScore = Math.max(riskScore, 62);
@@ -432,9 +432,9 @@ export function buildAttendance(): AttendanceRecord[] {
         date: iso,
         checkInAt: snapIn?.at,
         checkOutAt:
-          snapIn && !isToday
-            ? new Date(new Date(snapIn.at).getTime() + (8 * 60 - 20) * 60000).toISOString()
-            : undefined,
+           snapIn && !isToday && ["present", "late", "wfh"].includes(status)
+             ? new Date(new Date(snapIn.at).getTime() + (8 * 60 - 20) * 60000).toISOString()
+             : undefined,
         checkInSnap: snapIn,
         status,
         riskScore,
@@ -446,7 +446,7 @@ export function buildAttendance(): AttendanceRecord[] {
   }
 
   // Satu permintaan koreksi pending dari Rina (telat karena transportasi publik)
-  const rinnaToday = records.find((r) => r.employeeId === "EMP-008");
+  const rinnaToday = records.find((r) => r.employeeId === "EMP-008" && r.date === todayISO);
   if (rinnaToday?.checkInAt) {
     rinnaToday.corrections.push({
       id: "COR-001",
@@ -481,14 +481,14 @@ function iso(offsetDays: number): string {
 
 export const leaveRequests: LeaveRequest[] = [
   { id: "LRV-001", employeeId: "EMP-003", typeId: "LV-CT", startDate: iso(6), endDate: iso(8), days: 3, reason: "Acara pernikahan saudara di Solo.", status: "pending", submittedAt: new Date(Date.now() - 86_400_000).toISOString() },
-  { id: "LRV-002", employeeId: "EMP-006", typeId: "LV-SK", startDate: iso(-1), endDate: iso(-1), days: 1, reason: "Demam, ada surat dokter.", status: "approved", submittedAt: new Date(Date.now() - 172_800_000).toISOString(), decidedBy: "Samuel Hartono", decidedAt: new Date(Date.now() - 160_000_000).toISOString() },
+  { id: "LRV-002", employeeId: "EMP-006", typeId: "LV-SK", startDate: iso(-1), endDate: iso(-1), days: 1, reason: "Demam, ada surat dokter.", status: "spv_approved", submittedAt: new Date(Date.now() - 172_800_000).toISOString(), decidedBy: "Budi Santoso", decidedAt: new Date(Date.now() - 160_000_000).toISOString() },
   { id: "LRV-003", employeeId: "EMP-012", typeId: "LV-CT", startDate: iso(10), endDate: iso(14), days: 5, reason: "Liburan tahunan keluarga.", status: "pending", submittedAt: new Date(Date.now() - 43_200_000).toISOString() },
   { id: "LRV-004", employeeId: "EMP-018", typeId: "LV-KH", startDate: iso(-7), endDate: iso(-7), days: 1, reason: "Mengurus administrasi kependudukan.", status: "approved", submittedAt: new Date(Date.now() - 8 * 86_400_000).toISOString(), decidedBy: "Samuel Hartono", decidedAt: new Date(Date.now() - 7.5 * 86_400_000).toISOString() },
   { id: "LRV-005", employeeId: "EMP-008", typeId: "LV-UP", startDate: iso(-4), endDate: iso(-4), days: 1, reason: "Urusan pribadi tanpa cuti tahunan tersisa bulan ini.", status: "rejected", submittedAt: new Date(Date.now() - 6 * 86_400_000).toISOString(), decidedBy: "Samuel Hartono", decidedAt: new Date(Date.now() - 5 * 86_400_000).toISOString() },
   // Subang — isi berbeda dari pusat
   { id: "LRV-006", employeeId: "EMP-025", typeId: "LV-CT", startDate: iso(5), endDate: iso(7), days: 3, reason: "Menghadiri acara keluarga di Purwakarta.", status: "pending", submittedAt: new Date(Date.now() - 6 * 3_600_000).toISOString() },
-  { id: "LRV-007", employeeId: "EMP-026", typeId: "LV-SK", startDate: iso(-2), endDate: iso(-2), days: 1, reason: "Flu berat, lampiran surat dokter Puskesmas Subang.", status: "approved", submittedAt: new Date(Date.now() - 3 * 86_400_000).toISOString(), decidedBy: "Melati Puspita", decidedAt: new Date(Date.now() - 2.5 * 86_400_000).toISOString() },
-  { id: "LRV-008", employeeId: "EMP-024", typeId: "LV-PT", startDate: iso(12), endDate: iso(16), days: 5, reason: "Cuti pendampingan istri melahirkan.", status: "pending", submittedAt: new Date(Date.now() - 2 * 86_400_000).toISOString() },
+  { id: "LRV-007", employeeId: "EMP-026", typeId: "LV-SK", startDate: iso(-2), endDate: iso(-2), days: 1, reason: "Flu berat, lampiran surat dokter Puskesmas Subang.", status: "approved", submittedAt: new Date(Date.now() - 3 * 86_400_000).toISOString(), decidedBy: "Bambang Prakoso", decidedAt: new Date(Date.now() - 2.5 * 86_400_000).toISOString() },
+  { id: "LRV-008", employeeId: "EMP-023", typeId: "LV-PT", startDate: iso(12), endDate: iso(16), days: 5, reason: "Cuti pendampingan pasangan melahirkan.", status: "pending", submittedAt: new Date(Date.now() - 2 * 86_400_000).toISOString() },
 ];
 
 // ── Lembur ───────────────────────────────────────────────────────────
@@ -499,7 +499,7 @@ export const overtimeRequests: OvertimeRequest[] = [
   { id: "OTR-004", employeeId: "EMP-014", date: iso(1), start: "22:00", end: "23:00", hours: 1, reason: "Handover pasien rawat inap.", status: "pending", submittedAt: new Date(Date.now() - 3_600_000).toISOString() },
   // Subang
   { id: "OTR-005", employeeId: "EMP-025", date: iso(-1), start: "17:30", end: "20:00", hours: 2.5, reason: "Input data pelanggan walk-in setelah jam layanan.", status: "pending", submittedAt: new Date(Date.now() - 5 * 3_600_000).toISOString() },
-  { id: "OTR-006", employeeId: "EMP-023", date: iso(-4), start: "18:00", end: "19:00", hours: 1, reason: "Briefing tamu korporat dari kantor pusat.", status: "approved", submittedAt: new Date(Date.now() - 5 * 86_400_000).toISOString(), decidedBy: "Bambang Prakoso" },
+  { id: "OTR-006", employeeId: "EMP-023", date: iso(-4), start: "18:00", end: "19:00", hours: 1, reason: "Briefing tamu korporat dari kantor pusat.", status: "approved", submittedAt: new Date(Date.now() - 5 * 86_400_000).toISOString(), decidedBy: "Melati Puspita" },
 ];
 
 // ── Audit log awal ───────────────────────────────────────────────────
@@ -530,13 +530,13 @@ export const announcements: Announcement[] = [
 
 // ── Phase 3-4: Reimbursement ──────────────────────────────────────
 export const reimbursements: Reimbursement[] = [
-  { id: "RBM-001", employeeId: "EMP-003", category: "transport", amount: 285000, description: "Grab ke客户 meeting di Sudirman", status: "approved", submittedAt: new Date(Date.now() - 3 * 86_400_000).toISOString(), approvals: [{ level: "spv", byName: "Budi Santoso", at: new Date(Date.now() - 2.5 * 86_400_000).toISOString(), approved: true }, { level: "manager", byName: "Samuel Hartono", at: new Date(Date.now() - 2 * 86_400_000).toISOString(), approved: true }] },
+  { id: "RBM-001", employeeId: "EMP-003", category: "transport", amount: 285000, description: "Grab ke meeting klien di Sudirman", status: "approved", submittedAt: new Date(Date.now() - 3 * 86_400_000).toISOString(), approvals: [{ level: "spv", byName: "Budi Santoso", at: new Date(Date.now() - 2.5 * 86_400_000).toISOString(), approved: true }, { level: "manager", byName: "Samuel Hartono", at: new Date(Date.now() - 2 * 86_400_000).toISOString(), approved: true }] },
   { id: "RBM-002", employeeId: "EMP-005", category: "equipment", amount: 1500000, description: "Keyboard mechanical untuk work from home", status: "pending", submittedAt: new Date(Date.now() - 86_400_000).toISOString(), approvals: [] },
   { id: "RBM-003", employeeId: "EMP-008", category: "meal", amount: 85000, description: "Makan siang saat lembur deployment", status: "spv_approved", submittedAt: new Date(Date.now() - 2 * 86_400_000).toISOString(), approvals: [{ level: "spv", byName: "Joko Susilo", at: new Date(Date.now() - 86_400_000).toISOString(), approved: true }] },
   // Subang — beda dari pusat
   { id: "RBM-004", employeeId: "EMP-025", category: "transport", amount: 120000, description: "Ongkos angkot rute Subang–Purwakarta untuk kunjungan pelanggan.", status: "pending", submittedAt: new Date(Date.now() - 4 * 3_600_000).toISOString(), approvals: [] },
   { id: "RBM-005", employeeId: "EMP-024", category: "meal", amount: 65000, description: "Konsumsi rapat koordinasi cabang sampai malam.", status: "spv_approved", submittedAt: new Date(Date.now() - 26 * 3_600_000).toISOString(), approvals: [{ level: "spv", byName: "Sari Wulandari", at: new Date(Date.now() - 20 * 3_600_000).toISOString(), approved: true }] },
-  { id: "RBM-006", employeeId: "EMP-026", category: "other", amount: 45000, description: "Pulsa paket data untuk update dashboard antrian cabang.", status: "approved", submittedAt: new Date(Date.now() - 5 * 86_400_000).toISOString(), approvals: [{ level: "spv", byName: "Bambang Prakoso", at: new Date(Date.now() - 4 * 86_400_000).toISOString(), approved: true }, { level: "hr", byName: "Melati Puspita", at: new Date(Date.now() - 3.5 * 86_400_000).toISOString(), approved: true }] },
+  { id: "RBM-006", employeeId: "EMP-026", category: "other", amount: 45000, description: "Pulsa paket data untuk update dashboard antrian cabang.", status: "spv_approved", submittedAt: new Date(Date.now() - 5 * 86_400_000).toISOString(), approvals: [{ level: "spv", byName: "Bambang Prakoso", at: new Date(Date.now() - 4 * 86_400_000).toISOString(), approved: true }] },
 ];
 
 // ── Phase 3-4: Recruitment ────────────────────────────────────────
@@ -591,7 +591,7 @@ export const assets: Asset[] = [
   { id: "AST-005", name: "Meja Kerja Ergonomis", category: "furniture", serialNumber: "FRN-2024-001", purchaseDate: "2024-04-15", status: "assigned", branchId: "BR-JKT" },
   { id: "AST-006", name: "Toyota Avanza", category: "vehicle", serialNumber: "VHL-2023-001", purchaseDate: "2023-08-01", status: "maintenance" },
   // Subang — beda dari pusat
-  { id: "AST-007", name: "Printer Epson L3210 Cabang", category: "other", serialNumber: "EPS-SBG-001", purchaseDate: "2024-09-01", status: "available", brand: "Epson", model: "L3210", notes: "Unit cetak laporan antrian harian.", branchId: "BR-SBG" },
+  { id: "AST-007", name: "Printer Epson L3210 Cabang", category: "other", serialNumber: "EPS-SBG-001", purchaseDate: "2024-09-01", status: "assigned", brand: "Epson", model: "L3210", notes: "Unit cetak laporan antrian harian.", branchId: "BR-SBG" },
   { id: "AST-008", name: "Laptop Lenovo ThinkPad E14", category: "laptop", serialNumber: "LNV-SBG-001", purchaseDate: "2025-01-20", status: "assigned", brand: "Lenovo", model: "ThinkPad E14", branchId: "BR-SBG" },
   { id: "AST-009", name: "Kursi Rapat Subang", category: "furniture", serialNumber: "FRN-SBG-001", purchaseDate: "2024-11-05", status: "available", notes: "Set 6 kursi ruang rapat cabang.", branchId: "BR-SBG" },
 ];
@@ -617,7 +617,7 @@ export const performanceReviews: PerformanceReview[] = [
 
 // ── Phase 3-4: Notifications ──────────────────────────────────────
 export const notifications: Notification[] = [
-  { id: "NTF-001", userId: "USR-001", title: "Pengajuan reimbursement pending", body: "Budi Santoso mengajukan reimbursement transport Rp285.000.", type: "approval", read: false, createdAt: new Date(Date.now() - 86_400_000).toISOString(), link: "/admin" },
+  { id: "NTF-001", userId: "USR-001", title: "Reimbursement disetujui", body: "Reimbursement transport Budi Santoso senilai Rp285.000 telah disetujui.", type: "info", read: false, createdAt: new Date(Date.now() - 86_400_000).toISOString(), link: "/admin" },
   { id: "NTF-002", userId: "USR-001", title: "Cuti menunggu persetujuan", body: "Budi Santoso mengajukan cuti 3 hari mulai " + iso(6) + ".", type: "approval", read: false, createdAt: new Date(Date.now() - 43_200_000).toISOString(), link: "/admin/cuti" },
   { id: "NTF-003", userId: "USR-003", title: "Reimbursement disetujui", body: "Reimbursement transport Rp285.000 telah disetujui.", type: "info", read: true, createdAt: new Date(Date.now() - 2 * 86_400_000).toISOString() },
   // Cabang Subang

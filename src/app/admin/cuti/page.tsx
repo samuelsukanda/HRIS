@@ -6,14 +6,13 @@ import { Avatar, Btn, EmptyState, Field, IconBtn, Input, Modal, PageHead, Pager,
 import { toastOk } from "@/lib/swal";
 import { isHr } from "@/lib/roles";
 import { leaveBalance } from "@/lib/engine";
-import { fmtDateRangeID } from "@/lib/format";
+import { BULAN_LONG, fmtDateRangeID } from "@/lib/format";
 import { currentUser, useHris } from "@/lib/store";
 
-const BULAN_ID = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
 function monthLabel(ym: string) {
   const [y, m] = ym.split("-").map(Number);
   if (!y || !m) return ym;
-  return `${BULAN_ID[m - 1]} ${y}`;
+  return `${BULAN_LONG[m - 1]} ${y}`;
 }
 
 export default function AdminCutiPage() {

@@ -3,29 +3,33 @@ import { useState } from "react";
 import { Clock } from "@phosphor-icons/react";
 import { Btn, EmptyState, Field, Input, Textarea, StatusStamp } from "@/components/ui";
 import { confirmDelete, toastOk } from "@/lib/swal";
-import { fmtDateShortID } from "@/lib/format";
+import { fmtDateShortID, toLocalISO } from "@/lib/format";
 import { currentUser, useHris } from "@/lib/store";
 
 export default function EmployeeLembur() {
   const { state, dispatch } = useHris();
   const me = currentUser(state);
-  const [date, setDate] = useState(new Date().toISOString().slice(0,10));
+  const [date, setDate] = useState(toLocalISO(new Date()));
   const [start, setStart] = useState("18:00");
   const [end, setEnd] = useState("20:00");
   const [reason, setReason] = useState("");
   const [err, setErr] = useState<string | null>(null);
   if (!me) return null;
   const my = state.data.overtimeRequests.filter(r=> r.employeeId===me.employee.id).sort((a,b)=> b.submittedAt.localeCompare(a.submittedAt));
-  function submit(){
+  async function submit(){
     setErr(null);
     if(!date||!start||!end) return setErr("Lengkapi tanggal dan jam.");
-    if(end<=start) return setErr("Jam selesai harus setelah jam mulai.");
     if(reason.trim().length<10) return setErr("Alasan minimal satu kalimat.");
     const sh = Number(start.slice(0,2)), eh = Number(end.slice(0,2));
     const sm = Number(start.slice(3)), em = Number(end.slice(3));
-    const hours = Math.round(((eh*60+em)-(sh*60+sm))/60*10)/10;
-    dispatch({ type:"SUBMIT_OVERTIME", request:{ id:`OT-${String(state.data.overtimeRequests.length+100).padStart(3,"0")}`, employeeId: me!.employee.id, date, start, end, hours, reason:reason.trim(), status:"pending", submittedAt:new Date().toISOString() }});
-    setReason(""); toastOk("Pengajuan lembur dikirim");
+    const duration = eh*60+em > sh*60+sm ? eh*60+em-(sh*60+sm) : eh*60+em+1440-(sh*60+sm);
+    if (duration < 30 || duration > 720) return setErr("Durasi lembur harus 30 menit sampai 12 jam.");
+    const hours = Math.round(duration/60*10)/10;
+    const ok = await dispatch({ type:"SUBMIT_OVERTIME", request:{ id:`OT-${String(state.data.overtimeRequests.length+100).padStart(3,"0")}`, employeeId: me!.employee.id, date, start, end, hours, reason:reason.trim(), status:"pending", submittedAt:new Date().toISOString() }});
+    if (ok) {
+      setReason("");
+      toastOk("Pengajuan lembur dikirim");
+    }
   }
   async function cancel(id: string) {
     if (await confirmDelete("pengajuan lembur ini")) {

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { WarningCircle } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { Avatar, EmptyState, StatusStamp } from "@/components/ui";
-import { fmtDateID } from "@/lib/format";
+import { fmtDateID, toLocalISO } from "@/lib/format";
 import { currentUser, todayISO, useHris } from "@/lib/store";
 
 export default function AdminDashboard() {
@@ -12,6 +12,7 @@ export default function AdminDashboard() {
   const { data } = state;
   const me = currentUser(state);
   const today = todayISO();
+  const now = new Date();
 
   const activeEmployees = data.employees.filter((e) => e.status === "active");
   const todayAtt = data.attendance.filter((a) => a.date === today);
@@ -42,9 +43,9 @@ export default function AdminDashboard() {
   );
   const followUpEmployees = data.employees.filter((e) => e.status === "active" && (e.employmentType === "probation" || e.employmentType === "contract"));
   // ponytail: expiry = joinDate + 365 hari untuk probation/kontrak — alert jika <30 hari lagi
-  const expirySoon = followUpEmployees.filter(e=> { const jd=new Date(e.joinDate); jd.setFullYear(jd.getFullYear()+1); const diff=(jd.getTime()-Date.now())/86400000; return diff>=0 && diff<=30; });
+  const expirySoon = followUpEmployees.filter(e=> { const jd=new Date(e.joinDate); jd.setFullYear(jd.getFullYear()+1); const diff=(jd.getTime()-now.getTime())/86400000; return diff>=0 && diff<=30; });
   const isManager = me?.user.role === "manager" || me?.user.role === "supervisor";
-  const last7 = Array.from({length:7},(_,i)=>{ const d=new Date(); d.setDate(d.getDate()-(6-i)); const iso=d.toISOString().slice(0,10); const c=data.attendance.filter(a=> a.date===iso && (a.status==="present"||a.status==="late"||a.status==="wfh")).length; return {iso, label: d.toLocaleDateString("id-ID",{weekday:"short"}), c}; });
+  const last7 = Array.from({length:7},(_,i)=>{ const d=new Date(now); d.setDate(d.getDate()-(6-i)); const iso=toLocalISO(d); const c=data.attendance.filter(a=> a.date===iso && (a.status==="present"||a.status==="late"||a.status==="wfh")).length; return {iso, label: d.toLocaleDateString("id-ID",{weekday:"short"}), c}; });
   const max7 = Math.max(1, ...last7.map(x=> x.c));
   const leaveByType = data.leaveTypes.map(t=> ({name:t.name, c:data.leaveRequests.filter(r=> r.typeId===t.id).length})).filter(x=> x.c>0);
 

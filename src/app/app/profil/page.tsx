@@ -12,6 +12,7 @@ import { Avatar, Btn, Field, Input, Stamp } from "@/components/ui";
 import { toastErr, toastOk } from "@/lib/swal";
 import { detectDescriptor, loadFaceApi } from "@/lib/face";
 import { fmtDateShortID } from "@/lib/format";
+import { uploadFile } from "@/lib/upload";
 import { currentUser, useHris } from "@/lib/store";
 
 export default function EmployeeProfile() {
@@ -141,24 +142,11 @@ export default function EmployeeProfile() {
 
   async function uploadPhoto(file?: File) {
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toastErr("Ukuran foto maksimal 2 MB.");
-      return;
-    }
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("kind", "photo");
     try {
-      const r = await fetch("/api/uploads", { method: "POST", body: fd });
-      const j = await r.json() as { ok: boolean; url?: string; error?: string };
-      if (!j.ok || !j.url) {
-        toastErr(j.error ?? "Upload foto gagal.");
-        return;
-      }
-      dispatch({ type: "UPDATE_SELF_PHOTO", employeeId: employee.id, photoUrl: j.url });
+      dispatch({ type: "UPDATE_SELF_PHOTO", employeeId: employee.id, photoUrl: await uploadFile(file, "photo") });
       toastOk("Foto profil diperbarui");
-    } catch {
-      toastErr("Upload foto gagal. Coba lagi.");
+    } catch (error) {
+      toastErr(error instanceof Error ? error.message : "Upload foto gagal.");
     }
   }
 

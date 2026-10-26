@@ -3,13 +3,9 @@
 import { useState } from "react";
 import { Download, Table } from "@phosphor-icons/react";
 import { Btn, EmptyState, PageHead, Select } from "@/components/ui";
-import { exportExcel } from "@/lib/excel";
+import { exportCsv as exportCsvFile } from "@/lib/excel";
 import { useHris } from "@/lib/store";
-
-const BULAN_PENUH = [
-  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-  "Juli", "Agustus", "September", "Oktober", "November", "Desember",
-];
+import { BULAN_LONG } from "@/lib/format";
 
 function lastMonths(n: number): { value: string; label: string }[] {
   const now = new Date();
@@ -17,7 +13,7 @@ function lastMonths(n: number): { value: string; label: string }[] {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     return {
       value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-      label: `${BULAN_PENUH[d.getMonth()]} ${d.getFullYear()}`,
+      label: `${BULAN_LONG[d.getMonth()]} ${d.getFullYear()}`,
     };
   });
 }
@@ -44,8 +40,8 @@ export default function AdminLaporanPage() {
   });
 
   function exportCsv() {
-    void exportExcel(
-      `hris-absensi-${month}.xlsx`,
+    void exportCsvFile(
+      `hris-absensi-${month}.csv`,
       ["EmployeeID", "Nama", "Tanggal", "Status", "CheckIn", "RiskScore"],
       recs.map((a) => {
         const emp = data.employees.find((e) => e.id === a.employeeId);
@@ -55,8 +51,8 @@ export default function AdminLaporanPage() {
   }
 
   function exportCuti() {
-    void exportExcel(
-      `hris-cuti-${month}.xlsx`,
+    void exportCsvFile(
+      `hris-cuti-${month}.csv`,
       ["EmployeeID", "Nama", "Jenis", "TanggalMulai", "TanggalAkhir", "Hari", "Alasan", "Status"],
       data.leaveRequests.filter((r) => r.startDate.startsWith(month)).map((r) => {
         const emp = data.employees.find((e) => e.id === r.employeeId);
@@ -67,8 +63,8 @@ export default function AdminLaporanPage() {
   }
 
   function exportLembur() {
-    void exportExcel(
-      `hris-lembur-${month}.xlsx`,
+    void exportCsvFile(
+      `hris-lembur-${month}.csv`,
       ["EmployeeID", "Nama", "Tanggal", "JamMulai", "JamAkhir", "Durasi", "Alasan", "Status"],
       data.overtimeRequests.filter((r) => r.date.startsWith(month)).map((r) => {
         const emp = data.employees.find((e) => e.id === r.employeeId);
@@ -78,8 +74,8 @@ export default function AdminLaporanPage() {
   }
 
   function exportReimbursement() {
-    void exportExcel(
-      `hris-reimbursement-${month}.xlsx`,
+    void exportCsvFile(
+      `hris-reimbursement-${month}.csv`,
       ["EmployeeID", "Nama", "Kategori", "Jumlah", "Keterangan", "Status"],
       data.reimbursements.filter((r) => r.submittedAt?.startsWith(month)).map((r) => {
         const emp = data.employees.find((e) => e.id === r.employeeId);
@@ -107,7 +103,7 @@ export default function AdminLaporanPage() {
           </Select>
         </label>
         <span className="mx-1 hidden h-5 w-px bg-rule sm:block" aria-hidden />
-        <span className="text-xs font-semibold tracking-wide text-ink-faint uppercase">Export Excel:</span>
+        <span className="text-xs font-semibold tracking-wide text-ink-faint uppercase">Export CSV:</span>
         <Btn variant="secondary" size="sm" icon={Download} onClick={exportCsv} disabled={recs.length === 0}>
           Absensi
         </Btn>
@@ -168,8 +164,8 @@ export default function AdminLaporanPage() {
           </div>
         )}
         <footer className="border-t border-rule bg-paper px-5 py-3 text-xs text-ink-faint">
-          <p className="font-semibold">Ekspor Excel</p>
-          <p className="mt-1 text-xs leading-relaxed text-ink-soft">Unduh rekap absensi periode terpilih dalam format Excel (.xlsx).</p>
+          <p className="font-semibold">Ekspor CSV</p>
+          <p className="mt-1 text-xs leading-relaxed text-ink-soft">Unduh rekap absensi periode terpilih dalam format CSV (.csv).</p>
         </footer>
       </section>
     </>

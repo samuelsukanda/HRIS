@@ -9,8 +9,15 @@ export async function PATCH(req: Request) {
   const body = (await req.json()) as { photoUrl?: string | null };
   const photoUrl = body.photoUrl ?? null;
 
-  if (photoUrl !== null && !(photoUrl.startsWith("/uploads/") && photoUrl.length > "/uploads/".length)) {
+  if (photoUrl !== null && !(photoUrl.startsWith("/api/uploads/") && photoUrl.length > "/api/uploads/".length)) {
     return Response.json({ ok: false, error: "URL foto tidak valid." }, { status: 400 });
+  }
+  if (photoUrl !== null) {
+    const filename = photoUrl.slice("/api/uploads/".length);
+    const upload = await pool.query(`SELECT user_id FROM upload_records WHERE filename=$1`, [filename]);
+    if (!upload.rows.length || upload.rows[0].user_id !== user.id) {
+      return Response.json({ ok: false, error: "Foto profil tidak valid." }, { status: 403 });
+    }
   }
 
   await pool.query(`UPDATE employees SET photo_url=$1::text WHERE id=$2`, [photoUrl, user.employee_id]);

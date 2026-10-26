@@ -4,19 +4,12 @@ import { loadHrisData } from "@/lib/server/state";
 export async function GET() {
   const d = await loadHrisData();
   return Response.json({
-    users: d.users.map((u) => ({ id: u.id, email: u.email, role: u.role })),
-    employees: d.employees.map((e) => ({
-      id: e.id, name: e.name, departmentId: e.departmentId, positionId: e.positionId,
-      branchId: e.branchId, status: e.status,
-    })),
     branches: d.branches,
     departments: d.departments,
     positions: d.positions,
     banks: d.banks,
-    workLocations: d.workLocations,
     shifts: d.shifts,
     leaveTypes: d.leaveTypes,
-    // layar login publik: hanya pengumuman lintas cabang
     announcements: d.announcements.filter((a) => !a.branchId),
   });
 }

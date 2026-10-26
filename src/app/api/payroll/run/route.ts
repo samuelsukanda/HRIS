@@ -3,26 +3,22 @@ import { computePayslip, type PayrollConfig } from "@/lib/payroll";
 import { getSessionUser } from "@/lib/server/session";
 import { writeAudit } from "@/lib/server/state";
 
-import { isHr } from "@/lib/roles";
-
 /** POST /api/payroll/run {period:"YYYY-MM"} — hitung draft payroll seluruh karyawan aktif. */
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return Response.json({ ok: false }, { status: 401 });
-  if (!isHr(user.role)) {
-    return Response.json({ ok: false, error: "Hanya HR." }, { status: 403 });
+  if (user.role !== "super_admin") {
+    return Response.json({ ok: false, error: "Hanya super admin." }, { status: 403 });
   }
   const { period } = (await req.json()) as { period?: string };
-  if (!period || !/^\d{4}-\d{2}$/.test(period)) {
+  if (typeof period !== "string" || !/^\d{4}-\d{2}$/.test(period)) {
     return Response.json({ ok: false, error: "Format periode YYYY-MM." }, { status: 400 });
   }
 
-  const existing = await pool.query(`SELECT status FROM payroll_runs WHERE period = $1`, [period]);
-  if (existing.rows[0]?.status === "approved") {
-    return Response.json({ ok: false, error: "Payroll periode ini sudah di-approve & terkunci." }, { status: 409 });
-  }
-
   const [y, m] = period.split("-").map(Number);
+  if (m < 1 || m > 12) {
+    return Response.json({ ok: false, error: "Bulan periode harus antara 01 dan 12." }, { status: 400 });
+  }
   const start = `${period}-01`;
   // batas eksklusif = tanggal 1 bulan berikut, dirakit lokal (tanpa toISOString yang menggeser hari di WIB)
   const nm = m === 12 ? 1 : m + 1;
@@ -31,7 +27,11 @@ export async function POST(req: Request) {
 
   // Superadmin hanya akun pengaturan — tidak ikut payroll
   const emps = await pool.query(
-    `SELECT e.id, e.name, e.base_salary, e.allowance FROM employees e
+    `SELECT e.id, e.name, e.nik, e.join_date, e.employment_type, e.bank_name, e.bank_account,
+            e.base_salary, e.allowance, pos.title AS position_title, dep.name AS department_name
+     FROM employees e
+     LEFT JOIN positions pos ON pos.id = e.position_id
+     LEFT JOIN departments dep ON dep.id = e.department_id
      WHERE e.status IN ('active','on_leave')
        AND NOT EXISTS (SELECT 1 FROM users u WHERE u.employee_id = e.id AND u.role = 'super_admin')
      ORDER BY e.id`,
@@ -51,6 +51,12 @@ export async function POST(req: Request) {
   let count = 0;
   try {
     await client.query("BEGIN");
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [period]);
+    const current = await client.query(`SELECT status FROM payroll_runs WHERE period = $1 FOR UPDATE`, [period]);
+    if (current.rows[0]?.status === "approved") {
+      await client.query("ROLLBACK");
+      return Response.json({ ok: false, error: "Payroll periode ini sudah di-approve & terkunci." }, { status: 409 });
+    }
     await client.query(`DELETE FROM payslips WHERE run_id = $1`, [runId]);
     await client.query(
       `INSERT INTO payroll_runs (id, period, status, created_at) VALUES ($1,$2,'draft',$3)
@@ -65,7 +71,7 @@ export async function POST(req: Request) {
       );
       const attR = await client.query(
         `SELECT COUNT(*)::int AS c FROM attendance WHERE employee_id=$1 AND date >= $2 AND date < $3
-         AND verification_status IN ('valid','review') AND status IN ('present','late','early_leave','wfh','business_trip')`,
+         AND verification_status = 'valid' AND status IN ('present','late','early_leave','wfh','business_trip')`,
         [emp.id, start, endEx],
       );
       // cuti lintas bulan: hitung hari overlap dengan periode, bukan full l.days
@@ -91,9 +97,20 @@ export async function POST(req: Request) {
       }, cfg);
 
       await client.query(
-        `INSERT INTO payslips (id, run_id, employee_id, breakdown) VALUES ($1,$2,$3,$4)
-         ON CONFLICT (run_id, employee_id) DO UPDATE SET breakdown = $4`,
-        [`${runId}-${emp.id}`, runId, emp.id, JSON.stringify(breakdown)],
+        `INSERT INTO payslips (id, run_id, employee_id, breakdown, employee_snapshot) VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (run_id, employee_id) DO UPDATE SET breakdown = EXCLUDED.breakdown, employee_snapshot = EXCLUDED.employee_snapshot`,
+        [`${runId}-${emp.id}`, runId, emp.id, JSON.stringify(breakdown), JSON.stringify({
+          nik: emp.nik,
+          name: emp.name,
+          joinDate: emp.join_date,
+          employmentType: emp.employment_type,
+          bankName: emp.bank_name,
+          bankAccount: emp.bank_account,
+          baseSalary: emp.base_salary,
+          allowance: emp.allowance,
+          position: emp.position_title,
+          department: emp.department_name,
+        })],
       );
       count++;
     }

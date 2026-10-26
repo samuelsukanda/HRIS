@@ -1,5 +1,5 @@
 import { pool } from "@/db/client";
-import { creatorBranchId, nextId, notifySameBranch, writeAudit } from "@/lib/server/state";
+import { nextId, notifySameBranch, writeAudit } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
 
 import { isHr } from "@/lib/roles";
@@ -7,7 +7,7 @@ import { isHr } from "@/lib/roles";
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return Response.json({ ok: false }, { status: 401 });
-  const branchId = user.role === "super_admin" ? null : await creatorBranchId(user.employee_id);
+  const branchId = user.role === "super_admin" ? null : user.branch_id;
   const r = branchId
     ? await pool.query(`SELECT * FROM trainings WHERE branch_id IS NULL OR branch_id=$1 ORDER BY start_date DESC`, [branchId])
     : await pool.query(`SELECT * FROM trainings ORDER BY start_date DESC`);
@@ -27,12 +27,11 @@ export async function POST(req: Request) {
   const max_participants = body.max_participants ?? body.maxParticipants ?? body.quota;
   const status = body.status;
   if (!title || !provider || !start_date) return Response.json({ ok: false, error: "Field wajib kosong." }, { status: 400 });
-  const branchId = user.role === "super_admin" ? null : await creatorBranchId(user.employee_id);
+  const branchId = user.role === "super_admin" ? null : user.branch_id;
   const id = await nextId("trainings", "TRN");
   await pool.query(`INSERT INTO trainings (id,title,provider,description,start_date,end_date,max_participants,status,branch_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
     [id, title, provider, description || "", start_date, end_date || start_date, Number(max_participants) || 20, status || "upcoming", branchId]);
-  const empR = await pool.query(`SELECT name FROM employees WHERE id=$1`, [user.employee_id]);
-  const actorName = empR.rows[0]?.name ?? user.employee_id;
+  const actorName = user.name;
   await writeAudit({ actorId: user.id, actorName, action: "Training created", targetType: "pelatihan", targetId: id, detail: title, at: new Date().toISOString() });
   await notifySameBranch(branchId, user.id, {
     title: "Pelatihan Baru",

@@ -1,4 +1,5 @@
 import { pool } from "@/db/client";
+import { canApproveEmployee } from "@/lib/server/access";
 import { getSessionUser } from "@/lib/server/session";
 import { writeAudit, writeNotification } from "@/lib/server/state";
 import { fmtDateLongID } from "@/lib/format";
@@ -8,7 +9,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const u = await getSessionUser();
   if (!u) return Response.json({ ok: false }, { status: 401 });
   const { id } = await params;
-  const { approve } = await req.json() as { approve: boolean };
+  const body = await req.json() as { approve?: unknown } | null;
+  if (!body || typeof body.approve !== "boolean") return Response.json({ ok: false, error: "Parameter tidak valid." }, { status: 400 });
+  const approve = body.approve;
 
   const r = await pool.query(
     `SELECT s.*, e.name emp_name, e.spv_id, e.manager_id
@@ -17,11 +20,22 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   );
   if (!r.rows.length) return Response.json({ ok: false }, { status: 404 });
   const sw = r.rows[0];
+  if (sw.employee_id === u.employee_id) return Response.json({ ok: false, error: "Tidak dapat menyetujui permintaan sendiri." }, { status: 403 });
 
-  const approver = (await pool.query(`SELECT name FROM employees WHERE id=$1`, [u.employee_id])).rows[0]?.name ?? u.employee_id;
+  const actor = { id: u.id, employeeId: u.employee_id, role: u.role, branchId: u.branch_id };
+  const target = { id: sw.employee_id, branchId: sw.branch_id, spvId: sw.spv_id, managerId: sw.manager_id };
+  const canSupervisorApprove = canApproveEmployee(actor, target, "supervisor");
+  const canManagerApprove = canApproveEmployee(actor, target, "manager");
+  if (!canSupervisorApprove && !canManagerApprove) return Response.json({ ok: false, error: "Anda bukan atasan pengajuan ini." }, { status: 403 });
+  const isSuperAdmin = u.role === "super_admin";
+  const supervisorStage = canSupervisorApprove && (!isSuperAdmin || (sw.status === "pending" && Boolean(sw.spv_id)));
+  const managerStage = canManagerApprove && (!isSuperAdmin || sw.status === "spv_approved" || (sw.status === "pending" && !sw.spv_id));
+  if (isSuperAdmin && !supervisorStage && !managerStage) return Response.json({ ok: false, error: "Sudah diproses." }, { status: 409 });
+
+  const approver = u.name;
 
   // Tahap 1: SPV
-  if (sw.spv_id && u.employee_id === sw.spv_id) {
+  if (supervisorStage) {
     if (sw.status !== "pending") return Response.json({ ok: false, error: "Sudah diproses." }, { status: 409 });
     const newStatus = approve ? "spv_approved" : "rejected";
     await pool.query(`UPDATE shift_swaps SET status=$1, decided_by=$2 WHERE id=$3`, [newStatus, approver, id]);
@@ -36,8 +50,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   // Tahap 2: Manager (bisa dari pending jika tidak ada SPV, atau dari spv_approved)
-  if (sw.manager_id && u.employee_id === sw.manager_id) {
-    if (sw.status !== "spv_approved" && sw.status !== "pending") return Response.json({ ok: false, error: "Sudah diproses." }, { status: 409 });
+  if (managerStage) {
+    if (sw.spv_id ? sw.status !== "spv_approved" : sw.status !== "pending") {
+      return Response.json({ ok: false, error: "Persetujuan SPV harus selesai." }, { status: 409 });
+    }
     const newStatus = approve ? "approved" : "rejected";
     await pool.query(`UPDATE shift_swaps SET status=$1, decided_by=$2 WHERE id=$3`, [newStatus, approver, id]);
     if (approve) {

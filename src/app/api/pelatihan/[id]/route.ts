@@ -1,12 +1,12 @@
 import { pool } from "@/db/client";
-import { creatorBranchId, writeAudit } from "@/lib/server/state";
+import { writeAudit } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
 
 import { isHr } from "@/lib/roles";
 
-async function assertBranchAccess(user: { role: string; employee_id: string }, rowBranch: string | null) {
+async function assertBranchAccess(user: { role: string; employee_id: string; branch_id: string }, rowBranch: string | null) {
   if (user.role === "super_admin") return null;
-  const mine = await creatorBranchId(user.employee_id);
+  const mine = user.branch_id;
   if (rowBranch && mine && rowBranch !== mine) {
     return Response.json({ ok: false, error: "Pelatihan milik cabang lain." }, { status: 403 });
   }
@@ -30,8 +30,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const maxP = body.max_participants ?? body.maxParticipants ?? body.quota;
   await pool.query(`UPDATE trainings SET title=COALESCE($1,title), provider=COALESCE($2,provider), description=COALESCE($3,description), start_date=COALESCE($4,start_date), end_date=COALESCE($5,end_date), max_participants=COALESCE($6,max_participants), status=COALESCE($7,status) WHERE id=$8`,
     [title ?? null, body.provider ?? null, body.description ?? null, body.start_date ?? body.startDate ?? null, body.end_date ?? body.endDate ?? null, maxP ?? null, body.status ?? null, id]);
-  const empR = await pool.query(`SELECT name FROM employees WHERE id=$1`, [user.employee_id]);
-  await writeAudit({ actorId: user.id, actorName: empR.rows[0]?.name ?? user.employee_id, action: "Training updated", targetType: "pelatihan", targetId: id, detail: title || r.rows[0].title, at: new Date().toISOString() });
+  await writeAudit({ actorId: user.id, actorName: user.name, action: "Training updated", targetType: "pelatihan", targetId: id, detail: title || r.rows[0].title, at: new Date().toISOString() });
   return Response.json({ ok: true });
 }
 
@@ -45,7 +44,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const denied = await assertBranchAccess(user, r.rows[0].branch_id ?? null);
   if (denied) return denied;
   await pool.query(`DELETE FROM trainings WHERE id=$1`, [id]);
-  const empR = await pool.query(`SELECT name FROM employees WHERE id=$1`, [user.employee_id]);
-  await writeAudit({ actorId: user.id, actorName: empR.rows[0]?.name ?? user.employee_id, action: "Training deleted", targetType: "pelatihan", targetId: id, detail: r.rows[0]?.title ?? id, at: new Date().toISOString() });
+  await writeAudit({ actorId: user.id, actorName: user.name, action: "Training deleted", targetType: "pelatihan", targetId: id, detail: r.rows[0]?.title ?? id, at: new Date().toISOString() });
   return Response.json({ ok: true });
 }

@@ -8,7 +8,7 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
   if(!name) return Response.json({ok:false,error:"Nama bank wajib diisi"},{status:400});
   const dup=await pool.query(`SELECT 1 FROM banks WHERE lower(name)=lower($1) AND id<>$2`,[name,id]); if(dup.rowCount) return Response.json({ok:false,error:"Bank sudah terdaftar"},{status:400});
   await pool.query(`UPDATE banks SET name=$1 WHERE id=$2`,[name,id]);
-  const n=(await pool.query(`SELECT name FROM employees WHERE id=$1`,[u.employee_id])).rows[0]?.name??u.employee_id;
+  const n=u.name;
   await writeAudit({actorId:u.id,actorName:n,action:"Bank updated",targetType:"bank",targetId:id,detail:name,at:new Date().toISOString()});
   return Response.json({ok:true});
 }
@@ -17,7 +17,7 @@ export async function DELETE(_:Request,{params}:{params:Promise<{id:string}>}){
   const {id}=await params;
   try{
     await pool.query(`DELETE FROM banks WHERE id=$1`,[id]);
-    const n=(await pool.query(`SELECT name FROM employees WHERE id=$1`,[u.employee_id])).rows[0]?.name??u.employee_id;
+    const n=u.name;
     await writeAudit({actorId:u.id,actorName:n,action:"Bank deleted",targetType:"bank",targetId:id,detail:id,at:new Date().toISOString()});
     return Response.json({ok:true});
   }catch{

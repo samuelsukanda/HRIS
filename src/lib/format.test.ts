@@ -1,6 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { fmtDateLongID, fmtDateRangeID, fmtDateTimeLongID } from "./format";
+import { fmtDateLongID, fmtDateRangeID, inclusiveDays, isCalendarDate } from "./format";
 
+describe("date validation", () => {
+  it("accepts real calendar dates only", () => {
+    expect(isCalendarDate("2026-02-28")).toBe(true);
+    expect(isCalendarDate("2026-02-30")).toBe(false);
+    expect(isCalendarDate("not-a-date")).toBe(false);
+  });
+
+  it("calculates inclusive days without string loops", () => {
+    expect(inclusiveDays("2026-09-25", "2026-09-30")).toBe(6);
+    expect(inclusiveDays("2026-09-30", "2026-09-25")).toBe(0);
+    expect(inclusiveDays("bad", "2026-09-25")).toBe(0);
+  });
+});
 describe("fmtDateRangeID", () => {
   it("rentang dengan hari di tanggal mulai", () => {
     expect(fmtDateRangeID("2026-09-25", "2026-09-30")).toBe("Jum, 25 Sep - 30 Sep 2026");
@@ -16,15 +29,5 @@ describe("fmtDateLongID", () => {
   });
   it("format Date object (hasil query PG)", () => {
     expect(fmtDateLongID(new Date(2026, 8, 25))).toBe("25 September 2026");
-  });
-});
-
-describe("fmtDateTimeLongID", () => {
-  it("format Date dengan jam", () => {
-    expect(fmtDateTimeLongID(new Date(2025, 8, 25, 18, 0))).toBe("25 September 2025 18:00");
-  });
-  it("format ISO timestamp", () => {
-    const d = new Date(2026, 0, 1, 9, 5);
-    expect(fmtDateTimeLongID(d.toISOString())).toBe("1 Januari 2026 09:05");
   });
 });

@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { MagnifyingGlass, SealCheck, WarningCircle, Trash, Pencil } from "@phosphor-icons/react";
 import { Avatar, Btn, EmptyState, Field, IconBtn, Input, Modal, PageHead, Pager, Select, Stamp } from "@/components/ui";
-import { fmtDateShortID, parseLocalISO } from "@/lib/format";
+import { fmtDateShortID, parseLocalISO, toLocalISO } from "@/lib/format";
+import { uploadFile } from "@/lib/upload";
 import { useHris } from "@/lib/store";
 import { confirmDelete, showTempPassword, toastErr, toastOk } from "@/lib/swal";
-import type { Employee } from "@/lib/types";
+import type { Employee, Role } from "@/lib/types";
 
 type EmploymentStatus = "probation" | "permanent" | "contract" | "intern" | "resigned";
 
@@ -34,7 +35,7 @@ export default function AdminEmployees() {
   const [employmentType, setEmploymentType] = useState<EmploymentStatus | "">("");
   const [baseSalary, setBaseSalary] = useState(0);
   const [allowance, setAllowance] = useState(0);
-  const [joinDate, setJoinDate] = useState(new Date().toISOString().slice(0, 10));
+  const [joinDate, setJoinDate] = useState(toLocalISO(new Date()));
   const [address, setAddress] = useState("");
   const [bankName, setBankName] = useState("");
   const [bankAccount, setBankAccount] = useState("");
@@ -74,7 +75,7 @@ export default function AdminEmployees() {
   // Wajib: nama, nik, email, telepon, alamat, cabang, departemen, posisi
   const canSubmit = Boolean(
     name.trim() && nik.trim() && email.trim() && phone.trim() && address.trim() &&
-    branchId && departmentId && positionId,
+    branchId && departmentId && positionId && workLocationId,
   );
 
   // Kandidat SPV/Manager: hanya karyawan aktif pada cabang yang dipilih
@@ -95,7 +96,7 @@ export default function AdminEmployees() {
     setBranchId(""); setDepartmentId("");
     setPositionId(""); setWorkLocationId("");
     setEmploymentType(""); setBaseSalary(0); setAllowance(0);
-    setJoinDate(new Date().toISOString().slice(0, 10));
+    setJoinDate(toLocalISO(new Date()));
     setAddress(""); setBankName(""); setBankAccount("");
     setEmergencyName(""); setEmergencyRelation(""); setEmergencyPhone("");
     setPhotoUrl(""); setSpvId(""); setManagerId("");
@@ -119,6 +120,7 @@ export default function AdminEmployees() {
       resetForm();
       void refresh();
       toastOk("Karyawan ditambahkan");
+      if (j.tempPassword) void showTempPassword(j.email ?? email, j.tempPassword);
     } else {
       toastErr(j.error ?? "Gagal menambah karyawan.");
     }
@@ -178,21 +180,11 @@ export default function AdminEmployees() {
 
   async function handlePhotoUpload(file?: File) {
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toastErr("Ukuran foto maksimal 2 MB.");
-      return;
-    }
     setPhotoBusy(true);
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("kind", "photo");
     try {
-      const r = await fetch("/api/uploads", { method: "POST", body: fd });
-      const j = await r.json() as { ok: boolean; url?: string; error?: string };
-      if (j.ok && j.url) setPhotoUrl(j.url);
-      else toastErr(j.error ?? "Upload foto gagal.");
-    } catch {
-      toastErr("Upload foto gagal. Coba lagi.");
+      setPhotoUrl(await uploadFile(file, "photo"));
+    } catch (error) {
+      toastErr(error instanceof Error ? error.message : "Upload foto gagal.");
     }
     setPhotoBusy(false);
   }
@@ -443,7 +435,7 @@ export default function AdminEmployees() {
             <Input value={emergencyPhone} onChange={(e) => setEmergencyPhone(e.target.value)} />
           </Field>
           {showEditForm && <AccountSection employeeId={selected!} />}
-          <Btn variant="official" onClick={showEditForm ? handleEdit : handleAdd} disabled={!canSubmit} className="w-full">
+           <Btn variant="official" onClick={showEditForm ? handleEdit : handleAdd} disabled={busy || !canSubmit} className="w-full">
             {showEditForm ? "Simpan Perubahan" : "Simpan Karyawan"}
           </Btn>
         </div>
@@ -455,16 +447,17 @@ export default function AdminEmployees() {
 function AccountSection({ employeeId }: { employeeId: string }) {
   const { state, refresh } = useHris();
   const account = state.data.users.find((u) => u.employeeId === employeeId);
-  const [role, setRole] = useState(account?.role ?? "employee");
+  const accountId = account?.id;
+  const [role, setRole] = useState<Role>(account?.role ?? "employee");
   const [busy, setBusy] = useState(false);
   const [loginActive, setLoginActive] = useState<boolean | null>(null);
   useEffect(() => {
-    if (!account) return;
-    void fetch(`/api/users/${account.id}`)
+    if (!accountId) return;
+    void fetch(`/api/users/${accountId}`)
       .then((r) => r.json())
       .then((j) => { if (typeof j.user?.active === "boolean") setLoginActive(j.user.active); })
       .catch(() => undefined);
-  }, [account?.id]);
+  }, [accountId]);
   async function createAccount() {
     setBusy(true);
     const r = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ employeeId, role }) });
@@ -487,7 +480,7 @@ function AccountSection({ employeeId }: { employeeId: string }) {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="min-w-0">
             <p className="mb-1 text-xs font-semibold tracking-wide text-ink-soft uppercase">Role</p>
-            <Select value={role} onChange={(e) => setRole(e.target.value as never)} aria-label="Role akun baru" className="min-w-0 py-1.5 text-xs">
+            <Select value={role} onChange={(e) => setRole(e.target.value as Role)} aria-label="Role akun baru" className="min-w-0 py-1.5 text-xs">
               <option value="employee">Employee</option>
               <option value="supervisor">Supervisor</option>
               <option value="manager">Manager</option>
@@ -535,7 +528,7 @@ function AccountSection({ employeeId }: { employeeId: string }) {
         <div className="min-w-0">
           <p className="mb-1 text-xs font-semibold tracking-wide text-ink-soft uppercase">Role</p>
           <div className="flex items-center gap-2">
-            <Select value={role} onChange={(e) => setRole(e.target.value as never)} aria-label="Role akun" className="min-w-0 flex-1 py-1.5 text-xs">
+            <Select value={role} onChange={(e) => setRole(e.target.value as Role)} aria-label="Role akun" className="min-w-0 flex-1 py-1.5 text-xs">
               <option value="employee">Employee</option>
               <option value="supervisor">Supervisor</option>
               <option value="manager">Manager</option>

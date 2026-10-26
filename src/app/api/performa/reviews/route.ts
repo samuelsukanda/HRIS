@@ -1,5 +1,5 @@
 import { pool } from "@/db/client";
-import { creatorBranchId, nextId, writeAudit } from "@/lib/server/state";
+import { nextId, writeAudit } from "@/lib/server/state";
 import { getSessionUser } from "@/lib/server/session";
 
 import { isHr } from "@/lib/roles";
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   const targetR = await pool.query(`SELECT name, branch_id FROM employees WHERE id=$1`, [employeeId]);
   if (targetR.rows.length === 0) return Response.json({ ok: false, error: "Karyawan tidak ditemukan." }, { status: 404 });
   if (user.role === "hr") {
-    const myBranch = await creatorBranchId(user.employee_id);
+    const myBranch = user.branch_id;
     if (myBranch && targetR.rows[0].branch_id && targetR.rows[0].branch_id !== myBranch) {
       return Response.json({ ok: false, error: "Karyawan milik cabang lain." }, { status: 403 });
     }
@@ -36,11 +36,10 @@ export async function POST(req: Request) {
     [id, employeeId, user.employee_id, period, score, strengths, improvements, goals],
   );
 
-  const empR = await pool.query(`SELECT name FROM employees WHERE id=$1`, [user.employee_id]);
   await writeAudit({
-    actorId: user.id, actorName: empR.rows[0]?.name ?? user.employee_id,
+    actorId: user.id, actorName: user.name,
     action: "Performance review submitted", targetType: "performance_review", targetId: id,
-    detail: `${empR.rows[0]?.name} → ${targetR.rows[0]?.name ?? employeeId} (${period}, score: ${score})`,
+    detail: `${user.name} → ${targetR.rows[0]?.name ?? employeeId} (${period}, score: ${score})`,
     at: new Date().toISOString(),
   });
 

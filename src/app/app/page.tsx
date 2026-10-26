@@ -5,9 +5,9 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Briefcase, Fingerprint, GraduationCap, HandHeart, Megaphone, NotePencil, Package, Wallet } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { Stamp } from "@/components/ui";
-import { leaveBalance } from "@/lib/engine";
+import { activeAttendanceContext, leaveBalance } from "@/lib/engine";
 import { fmtClockFromDate, fmtDateID } from "@/lib/format";
-import { currentUser, rosterShiftFor, todayISO, useHris } from "@/lib/store";
+import { currentUser, todayISO, useHris } from "@/lib/store";
 
 export default function EmployeeHome() {
   const { state } = useHris();
@@ -17,8 +17,11 @@ export default function EmployeeHome() {
   const [now, setNow] = useState<Date | null>(null);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-gate: component renders after HrisProvider ready, so this is client-only
   useEffect(() => { const t = new Date(); setNow(t); }, []);
-  const shift = me ? rosterShiftFor(data, me.employee.id, today) : null;
-  const attToday = me ? data.attendance.find((a) => a.employeeId === me.employee.id && a.date === today) : null;
+  const currentTime = new Date();
+  const attendanceContext = me ? activeAttendanceContext(data, me.employee.id, currentTime) : null;
+  const shift = attendanceContext?.shift ?? null;
+  const attToday = attendanceContext?.attendance ?? null;
+  const activeDate = attendanceContext?.date ?? today;
   const myLeave = me ? data.leaveRequests.filter((r) => r.employeeId === me.employee.id) : [];
   const pendingMine = myLeave.filter((r) => r.status === "pending").length;
   const annual = data.leaveTypes.find((t) => /annual/i.test(t.name)) ?? data.leaveTypes[0];
@@ -34,7 +37,7 @@ export default function EmployeeHome() {
       {/* Kartu shift hari ini — bento with breathing indicator */}
       <motion.section variants={{ hidden:{ opacity:0, y:10 }, visible:{ opacity:1, y:0, transition:{ type:"spring", stiffness:100, damping:20 }}}} aria-label="Shift hari ini" className="rounded-[1.5rem] border border-slate-200/60 bg-white shadow-[0_20px_40px_-20px_rgba(0,0,0,0.08)]">
         <header className="flex items-center justify-between border-b border-rule px-5 py-3">
-          <p className="font-mono text-[10px] tracking-widest text-ink-faint uppercase">{fmtDateID(today)}</p>
+          <p className="font-mono text-[10px] tracking-widest text-ink-faint uppercase">{fmtDateID(activeDate)}</p>
           <p className="tnum font-mono text-sm font-semibold">{now ? fmtClockFromDate(now) : "—"}</p>
         </header>
         <div className="px-5 py-5">

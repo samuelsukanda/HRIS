@@ -68,6 +68,9 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_idx ON users(lower(email));
+CREATE UNIQUE INDEX IF NOT EXISTS employees_email_lower_idx ON employees(lower(email));
+
 CREATE TABLE IF NOT EXISTS shifts (
   id               TEXT PRIMARY KEY,
   name             TEXT NOT NULL,
@@ -174,6 +177,7 @@ CREATE TABLE IF NOT EXISTS payslips (
   breakdown   JSONB NOT NULL,
   UNIQUE (run_id, employee_id)
 );
+ALTER TABLE payslips ADD COLUMN IF NOT EXISTS employee_snapshot JSONB;
 
 -- Phase 3-4 modules
 
@@ -253,6 +257,7 @@ CREATE TABLE IF NOT EXISTS asset_assignments (
   returned_at  TIMESTAMPTZ
 );
 ALTER TABLE asset_assignments ADD COLUMN IF NOT EXISTS return_requested_at TIMESTAMPTZ;
+CREATE UNIQUE INDEX IF NOT EXISTS asset_assignments_active_idx ON asset_assignments(asset_id) WHERE returned_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS performance_reviews (
   id           TEXT PRIMARY KEY,
@@ -306,6 +311,7 @@ CREATE TABLE IF NOT EXISTS asset_requests (
 );
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS session_version INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS attachment_url TEXT;
 ALTER TABLE reimbursements ADD COLUMN IF NOT EXISTS attachment_url TEXT;
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS photo_url TEXT;
@@ -320,4 +326,16 @@ CREATE TABLE IF NOT EXISTS notifications (
   read       BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL,
   link       TEXT
+);
+
+CREATE TABLE IF NOT EXISTS upload_records (
+  filename   TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES users(id),
+  size_bytes INTEGER NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS id_counters (
+  table_name TEXT PRIMARY KEY,
+  next_num   INTEGER NOT NULL
 );

@@ -2,7 +2,6 @@ import { pool } from "@/db/client";
 import { checkGeofence, classifyCheckIn, computeRisk, descriptorDistance, runValidationPipeline, statusFromCheckIn } from "@/lib/engine";
 import { getSessionUser } from "@/lib/server/session";
 import { writeAudit } from "@/lib/server/state";
-import { ATTENDANCE_TEST_MODE } from "@/lib/server/test-mode";
 import { decryptDescriptor } from "@/lib/server/crypto";
 import { toLocalISO } from "@/lib/format";
 import type { AttendanceRecord, VerificationSnapshot } from "@/lib/types";
@@ -19,6 +18,7 @@ interface CheckInBody {
   livenessPassed: boolean;
   deviceId: string;
   deviceName: string;
+  wfh?: boolean;
 }
 
 export async function POST(req: Request) {
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
   const body = (await req.json()) as CheckInBody;
   const empR = await pool.query(
-    `SELECT e.*, w.latitude lat, w.longitude lng, w.radius_m, w.name loc_name
+    `SELECT e.*, w.latitude lat, w.longitude lng, w.radius_m, w.allowed_types, w.name loc_name
      FROM employees e JOIN work_locations w ON w.id = e.work_location_id WHERE e.id = $1`,
     [user.employee_id],
   );
@@ -35,27 +35,24 @@ export async function POST(req: Request) {
   if (!emp) return Response.json({ ok: false, error: "Karyawan tidak ditemukan." }, { status: 404 });
 
   const now = new Date();
-  const date = toLocalISO(now);
-
-  // Sudah absen hari ini?
-  const existingId = `ATT-${date.replaceAll("-", "")}-${emp.id}`;
-  const dup = await pool.query(`SELECT id, check_in_at FROM attendance WHERE id = $1`, [existingId]);
-  if (dup.rows[0]?.check_in_at) {
-    // Mode test: hapus rekaman hari ini agar bisa absen berkali-kali
-    if (ATTENDANCE_TEST_MODE) {
-      await pool.query(`DELETE FROM attendance WHERE id = $1`, [existingId]);
-    } else {
-      return Response.json({ ok: false, error: "Anda sudah melakukan check-in hari ini.", code: "duplicate" }, { status: 409 });
-    }
-  }
+  const today = toLocalISO(now);
+  const yesterday = toLocalISO(new Date(now.getTime() - 86_400_000));
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  let date = today;
   // ── Kebijakan WFH dari server (bukan klaim client) ──
   const setR = await pool.query(`SELECT key, value FROM settings WHERE key IN ('wfh_gps','wfh_face','wfh_liveness','checkin_window')`);
   const policy = Object.fromEntries(setR.rows.map((x: { key: string; value: string }) => [x.key, x.value]));
   const wfhFaceRequired = (policy.wfh_face ?? "WAJIB") === "WAJIB";
   const wfhLiveRequired = (policy.wfh_liveness ?? "WAJIB") === "WAJIB";
-  // window check-in (menit) dari Master Data, default 60 bila belum diset
+  const wfhGpsRequired = (policy.wfh_gps ?? "TIDAK WAJIB") === "WAJIB";
   const windowMin = Math.min(720, Math.max(5, Number(policy.checkin_window) || 60));
-  const isWfh = (body as CheckInBody & { wfh?: boolean }).wfh === true;
+  const isWfh = body.wfh === true;
+  if (isWfh && !(Array.isArray(emp.allowed_types) && emp.allowed_types.includes("wfh"))) {
+    return Response.json({ ok: false, error: "WFH tidak diizinkan untuk lokasi kerja ini." }, { status: 403 });
+  }
+  if (isWfh && wfhGpsRequired && (!Number.isFinite(body.latitude) || !Number.isFinite(body.longitude) || (body.latitude === 0 && body.longitude === 0))) {
+    return Response.json({ ok: false, error: "GPS WFH wajib diaktifkan." }, { status: 422 });
+  }
 
   // ── 03 Geofence — hard gate di server (dilewati untuk WFH) ──
   const office = { latitude: emp.lat, longitude: emp.lng, radiusM: emp.radius_m };
@@ -89,20 +86,36 @@ export async function POST(req: Request) {
   const firstEver = knownDevices.size === 0;
   const deviceTrusted = firstEver || knownDevices.has(body.deviceId);
 
-  // ── Jadwal & window ──
-  const rosterR = await pool.query(`SELECT shift_id FROM roster WHERE employee_id = $1 AND date = $2`, [emp.id, date]);
-  const shiftId = rosterR.rows[0]?.shift_id ?? null;
-  let shift: { start: string; graceMinutes: number } | null = null;
-  if (shiftId) {
-    const s = await pool.query(`SELECT start_time, grace_minutes FROM shifts WHERE id = $1`, [shiftId]);
-    if (s.rows[0]) shift = { start: s.rows[0].start_time, graceMinutes: s.rows[0].grace_minutes };
+  const rosterR = await pool.query(
+    `SELECT ro.date, s.start_time, s.end_time, s.grace_minutes, s.crosses_midnight
+     FROM roster ro LEFT JOIN shifts s ON s.id = ro.shift_id
+     WHERE ro.employee_id = $1 AND ro.date IN ($2, $3)`,
+    [emp.id, today, yesterday],
+  );
+  const toMinutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3));
+  const rosterRows = rosterR.rows.map((row) => ({ ...row, date: toLocalISO(row.date) }));
+  const currentShift = rosterRows.find((row) => row.date === today && row.start_time);
+  const previousOvernight = rosterRows.find((row) => row.date === yesterday && row.crosses_midnight && nowMinutes < toMinutes(row.end_time));
+  const activeShift = currentShift ?? previousOvernight;
+  if (activeShift) date = activeShift.date;
+  const shift = activeShift
+    ? { start: activeShift.start_time, end: activeShift.end_time, graceMinutes: activeShift.grace_minutes, crossesMidnight: activeShift.crosses_midnight }
+    : null;
+  if (!shift) {
+    return Response.json({ ok: false, code: "no_schedule", title: "Tidak ada jadwal hari ini.", lines: ["Anda tidak terjadwal bekerja hari ini."] }, { status: 422 });
   }
-  const nowMin = now.getHours() * 60 + now.getMinutes();
-  const withinWindow = shift ? Math.abs(nowMin - (+shift.start.slice(0, 2) * 60 + +shift.start.slice(3))) <= windowMin : false;
+  const elapsedMinutes = nowMinutes + (date < today && shift.crossesMidnight ? 1440 : 0);
+  const withinWindow = Math.abs(elapsedMinutes - toMinutes(shift.start)) <= windowMin;
+
+  const existingId = `ATT-${date.replaceAll("-", "")}-${emp.id}`;
+  const dup = await pool.query(`SELECT id, check_in_at FROM attendance WHERE id = $1`, [existingId]);
+  if (dup.rows[0]?.check_in_at) {
+    return Response.json({ ok: false, error: "Anda sudah melakukan check-in hari ini.", code: "duplicate" }, { status: 409 });
+  }
 
   // ── Verifikasi wajah 1:1 — descriptor live vs template terdaftar (server-side) ──
   // WFH ikut policy server: bila TIDAK WAJIB, tahap dilewati (tetap tercatat di snapshot)
-  const stored = emp.face_descriptor ? decryptDescriptor(emp.face_descriptor as any) : null;
+  const stored = emp.face_descriptor ? decryptDescriptor(emp.face_descriptor) : null;
   if (!stored && (wfhFaceRequired || !isWfh)) {
     return Response.json({
       ok: false,
@@ -158,7 +171,7 @@ export async function POST(req: Request) {
     deviceChanged: !deviceTrusted && !firstEver,
   });
 
-  const criticalFail = pipeline.stages.find((s) => !s.pass && [3, 5, 6].includes(s.stage));
+  const criticalFail = pipeline.stages.find((s) => !s.pass && [3, 5, 6, 7].includes(s.stage));
   const faceGateOk = faceMatch || (isWfh && !wfhFaceRequired);
   const verificationStatus = criticalFail
     ? "rejected"
@@ -168,7 +181,25 @@ export async function POST(req: Request) {
         ? "valid"
         : "review";
 
-  const classification = shift ? classifyCheckIn(shift as never, now) : { kind: "early" as const, lateMinutes: 0 };
+  if (verificationStatus === "rejected") {
+    await writeAudit({
+      actorId: user.id,
+      actorName: emp.name,
+      action: "Attendance rejected",
+      targetType: "attendance",
+      targetId: existingId,
+      detail: criticalFail?.detail ?? "Verifikasi absensi gagal",
+      at: now.toISOString(),
+    });
+    return Response.json({
+      ok: false,
+      code: "verification_rejected",
+      title: "Absensi tidak dapat diproses.",
+      lines: [criticalFail?.detail ?? "Verifikasi wajah, liveness, jadwal, atau lokasi gagal."],
+    }, { status: 422 });
+  }
+
+  const classification = classifyCheckIn(shift, now);
   // WFH tercatat sebagai status wfh agar rekap & UI konsisten
   const finalStatus = isWfh ? ("wfh" as const) : statusFromCheckIn(classification);
 
@@ -211,7 +242,7 @@ export async function POST(req: Request) {
   await writeAudit({
     actorId: user.id,
     actorName,
-    action: verificationStatus === "rejected" ? "Attendance rejected" : "Checked in",
+    action: "Checked in",
     targetType: "attendance",
     targetId: existingId,
     detail: isWfh ? `Check-in WFH · risiko ${risk.score}/100 (${verificationStatus})` : `Check-in ${emp.loc_name} · jarak ${geo.distanceM} m · risiko ${risk.score}/100 (${verificationStatus})`,

@@ -4,8 +4,9 @@ import { useState } from "react";
 import { HandHeart, X } from "@phosphor-icons/react";
 import { Btn, EmptyState, Field, Input, Select, StatusStamp, Textarea } from "@/components/ui";
 import { confirmDelete, toastOk } from "@/lib/swal";
+import { uploadFile } from "@/lib/upload";
 import { leaveBalance } from "@/lib/engine";
-import { fmtDateRangeID } from "@/lib/format";
+import { fmtDateRangeID, inclusiveDays, isCalendarDate } from "@/lib/format";
 import { currentUser, useHris } from "@/lib/store";
 
 export default function EmployeeLeave() {
@@ -26,18 +27,18 @@ export default function EmployeeLeave() {
     .filter((r) => r.employeeId === employee.id)
     .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
 
-  function submit() {
+  async function submit() {
     setFormError(null);
     const type = state.data.leaveTypes.find((t) => t.id === typeId);
     if (!type) return setFormError("Jenis cuti tidak tersedia.");
-    if (!start || !end) return setFormError("Tanggal mulai dan selesai wajib diisi.");
-    if (end < start) return setFormError("Tanggal selesai tidak boleh sebelum tanggal mulai.");
-    const days = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 86_400_000) + 1;
+    if (!isCalendarDate(start) || !isCalendarDate(end) || end < start) return setFormError("Tanggal tidak valid.");
+    const days = inclusiveDays(start, end);
+    if (type.requiresAttachment && !attachmentUrl) return setFormError("Lampiran wajib untuk jenis cuti ini.");
     const bal = leaveBalance(type.allocationDays, myRequests.filter((r) => r.typeId === typeId));
     if (type.paid && bal.remaining < days)
       return setFormError(`Saldo ${type.name} tinggal ${Math.max(0, bal.remaining)} hari — kurang untuk ${days} hari.`);
     if (reason.trim().length < 10) return setFormError("Tuliskan alasan minimal satu kalimat.");
-    dispatch({
+    const ok = await dispatch({
       type: "SUBMIT_LEAVE",
       request: {
         id: `LRV-${String(state.data.leaveRequests.length + 100).padStart(3, "0")}`,
@@ -52,6 +53,7 @@ export default function EmployeeLeave() {
         ...(attachmentUrl ? { attachmentUrl } : {}),
       },
     });
+    if (!ok) return;
     setStart("");
     setEnd("");
     setReason("");
@@ -132,16 +134,13 @@ export default function EmployeeLeave() {
               <input type="file" accept=".jpg,.jpeg,.png,.pdf" className="sr-only" onChange={async e=> {
               const f=e.target.files?.[0];
               if(!f) return;
-              if(f.size>2*1024*1024){ setFormError("File max 2MB"); return; }
               setFormError(null);
               setFileName(f.name);
-              const fd=new FormData(); fd.append("file", f);
               try {
-                const r=await fetch("/api/uploads",{method:"POST",body:fd});
-                const j=await r.json() as {ok:boolean;url?:string;error?:string};
-                if(j.ok && j.url){ setAttachmentUrl(j.url); }
-                else setFormError(j.error ?? "Upload gagal.");
-              } catch { setFormError("Upload gagal. Coba lagi."); }
+                setAttachmentUrl(await uploadFile(f));
+              } catch (error) {
+                setFormError(error instanceof Error ? error.message : "Upload gagal.");
+              }
               e.target.value="";
             }} />
             </label>

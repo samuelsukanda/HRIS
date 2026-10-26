@@ -72,7 +72,7 @@ const GROUPS: NavGroup[] = [
     title: "Kompensasi",
     items: [
       { href: "/admin/lembur", label: "Lembur", icon: Briefcase },
-      { href: "/admin/payroll", label: "Payroll", icon: CurrencyDollar, hrOnly: true },
+      { href: "/admin/payroll", label: "Payroll", icon: CurrencyDollar, saOnly: true },
       { href: "/admin/reimbursements", label: "Reimbursement", icon: Ticket, hrOnly: true },
     ],
   },
@@ -114,7 +114,7 @@ const PAGE_ACCESS: { prefix: string; allow: (role: string) => boolean }[] = [
   { prefix: "/admin/laporan", allow: isHr },
   { prefix: "/admin/pengumuman", allow: isHr },
   { prefix: "/admin/audit", allow: (role) => role === "super_admin" },
-  { prefix: "/admin/payroll", allow: isHr },
+  { prefix: "/admin/payroll", allow: (role) => role === "super_admin" },
   { prefix: "/admin/reimbursements", allow: isHr },
 ];
 

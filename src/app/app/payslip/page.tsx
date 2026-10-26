@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import { CaretDown, Printer, Wallet } from "@phosphor-icons/react";
 import { Btn, EmptyState, PageHead, Select, Stamp } from "@/components/ui";
-import { fmtDateID, fmtDateTimeID, fmtRupiah } from "@/lib/format";
+import { BULAN_LONG, fmtDateID, fmtDateTimeID, fmtRupiah, toLocalISO } from "@/lib/format";
 import type { PayrollBreakdown } from "@/lib/payroll";
 
 interface Slip {
   period: string;
   approvedAt: string | null;
   breakdown: PayrollBreakdown;
+  employeeSnapshot?: EmployeeInfo | null;
 }
 
 interface EmployeeInfo {
@@ -25,11 +26,9 @@ interface EmployeeInfo {
   department: string;
 }
 
-const NAMA_BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-
 function formatPeriod(period: string): string {
   const [y, m] = period.split("-").map(Number);
-  return `${NAMA_BULAN[(m ?? 1) - 1]} ${y}`;
+  return `${BULAN_LONG[(m ?? 1) - 1]} ${y}`;
 }
 
 const STATUS_KERJA: Record<string, string> = {
@@ -153,7 +152,7 @@ export default function MyPayslips() {
       {/* Dokumen cetak — hanya periode terpilih */}
       {selected && (
         <div className="hidden print:block">
-          <SlipDocument slip={selected} employee={employee} />
+          <SlipDocument slip={selected} employee={selected.employeeSnapshot ?? employee} />
         </div>
       )}
     </>
@@ -275,7 +274,7 @@ function SlipDocument({ slip, employee }: { slip: Slip; employee: EmployeeInfo |
 
       {/* Catatan kaki */}
       <p className="mt-8 border-t border-rule pt-2 text-[10px] leading-relaxed text-ink-faint">
-        Dokumen ini dihasilkan oleh sistem HRIS pada {fmtDateID(todayISO())} sebagai bukti pembayaran resmi periode {formatPeriod(slip.period)}. Komputasi PPH21 memakai metode tahunan sederhana — silakan hubungi HR bila ada koreksi.
+        Dokumen ini dihasilkan oleh sistem HRIS pada {fmtDateID(toLocalISO(new Date()))} sebagai bukti pembayaran resmi periode {formatPeriod(slip.period)}. Komputasi PPH21 memakai metode tahunan sederhana — silakan hubungi HR bila ada koreksi.
       </p>
     </article>
   );
@@ -310,11 +309,6 @@ function MoneyRow({ k, v, neg, strong }: { k: string; v: string; neg?: boolean; 
 
 function fmtNum(n: number): string {
   return n.toLocaleString("id-ID", { maximumFractionDigits: 2 });
-}
-
-function todayISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function Row({ k, v, bold, neg }: { k: string; v: string; bold?: boolean; neg?: boolean }) {

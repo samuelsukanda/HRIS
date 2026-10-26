@@ -7,7 +7,7 @@ export async function GET() {
   if (!user) return Response.json({ ok: false }, { status: 401 });
   const [runs, identity] = await Promise.all([
     pool.query(
-      `SELECT p.period, p.status, p.approved_at, s.breakdown
+      `SELECT p.period, p.status, p.approved_at, s.breakdown, s.employee_snapshot
        FROM payslips s JOIN payroll_runs p ON p.id = s.run_id
        WHERE s.employee_id = $1 AND p.status = 'approved'
        ORDER BY p.period DESC LIMIT 12`,
@@ -44,6 +44,7 @@ export async function GET() {
       period: x.period,
       approvedAt: x.approved_at,
       breakdown: x.breakdown,
+      employeeSnapshot: x.employee_snapshot ?? null,
     })),
   });
 }

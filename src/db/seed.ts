@@ -1,32 +1,6 @@
 import { applySchema, pool } from "./client";
 import { hashPassword } from "../lib/server/auth";
 import { seedData } from "../lib/data";
-import type {
-  Announcement,
-  ApprovalEntry,
-  Asset,
-  AssetAssignment,
-  AttendanceRecord,
-  AuditLogEntry,
-  Bank,
-  Branch,
-  Candidate,
-  Department,
-  Employee,
-  JobPosting,
-  LeaveRequest,
-  LeaveType,
-  Notification,
-  OvertimeRequest,
-  PerformanceReview,
-  Position,
-  Reimbursement,
-  RosterEntry,
-  Shift,
-  Training,
-  TrainingEnrollment,
-  WorkLocation,
-} from "../lib/types";
 
 const DEMO_PASSWORD = "demo1234";
 
@@ -40,21 +14,21 @@ async function main() {
     audit_logs, announcements, notifications, reimbursements, candidates, training_enrollments,
     asset_assignments, performance_reviews, assets, trainings, job_postings, shift_swaps, asset_requests,
     users, employees, shifts, work_locations, departments, positions,
-    branches, leave_types, banks RESTART IDENTITY CASCADE`);
+    branches, leave_types, banks, upload_records, id_counters RESTART IDENTITY CASCADE`);
 
-  for (const b of d.branches as Branch[])
+  for (const b of d.branches)
     await q(`INSERT INTO branches (id,name,city) VALUES ($1,$2,$3)`, [b.id, b.name, b.city]);
 
-  for (const dep of d.departments as Department[])
+  for (const dep of d.departments)
     await q(`INSERT INTO departments (id,name,branch_id) VALUES ($1,$2,$3)`, [dep.id, dep.name, dep.branchId]);
 
-  for (const p of d.positions as Position[])
+  for (const p of d.positions)
     await q(`INSERT INTO positions (id,title,level) VALUES ($1,$2,$3)`, [p.id, p.title, p.level]);
 
-  for (const b of d.banks as Bank[])
+  for (const b of d.banks)
     await q(`INSERT INTO banks (id,name) VALUES ($1,$2)`, [b.id, b.name]);
 
-  for (const w of d.workLocations as WorkLocation[])
+  for (const w of d.workLocations)
     await q(
       `INSERT INTO work_locations (id,name,branch_id,latitude,longitude,radius_m,allowed_types)
        VALUES ($1,$2,$3,$4,$5,$6,$7)`,
@@ -72,9 +46,9 @@ async function main() {
     admin: [5_500_000, 900_000],
   };
 
-  const positionLevel = new Map((d.positions as Position[]).map((p) => [p.id, p.level.toLowerCase()]));
+  const positionLevel = new Map((d.positions).map((p) => [p.id, p.level.toLowerCase()]));
 
-  for (const e of d.employees as Employee[]) {
+  for (const e of d.employees) {
     const level = positionLevel.get(e.positionId) ?? "staff";
     const [base, allowance] = levelSalary[level] ?? levelSalary.staff;
     await q(
@@ -96,17 +70,17 @@ async function main() {
       u.id, u.employeeId, u.email, u.role, hashPassword(DEMO_PASSWORD),
     ]);
 
-  for (const s of d.shifts as Shift[])
+  for (const s of d.shifts)
     await q(`INSERT INTO shifts (id,name,start_time,end_time,grace_minutes,crosses_midnight) VALUES ($1,$2,$3,$4,$5,$6)`, [
       s.id, s.name, s.start, s.end, s.graceMinutes, s.crossesMidnight,
     ]);
 
-  for (const r of d.roster as RosterEntry[])
+  for (const r of d.roster)
     await q(`INSERT INTO roster (employee_id,date,shift_id) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`, [
       r.employeeId, r.date, r.shiftId,
     ]);
 
-  for (const a of d.attendance as AttendanceRecord[]) {
+  for (const a of d.attendance) {
     const snap = a.checkInSnap ? JSON.stringify(a.checkInSnap) : null;
     const out = a.checkOutSnap ? JSON.stringify(a.checkOutSnap) : null;
     await q(
@@ -123,12 +97,12 @@ async function main() {
     );
   }
 
-  for (const l of d.leaveTypes as LeaveType[])
+  for (const l of d.leaveTypes)
     await q(`INSERT INTO leave_types (id,name,allocation_days,paid,requires_attachment) VALUES ($1,$2,$3,$4,$5)`, [
       l.id, l.name, l.allocationDays, l.paid, l.requiresAttachment,
     ]);
 
-  for (const r of d.leaveRequests as LeaveRequest[])
+  for (const r of d.leaveRequests)
     await q(
       `INSERT INTO leave_requests (id,employee_id,type_id,start_date,end_date,days,reason,status,submitted_at,decided_by,decided_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
@@ -138,85 +112,86 @@ async function main() {
       ],
     );
 
-  for (const o of d.overtimeRequests as OvertimeRequest[])
+  for (const o of d.overtimeRequests)
     await q(
       `INSERT INTO overtime_requests (id,employee_id,date,start_time,end_time,hours,reason,status,submitted_at,decided_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
       [o.id, o.employeeId, o.date, o.start, o.end, o.hours, o.reason, o.status, new Date(o.submittedAt), o.decidedBy ?? null],
     );
 
-  for (const log of d.auditLogs as AuditLogEntry[])
+  for (const log of d.auditLogs)
     await q(
       `INSERT INTO audit_logs (id,actor_id,actor_name,action,target_type,target_id,detail,"before","after",at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
       [log.id, log.actorId, log.actorName, log.action, log.targetType, log.targetId, log.detail, log.before ?? null, log.after ?? null, new Date(log.at)],
     );
 
-  for (const a of d.announcements as Announcement[])
+  for (const a of d.announcements)
     await q(`INSERT INTO announcements (id,title,body,category,date,branch_id) VALUES ($1,$2,$3,$4,$5,$6)`, [
       a.id, a.title, a.body, a.category, a.date, a.branchId ?? null,
     ]);
 
-  for (const r of d.reimbursements as Reimbursement[])
+  for (const r of d.reimbursements)
     await q(
       `INSERT INTO reimbursements (id,employee_id,category,amount,description,status,submitted_at,approvals)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
       [r.id, r.employeeId, r.category, r.amount, r.description, r.status, new Date(r.submittedAt), JSON.stringify(r.approvals)],
     );
 
-  for (const j of d.jobPostings as JobPosting[])
+  for (const j of d.jobPostings)
     await q(
       `INSERT INTO job_postings (id,title,department_id,description,requirements,salary_range,status,created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
       [j.id, j.title, j.departmentId, j.description, j.requirements, j.salaryRange, j.status, new Date(j.createdAt)],
     );
 
-  for (const c of d.candidates as Candidate[])
+  for (const c of d.candidates)
     await q(
       `INSERT INTO candidates (id,job_posting_id,name,email,phone,status,applied_at,notes)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
       [c.id, c.jobPostingId, c.name, c.email, c.phone, c.status, new Date(c.appliedAt), c.notes ?? null],
     );
 
-  for (const t of d.trainings as Training[])
+  for (const t of d.trainings)
     await q(
       `INSERT INTO trainings (id,title,provider,description,start_date,end_date,max_participants,status,branch_id)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
       [t.id, t.title, t.provider, t.description, t.startDate, t.endDate, t.maxParticipants, t.status, t.branchId ?? null],
     );
 
-  for (const e of d.trainingEnrollments as TrainingEnrollment[])
+  for (const e of d.trainingEnrollments)
     await q(
       `INSERT INTO training_enrollments (id,training_id,employee_id,status,enrolled_at)
        VALUES ($1,$2,$3,$4,$5)`,
       [e.id, e.trainingId, e.employeeId, e.status, new Date(e.enrolledAt)],
     );
 
-  for (const a of d.assets as Asset[])
+  for (const a of d.assets)
     await q(
       `INSERT INTO assets (id,name,category,serial_number,purchase_date,status,brand,model,purchase_price,notes,branch_id)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
       [a.id, a.name, a.category, a.serialNumber, a.purchaseDate, a.status, a.brand ?? null, a.model ?? null, a.purchasePrice ?? null, a.notes ?? null, a.branchId ?? null],
     );
 
-  for (const a of d.assetAssignments as AssetAssignment[])
+  for (const a of d.assetAssignments)
     await q(
       `INSERT INTO asset_assignments (id,asset_id,employee_id,assigned_at,returned_at)
        VALUES ($1,$2,$3,$4,$5)`,
       [a.id, a.assetId, a.employeeId, new Date(a.assignedAt), a.returnedAt ? new Date(a.returnedAt) : null],
     );
 
-  for (const r of d.performanceReviews as PerformanceReview[])
+  for (const r of d.performanceReviews)
     await q(
       `INSERT INTO performance_reviews (id,employee_id,reviewer_id,period,score,strengths,improvements,goals,status,created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
       [r.id, r.employeeId, r.reviewerId, r.period, r.score, r.strengths, r.improvements, r.goals, r.status, new Date(r.createdAt)],
     );
 
-  for (const n of d.notifications as Notification[])
+  for (const n of d.notifications)
     await q(
       `INSERT INTO notifications (id,user_id,title,body,type,read,created_at,link)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+       SELECT $1,$2,$3,$4,$5,$6,$7,$8
+       WHERE EXISTS (SELECT 1 FROM users WHERE id=$2 AND role <> 'super_admin')`,
       [n.id, n.userId, n.title, n.body, n.type, n.read, new Date(n.createdAt), n.link ?? null],
     );
 
